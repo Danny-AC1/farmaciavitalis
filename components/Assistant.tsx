@@ -1,0 +1,156 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, Send, X, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { Product } from '../types';
+import { createAssistantChat } from '../services/gemini';
+import { Chat } from "@google/genai";
+
+interface AssistantProps {
+  products: Product[];
+}
+
+interface Message {
+  role: 'user' | 'model';
+  text: string;
+}
+
+const Assistant: React.FC<AssistantProps> = ({ products }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'model', text: '¡Hola! Soy VitalBot 🤖. ¿En qué puedo ayudarte con tu salud hoy?' }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const chatSession = useRef<Chat | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Chat when opened or products change
+  useEffect(() => {
+    if (isOpen && !chatSession.current) {
+      chatSession.current = createAssistantChat(products);
+    }
+    // Update context if products change (re-init logic could be more complex, 
+    // but for simplicity we keep the session if already active, or user can restart)
+  }, [isOpen, products]);
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isOpen]);
+
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim()) return;
+    if (!chatSession.current) {
+        // Retry init if failed previously
+        chatSession.current = createAssistantChat(products);
+        if (!chatSession.current) {
+            setMessages(prev => [...prev, { role: 'model', text: 'Lo siento, no puedo conectarme en este momento.' }]);
+            return;
+        }
+    }
+
+    const userMsg = input;
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await chatSession.current.sendMessage({ message: userMsg });
+      const text = response.text || "Lo siento, no entendí eso.";
+      setMessages(prev => [...prev, { role: 'model', text }]);
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, { role: 'model', text: 'Tuve un problema al procesar tu mensaje. ¿Podrías intentarlo de nuevo?' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`fixed bottom-6 right-6 z-40 p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center ${
+          isOpen ? 'bg-red-500 rotate-90' : 'bg-teal-600 hover:bg-teal-700'
+        }`}
+      >
+        {isOpen ? <X className="text-white h-8 w-8" /> : <MessageCircle className="text-white h-8 w-8" />}
+      </button>
+
+      {/* Chat Window */}
+      <div 
+        className={`fixed bottom-24 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl z-40 border border-gray-200 overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right ${
+          isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0 pointer-events-none'
+        }`}
+        style={{ maxHeight: '600px', height: '70vh' }}
+      >
+        {/* Header */}
+        <div className="bg-teal-600 p-4 flex items-center gap-3 shrink-0">
+          <div className="bg-white/20 p-2 rounded-full">
+            <Bot className="text-white h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg">VitalBot</h3>
+            <p className="text-teal-100 text-xs flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Asistente IA
+            </p>
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
+          {messages.map((msg, idx) => (
+            <div 
+              key={idx} 
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div 
+                className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                  msg.role === 'user' 
+                    ? 'bg-teal-600 text-white rounded-tr-none' 
+                    : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+               <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-200 shadow-sm flex items-center gap-2 text-gray-400 text-sm">
+                 <Loader2 className="h-4 w-4 animate-spin" /> Escribiendo...
+               </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-100 shrink-0">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Pregunta sobre medicamentos..."
+              className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+            />
+            <button 
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 disabled:opacity-50 disabled:hover:bg-teal-600 transition-colors"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="text-center mt-2">
+            <p className="text-[10px] text-gray-400">VitalBot puede cometer errores. Consulta a un médico.</p>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+};
+
+export default Assistant;
