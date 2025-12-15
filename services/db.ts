@@ -8,8 +8,7 @@ import {
   deleteDoc, 
   onSnapshot,
   query,
-  orderBy,
-  addDoc
+  orderBy
 } from 'firebase/firestore';
 import { Product, Order, Category } from '../types';
 
@@ -116,8 +115,8 @@ export const seedInitialData = async () => {
   }
 
   const initialProds = [
-    { name: 'Paracetamol 500mg', description: 'Alivio efectivo para el dolor y la fiebre.', price: 2.50, category: 'Medicamentos', stock: 100, image: PLACEHOLDER_IMG },
-    { name: 'Vitamina C + Zinc', description: 'Refuerza tu sistema inmunológico.', price: 5.00, category: 'Vitaminas', stock: 50, image: PLACEHOLDER_IMG },
+    { name: 'Paracetamol 500mg', description: 'Alivio efectivo para el dolor y la fiebre.', price: 0.10, category: 'Medicamentos', stock: 200, image: PLACEHOLDER_IMG, unitsPerBox: 20, boxPrice: 1.80 },
+    { name: 'Vitamina C + Zinc', description: 'Refuerza tu sistema inmunológico.', price: 0.50, category: 'Vitaminas', stock: 50, image: PLACEHOLDER_IMG, unitsPerBox: 10, boxPrice: 4.50 },
     { name: 'Alcohol Antiséptico', description: 'Alcohol al 70% para desinfección.', price: 1.50, category: 'Primeros Auxilios', stock: 200, image: PLACEHOLDER_IMG }
   ];
 

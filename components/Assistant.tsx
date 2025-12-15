@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, X, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, X, Bot, Loader2, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { createAssistantChat } from '../services/gemini';
-import { Chat } from "@google/genai";
+import type { Chat } from "@google/genai";
 
 interface AssistantProps {
   products: Product[];
@@ -28,8 +28,6 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
     if (isOpen && !chatSession.current) {
       chatSession.current = createAssistantChat(products);
     }
-    // Update context if products change (re-init logic could be more complex, 
-    // but for simplicity we keep the session if already active, or user can restart)
   }, [isOpen, products]);
 
   // Auto-scroll

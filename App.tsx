@@ -3,7 +3,8 @@ import Navbar from './components/Navbar';
 import AdminPanel from './components/AdminPanel';
 import Checkout from './components/Checkout';
 import Assistant from './components/Assistant';
-import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, DELIVERY_FEE, DELIVERY_CITY } from './types';
+import ProductDetail from './components/ProductDetail';
+import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData } from './types';
 import { 
   streamProducts, 
   streamCategories, 
@@ -18,12 +19,12 @@ import {
   addOrderDB, 
   updateOrderStatusDB 
 } from './services/db';
-import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('HOME');
   
-  // Data State (now populated from Firebase)
+  // Data State
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -32,6 +33,9 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   
+  // Product Detail Modal State
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   // Navigation State
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -42,12 +46,13 @@ const App: React.FC = () => {
   // Search State
   const [searchTerm, setSearchTerm] = useState('');
 
+  // WhatsApp Link State for Success View
+  const [lastOrderLink, setLastOrderLink] = useState('');
+
   // Initialization: Subscribe to Firestore
   useEffect(() => {
-    // 1. Seed data if empty (only runs once per client basically if empty)
     seedInitialData().catch(console.error);
 
-    // 2. Setup listeners
     const unsubProducts = streamProducts((data) => setProducts(data));
     const unsubCategories = streamCategories((data) => setCategories(data));
     const unsubOrders = streamOrders((data) => setOrders(data));
@@ -62,39 +67,78 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // --- Logic Helper: Calculate total reserved stock for a product in cart ---
+  const getReservedStock = (productId: string, currentCart: CartItem[]) => {
+    return currentCart.reduce((acc, item) => {
+      if (item.id !== productId) return acc;
+      const unitsPerItem = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
+      return acc + (item.quantity * unitsPerItem);
+    }, 0);
+  };
+
   // Cart Logic
-  const addToCart = (product: Product) => {
-    if (product.stock <= 0) return alert("Sin stock disponible");
+  const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+    const quantityToAdd = unitType === 'BOX' ? (product.unitsPerBox || 1) : 1;
+    const currentReserved = getReservedStock(product.id, cart);
+    
+    if (currentReserved + quantityToAdd > product.stock) {
+        return alert(`Stock insuficiente. Tienes ${currentReserved} unidades en carrito y solo quedan ${product.stock} disponibles.`);
+    }
+
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        if (existing.quantity >= product.stock) return prev; // Check stock limit
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      // Find item with same ID AND same Unit Type
+      const existingIndex = prev.findIndex(item => item.id === product.id && item.selectedUnit === unitType);
+      
+      if (existingIndex > -1) {
+        const newCart = [...prev];
+        newCart[existingIndex] = { ...newCart[existingIndex], quantity: newCart[existingIndex].quantity + 1 };
+        return newCart;
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
     });
     setIsCartOpen(true);
+    // If adding from modal, we might want to keep it open or close it. 
+    // Usually closing it feels like "action completed", but let's keep it open for multiple adds unless requested.
+    // For now, let's close the modal if it's open to show the cart opening
+    if (selectedProduct) setSelectedProduct(null);
   };
 
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  // Remove specific item variant
+  const removeFromCart = (index: number) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateQuantity = (id: string, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === id) {
-        // Simple client-side check, ideally check against db product
-        const product = products.find(p => p.id === id);
-        const max = product ? product.stock : 99;
+  const updateQuantity = (index: number, delta: number) => {
+    setCart(prev => {
+        const item = prev[index];
+        const product = products.find(p => p.id === item.id);
+        if (!product) return prev;
+
+        const unitsPerItem = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
+        
+        // Calculate what the NEW total reserved would be
+        // We subtract the current quantity of THIS item, then add the new proposed quantity
+        const otherItemsReserved = getReservedStock(item.id, prev) - (item.quantity * unitsPerItem);
         const newQty = item.quantity + delta;
-        if (newQty > max) return item;
-        return { ...item, quantity: Math.max(1, newQty) };
-      }
-      return item;
-    }));
+        const newTotalReserved = otherItemsReserved + (newQty * unitsPerItem);
+
+        if (newTotalReserved > product.stock) {
+             alert("No puedes agregar más, supera el stock disponible.");
+             return prev; 
+        }
+        if (newQty < 1) return prev;
+
+        const newCart = [...prev];
+        newCart[index] = { ...item, quantity: newQty };
+        return newCart;
+    });
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartSubtotal = cart.reduce((sum, item) => {
+      const price = item.selectedUnit === 'BOX' ? (item.boxPrice || 0) : item.price;
+      return sum + (price * item.quantity);
+  }, 0);
+  
   const cartTotal = cartSubtotal + DELIVERY_FEE;
 
   // Admin Logic
@@ -134,17 +178,18 @@ const App: React.FC = () => {
     await deleteCategoryDB(id);
   };
 
-  // Generic function to add an order (used by POS and Online Checkout)
+  // Generic function to add an order
   const handleAddOrder = async (newOrder: Order) => {
     await addOrderDB(newOrder);
     
-    // Deduct Stock for online orders (POS does it inside AdminPanel logic currently)
-    // For online orders, we iterate and update DB
+    // Deduct Stock for online orders AUTOMATICALLY
     if (newOrder.source === 'ONLINE') {
         newOrder.items.forEach(item => {
             const current = products.find(p => p.id === item.id);
             if (current) {
-                updateStockDB(item.id, Math.max(0, current.stock - item.quantity));
+                // Determine deduction based on whether it's a BOX or UNIT
+                const deduction = item.quantity * (item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1);
+                updateStockDB(item.id, Math.max(0, current.stock - deduction));
             }
         });
     }
@@ -155,7 +200,9 @@ const App: React.FC = () => {
   };
 
   // Checkout Logic
-  const handleConfirmOrder = (details: any) => {
+  const handleConfirmOrder = (details: CheckoutFormData) => {
+    const cashGivenValue = details.cashGiven ? parseFloat(details.cashGiven) : undefined;
+    
     const newOrder: Order = {
       id: `ORD-${Date.now()}`,
       customerName: details.name,
@@ -166,14 +213,125 @@ const App: React.FC = () => {
       deliveryFee: DELIVERY_FEE,
       total: cartTotal,
       paymentMethod: details.paymentMethod,
+      cashGiven: cashGivenValue, // Guardamos el dato
       status: 'PENDING',
       source: 'ONLINE',
       date: new Date().toISOString()
     };
+
+    // --- Generate WhatsApp Message ---
+    const phoneNumber = "593998506160"; // Vitalis Number
+    
+    const itemsList = cart.map(item => {
+        const isBox = item.selectedUnit === 'BOX';
+        const price = isBox ? (item.boxPrice || 0) : item.price;
+        const unitLabel = isBox ? `Caja x${item.unitsPerBox}` : 'Unid';
+        return `- ${item.quantity} x ${item.name} (${unitLabel}): $${(price * item.quantity).toFixed(2)}`;
+    }).join('\n');
+
+    let paymentInfo = details.paymentMethod === 'CASH' ? 'Efectivo 💵' : 'Transferencia 🏦';
+    if (details.paymentMethod === 'CASH' && cashGivenValue) {
+        const change = cashGivenValue - cartTotal;
+        paymentInfo += `\n*Paga con:* $${cashGivenValue.toFixed(2)}\n*Vuelto:* $${change.toFixed(2)}`;
+    }
+
+    const message = `*NUEVO PEDIDO WEB - VITALIS* 💊\n\n` +
+        `*Cliente:* ${details.name}\n` +
+        `*Tel:* ${details.phone}\n` +
+        `*Dir:* ${details.address}, ${DELIVERY_CITY}\n` +
+        `*Pago:* ${paymentInfo}\n\n` +
+        `*PEDIDO:*\n${itemsList}\n\n` +
+        `*Subtotal:* $${cartSubtotal.toFixed(2)}\n` +
+        `*Envío:* $${DELIVERY_FEE.toFixed(2)}\n` +
+        `*TOTAL:* $${cartTotal.toFixed(2)}` +
+        `${details.paymentMethod === 'TRANSFER' ? '\n\n_(Adjunto comprobante de pago)_' : ''}`;
+
+    const link = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    
+    // Set link state for fallback button and try to open immediately
+    setLastOrderLink(link);
+    window.open(link, '_blank');
     
     handleAddOrder(newOrder);
     setCart([]);
     setView('SUCCESS');
+  };
+
+  // Helper to render product card
+  const ProductCard = ({ product }: { product: Product }) => {
+    const hasBox = product.unitsPerBox && product.unitsPerBox > 1;
+    // Calculate stock available for UI (Real Stock - Reserved in Cart)
+    const reserved = getReservedStock(product.id, cart);
+    const available = Math.max(0, product.stock - reserved);
+    const unitsPerBox = product.unitsPerBox || 9999;
+    
+    return (
+        <div 
+            onClick={() => setSelectedProduct(product)}
+            className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col h-full cursor-pointer group transform hover:-translate-y-1"
+        >
+            <div className="h-48 bg-gray-50 overflow-hidden relative">
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 mix-blend-multiply" />
+                {available <= 0 && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center backdrop-blur-[1px]">
+                    <span className="bg-red-500 text-white px-3 py-1 font-bold rounded shadow-lg transform -rotate-6">AGOTADO</span>
+                </div>
+                )}
+                {/* Overlay Hint */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <span className="bg-white/90 text-gray-800 text-xs font-bold px-3 py-1 rounded-full shadow-sm">Ver Detalles</span>
+                </div>
+            </div>
+            <div className="p-5 flex flex-col flex-grow relative">
+                <div className="flex-grow">
+                    <h4 className="font-bold text-lg text-gray-900 mb-1 leading-tight group-hover:text-teal-600 transition-colors">{product.name}</h4>
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-3" onClick={(e) => e.stopPropagation()}>
+                    {/* Unit Option */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-teal-700">${product.price.toFixed(2)} <span className="text-xs text-gray-400 font-normal">/ unidad</span></span>
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(product, 'UNIT');
+                            }}
+                            disabled={available <= 0}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-1 ${available > 0 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                        >
+                            <Plus className="h-4 w-4" /> Agregar
+                        </button>
+                    </div>
+
+                    {/* Box Option */}
+                    {hasBox && product.boxPrice && (
+                        <div className="flex items-center justify-between bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-blue-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded-full border border-blue-100 w-fit mb-0.5">
+                                    <Package className="h-3 w-3"/> Caja x{product.unitsPerBox}
+                                </span>
+                                <span className="text-sm text-blue-600 font-bold ml-1">${product.boxPrice.toFixed(2)}</span>
+                            </div>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    addToCart(product, 'BOX');
+                                }}
+                                disabled={available < unitsPerBox}
+                                className={`px-2 py-1.5 rounded text-xs font-bold transition-colors shadow-sm ${available >= unitsPerBox ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                            >
+                                Agregar Caja
+                            </button>
+                        </div>
+                    )}
+                    <div className="text-[10px] text-gray-400 text-right">
+                        Disp: {available} unid.
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
   };
 
   // Views
@@ -223,32 +381,7 @@ const App: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
-                  <div className="h-48 bg-gray-200 overflow-hidden relative group">
-                     <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                     {product.stock <= 0 && (
-                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                            <span className="bg-red-500 text-white px-3 py-1 font-bold rounded">AGOTADO</span>
-                        </div>
-                     )}
-                  </div>
-                  <div className="p-5 flex flex-col flex-grow">
-                    <div className="flex-grow">
-                      <h4 className="font-bold text-lg text-gray-900 mb-1 leading-tight">{product.name}</h4>
-                      <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>
-                    </div>
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-xl font-bold text-teal-700">${product.price.toFixed(2)}</span>
-                      <button 
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock <= 0}
-                        className={`p-2 rounded-full transition-colors shadow-sm ${product.stock > 0 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                      >
-                        <Plus className="h-6 w-6" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           )}
@@ -261,7 +394,7 @@ const App: React.FC = () => {
       c.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Global Product Search (Only active if searchTerm is present or if we want to show all products which we usually don't on home)
+    // Global Product Search
     const filteredGlobalProducts = products.filter(p => 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -331,33 +464,7 @@ const App: React.FC = () => {
             <h3 className="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-teal-500 pl-4">Productos Encontrados</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredGlobalProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
-                  <div className="h-48 bg-gray-200 overflow-hidden relative group">
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      {product.stock <= 0 && (
-                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                            <span className="bg-red-500 text-white px-3 py-1 font-bold rounded">AGOTADO</span>
-                        </div>
-                     )}
-                  </div>
-                  <div className="p-5 flex flex-col flex-grow">
-                    <div className="flex-grow">
-                      <h4 className="font-bold text-lg text-gray-900 mb-1 leading-tight">{product.name}</h4>
-                      <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>
-                      <span className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-semibold text-gray-600 mb-2">{product.category}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-xl font-bold text-teal-700">${product.price.toFixed(2)}</span>
-                      <button 
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock <= 0}
-                        className={`p-2 rounded-full transition-colors shadow-sm ${product.stock > 0 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                      >
-                        <Plus className="h-6 w-6" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           </>
@@ -479,16 +586,28 @@ const App: React.FC = () => {
                </div>
                <h2 className="text-3xl font-bold text-gray-900 mb-2">¡Pedido Recibido!</h2>
                <p className="text-gray-600 mb-6">
-                 Gracias por comprar en Vitales. Tu pedido ha sido registrado en nuestra base de datos segura.
+                 Gracias por comprar en Vitalis. Tu pedido ha sido registrado en nuestra base de datos.
                  <br/><br/>
-                 Te contactaremos pronto para coordinar la entrega en Machalilla.
+                 Se debería haber abierto WhatsApp con los detalles. Si no fue así, usa el botón de abajo.
                </p>
+               
+               {lastOrderLink && (
+                  <a 
+                    href={lastOrderLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block w-full bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition mb-4 flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="h-5 w-5" /> Enviar detalles por WhatsApp
+                  </a>
+               )}
+
                <button 
                  onClick={() => {
                    setView('HOME');
                    setActiveCategory(null);
                  }}
-                 className="bg-teal-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-teal-700 transition"
+                 className="block w-full bg-teal-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-teal-700 transition"
                >
                  Volver a la Tienda
                </button>
@@ -496,6 +615,16 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetail 
+          product={selectedProduct} 
+          cart={cart} 
+          onClose={() => setSelectedProduct(null)} 
+          onAddToCart={addToCart} 
+        />
+      )}
 
       {/* Assistant Bot */}
       {view === 'HOME' && <Assistant products={products} />}
@@ -520,30 +649,37 @@ const App: React.FC = () => {
                       <p className="text-center text-gray-500">Tu carrito está vacío.</p>
                     ) : (
                       <ul className="divide-y divide-gray-200">
-                        {cart.map(item => (
-                          <li key={item.id} className="py-6 flex">
-                            <div className="flex-shrink-0 w-20 h-20 border border-gray-200 rounded-md overflow-hidden">
-                              <img src={item.image} alt={item.name} className="w-full h-full object-center object-cover" />
-                            </div>
-                            <div className="ml-4 flex-1 flex flex-col">
-                              <div>
-                                <div className="flex justify-between text-base font-medium text-gray-900">
-                                  <h3>{item.name}</h3>
-                                  <p className="ml-4">${(item.price * item.quantity).toFixed(2)}</p>
-                                </div>
-                                <p className="mt-1 text-sm text-gray-500">{item.category}</p>
-                              </div>
-                              <div className="flex-1 flex items-end justify-between text-sm">
-                                <div className="flex items-center border rounded-md">
-                                  <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100"><Minus className="h-4 w-4" /></button>
-                                  <span className="px-2 font-medium">{item.quantity}</span>
-                                  <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100"><Plus className="h-4 w-4" /></button>
-                                </div>
-                                <button type="button" onClick={() => removeFromCart(item.id)} className="font-medium text-red-600 hover:text-red-500">Eliminar</button>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
+                        {cart.map((item, idx) => {
+                            const isBox = item.selectedUnit === 'BOX';
+                            const price = isBox ? (item.boxPrice || 0) : item.price;
+                            return (
+                                <li key={`${item.id}-${idx}`} className="py-6 flex">
+                                    <div className="flex-shrink-0 w-20 h-20 border border-gray-200 rounded-md overflow-hidden">
+                                    <img src={item.image} alt={item.name} className="w-full h-full object-center object-cover" />
+                                    </div>
+                                    <div className="ml-4 flex-1 flex flex-col">
+                                    <div>
+                                        <div className="flex justify-between text-base font-medium text-gray-900">
+                                        <h3>
+                                            {item.name}
+                                            {isBox && <span className="ml-2 bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Caja x{item.unitsPerBox}</span>}
+                                        </h3>
+                                        <p className="ml-4">${(price * item.quantity).toFixed(2)}</p>
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">{item.category}</p>
+                                    </div>
+                                    <div className="flex-1 flex items-end justify-between text-sm">
+                                        <div className="flex items-center border rounded-md">
+                                        <button onClick={() => updateQuantity(idx, -1)} className="p-1 hover:bg-gray-100"><Minus className="h-4 w-4" /></button>
+                                        <span className="px-2 font-medium">{item.quantity}</span>
+                                        <button onClick={() => updateQuantity(idx, 1)} className="p-1 hover:bg-gray-100"><Plus className="h-4 w-4" /></button>
+                                        </div>
+                                        <button type="button" onClick={() => removeFromCart(idx)} className="font-medium text-red-600 hover:text-red-500">Eliminar</button>
+                                    </div>
+                                    </div>
+                                </li>
+                            );
+                        })}
                       </ul>
                     )}
                   </div>

@@ -32,7 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, o
   };
 
   return (
-    <nav className="bg-teal-600 text-white shadow-lg sticky top-0 z-50">
+    <nav className="bg-teal-600 text-white sticky top-0 z-50 border-b border-teal-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div 
@@ -60,8 +60,10 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, o
           </div>
         </div>
       </div>
-      <div className="bg-teal-700 py-1 text-center text-xs font-medium text-teal-50">
-        💊 Envíos a domicilio únicamente en {`"Machalilla"`} (+ $1.00)
+      <div className="bg-teal-800 py-1 text-center text-xs font-medium text-teal-50 flex justify-center gap-4 px-2 flex-wrap">
+        <span>📍 Envíos solo en "Machalilla" (+$1.00)</span>
+        <span className="hidden sm:inline">|</span>
+        <span>💳 Pagos: Transferencia o Efectivo</span>
       </div>
     </nav>
   );

@@ -2,10 +2,13 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: number; // Precio por unidad suelta
   image: string;
   category: string;
-  stock: number;
+  stock: number; // Stock total en unidades
+  // Nuevos campos para cajas
+  unitsPerBox?: number; // Cuántas unidades trae la caja
+  boxPrice?: number;    // Precio de la caja cerrada
 }
 
 export interface Category {
@@ -16,21 +19,32 @@ export interface Category {
 
 export interface CartItem extends Product {
   quantity: number;
+  selectedUnit: 'UNIT' | 'BOX'; // Indica si el cliente eligió caja o unidad
 }
 
 export interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
-  customerAddress: string; // Must contain "Machalilla" validation context visually
+  customerAddress: string;
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
   total: number;
-  paymentMethod: 'TRANSFER' | 'CARD' | 'CASH';
+  paymentMethod: 'TRANSFER' | 'CASH';
+  cashGiven?: number; // Nuevo: Cuanto dinero entregó el cliente (si es efectivo)
   status: 'PENDING' | 'DELIVERED';
-  source?: 'ONLINE' | 'POS'; // To distinguish physical sales
+  source?: 'ONLINE' | 'POS';
   date: string;
+}
+
+export interface CheckoutFormData {
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  paymentMethod: 'TRANSFER' | 'CASH';
+  cashGiven?: string; // Captura del input
 }
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
