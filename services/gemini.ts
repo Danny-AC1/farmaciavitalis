@@ -4,8 +4,8 @@ import { Product } from '../types';
 // Helper to generate a description for a new product
 export const generateProductDescription = async (productName: string): Promise<string> => {
   if (!process.env.API_KEY) {
-    console.warn("API Key not found");
-    return "Descripción no disponible (API Key faltante).";
+    console.warn("API Key not found in environment variables (process.env.API_KEY).");
+    return "Descripción no disponible (Falta Configuración de API Key).";
   }
 
   try {
@@ -16,22 +16,29 @@ export const generateProductDescription = async (productName: string): Promise<s
     });
     
     return response.text || "No se pudo generar la descripción.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating description:", error);
-    return "Error al generar la descripción.";
+    const msg = error.message || error.toString();
+    if (msg.includes("401") || msg.includes("403")) {
+        return "Error: API Key inválida o expirada.";
+    }
+    return "Error al conectar con la IA.";
   }
 };
 
 // Virtual Assistant Logic
 export const createAssistantChat = (products: Product[]): Chat | null => {
-  if (!process.env.API_KEY) return null;
+  if (!process.env.API_KEY) {
+      console.warn("Assistant disabled: Missing API Key");
+      return null;
+  }
 
-  const productContext = products.map(p => 
+  const productContext = products.length > 0 ? products.map(p => 
     `- ${p.name} (${p.category}): $${p.price}. Stock: ${p.stock}. Desc: ${p.description}`
-  ).join('\n');
+  ).join('\n') : "No hay productos disponibles por el momento.";
 
   const systemInstruction = `
-    Eres "VitalBot", el asistente virtual farmacéutico de la farmacia "Vitales".
+    Eres "Vitalis Asistent", el asistente virtual farmacéutico de la farmacia "Vitalis".
     Tu objetivo es ayudar a los clientes con información sobre productos y recomendaciones básicas.
     
     REGLAS IMPORTANTES:
@@ -55,7 +62,7 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
     });
     return chat;
   } catch (error) {
-    console.error("Error creating chat:", error);
+    console.error("Error creating chat session:", error);
     return null;
   }
 };

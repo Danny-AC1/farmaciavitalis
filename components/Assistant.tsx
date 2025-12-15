@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, X, Bot, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, X, Bot, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Product } from '../types';
 import { createAssistantChat } from '../services/gemini';
 import type { Chat } from "@google/genai";
@@ -17,9 +17,10 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: '¡Hola! Soy VitalBot 🤖. ¿En qué puedo ayudarte con tu salud hoy?' }
+    { role: 'model', text: '¡Hola! Soy Tu  Asistente Vitalis 🤖. ¿En qué puedo ayudarte con tu salud hoy?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorState, setErrorState] = useState<string | null>(null);
   const chatSession = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -27,38 +28,56 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
   useEffect(() => {
     if (isOpen && !chatSession.current) {
       chatSession.current = createAssistantChat(products);
+      if (!chatSession.current) {
+         // Silently fail or log, user will see error when trying to send
+         console.warn("VitalBot could not initialize (Check API Key)");
+      }
     }
   }, [isOpen, products]);
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isLoading]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim()) return;
+    
+    // Attempt re-init if null
     if (!chatSession.current) {
-        // Retry init if failed previously
         chatSession.current = createAssistantChat(products);
-        if (!chatSession.current) {
-            setMessages(prev => [...prev, { role: 'model', text: 'Lo siento, no puedo conectarme en este momento.' }]);
-            return;
-        }
+    }
+    
+    // If still null, API key is missing
+    if (!chatSession.current) {
+        setMessages(prev => [...prev, { role: 'model', text: 'Lo siento, el servicio de IA no está configurado correctamente (API Key faltante).' }]);
+        return;
     }
 
     const userMsg = input;
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsLoading(true);
+    setErrorState(null);
 
     try {
       const response = await chatSession.current.sendMessage({ message: userMsg });
-      const text = response.text || "Lo siento, no entendí eso.";
-      setMessages(prev => [...prev, { role: 'model', text }]);
-    } catch (error) {
-      console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: 'Tuve un problema al procesar tu mensaje. ¿Podrías intentarlo de nuevo?' }]);
+      const text = response.text;
+      
+      if (text) {
+          setMessages(prev => [...prev, { role: 'model', text }]);
+      } else {
+          throw new Error("Empty response");
+      }
+    } catch (error: any) {
+      console.error("Chat Error:", error);
+      let errorMsg = 'Tuve un problema al conectar con el servidor.';
+      if (error.message?.includes('401') || error.message?.includes('403')) {
+          errorMsg = 'Error de autenticación (API Key inválida).';
+      }
+      setMessages(prev => [...prev, { role: 'model', text: errorMsg + ' ¿Podrías intentarlo de nuevo más tarde?' }]);
+      setErrorState(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +108,7 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
             <Bot className="text-white h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-white font-bold text-lg">VitalBot</h3>
+            <h3 className="text-white font-bold text-lg">Vitalis Asistent</h3>
             <p className="text-teal-100 text-xs flex items-center gap-1">
               <Sparkles className="h-3 w-3" /> Asistente IA
             </p>
@@ -108,7 +127,7 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
                   msg.role === 'user' 
                     ? 'bg-teal-600 text-white rounded-tr-none' 
                     : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
-                }`}
+                } ${msg.text.includes('Error') ? 'border-red-200 bg-red-50 text-red-800' : ''}`}
               >
                 {msg.text}
               </div>
@@ -130,9 +149,10 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
             <input
               type="text"
               placeholder="Pregunta sobre medicamentos..."
-              className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all"
+              className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all disabled:opacity-50"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading}
             />
             <button 
               type="submit"
@@ -142,8 +162,12 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
               <Send className="h-4 w-4" />
             </button>
           </div>
-          <div className="text-center mt-2">
-            <p className="text-[10px] text-gray-400">VitalBot puede cometer errores. Consulta a un médico.</p>
+          <div className="text-center mt-2 flex justify-center items-center gap-1">
+             {errorState ? (
+                 <span className="text-[10px] text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Conexión inestable</span>
+             ) : (
+                 <p className="text-[10px] text-gray-400">VitalBot puede cometer errores. Consulta a un médico.</p>
+             )}
           </div>
         </form>
       </div>
