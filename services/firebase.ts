@@ -1,18 +1,28 @@
 // @ts-ignore: firebase/app types mismatch in some environments
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+// @ts-ignore
+import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup } from "firebase/auth";
+// @ts-ignore
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
-// These values come from process.env injected by Vite
 const firebaseConfig = {
-  apiKey: "AIzaSyAwKeSl4THLigVktHJMrQ_doRetucaTTSM",
-  authDomain: "farmaciavitalis-a6606.firebaseapp.com",
-  projectId: "farmaciavitalis-a6606",
-  storageBucket: "farmaciavitalis-a6606.firebasestorage.app",
-  messagingSenderId: "851814294042",
-  appId: "1:851814294042:web:bed21ddd740033b71d67a3"
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+
+// Social Providers
+export const googleProvider = new GoogleAuthProvider();
+export const facebookProvider = new FacebookAuthProvider();
+export { signInWithPopup };

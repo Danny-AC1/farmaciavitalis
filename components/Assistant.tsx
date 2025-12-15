@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, X, Bot, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Send, X, Bot, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Product } from '../types';
 import { createAssistantChat } from '../services/gemini';
 import type { Chat } from "@google/genai";
 
 interface AssistantProps {
   products: Product[];
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 interface Message {
@@ -13,11 +15,10 @@ interface Message {
   text: string;
 }
 
-const Assistant: React.FC<AssistantProps> = ({ products }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: '¡Hola! Soy Tu  Asistente Vitalis 🤖. ¿En qué puedo ayudarte con tu salud hoy?' }
+    { role: 'model', text: '¡Hola! Soy Vitalis Asistent 🤖. ¿En qué puedo ayudarte con tu salud hoy?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -28,16 +29,16 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
   useEffect(() => {
     if (isOpen && !chatSession.current) {
       chatSession.current = createAssistantChat(products);
-      if (!chatSession.current) {
-         // Silently fail or log, user will see error when trying to send
-         console.warn("VitalBot could not initialize (Check API Key)");
-      }
     }
   }, [isOpen, products]);
 
   // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isOpen) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   }, [messages, isOpen, isLoading]);
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -51,7 +52,7 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
     
     // If still null, API key is missing
     if (!chatSession.current) {
-        setMessages(prev => [...prev, { role: 'model', text: 'Lo siento, el servicio de IA no está configurado correctamente (API Key faltante).' }]);
+        setMessages(prev => [...prev, { role: 'model', text: '⚠️ Error: No se detectó la API Key. Configura VITE_API_KEY en tu .env o Vercel.' }]);
         return;
     }
 
@@ -73,10 +74,17 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
     } catch (error: any) {
       console.error("Chat Error:", error);
       let errorMsg = 'Tuve un problema al conectar con el servidor.';
-      if (error.message?.includes('401') || error.message?.includes('403')) {
-          errorMsg = 'Error de autenticación (API Key inválida).';
+      const rawError = error.message || error.toString();
+
+      if (rawError.includes('401') || rawError.includes('403')) {
+          errorMsg = 'Error de autenticación (403). Verifica que la API Key sea correcta y que la "Google Generative AI API" esté habilitada en tu Google Cloud Console.';
+      } else if (rawError.includes('404')) {
+          errorMsg = 'Modelo no disponible (404). Tu clave podría no tener acceso a Gemini 2.5 Flash.';
+      } else if (rawError.includes('429')) {
+          errorMsg = 'Demasiadas solicitudes. Intenta más tarde.';
       }
-      setMessages(prev => [...prev, { role: 'model', text: errorMsg + ' ¿Podrías intentarlo de nuevo más tarde?' }]);
+
+      setMessages(prev => [...prev, { role: 'model', text: `❌ ${errorMsg}` }]);
       setErrorState(errorMsg);
     } finally {
       setIsLoading(false);
@@ -85,38 +93,43 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
 
   return (
     <>
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-40 p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center ${
-          isOpen ? 'bg-red-500 rotate-90' : 'bg-teal-600 hover:bg-teal-700'
+      {/* Overlay for mobile to darken background when chat is open */}
+      <div 
+        className={`fixed inset-0 bg-black/50 z-30 transition-opacity duration-300 md:hidden ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-      >
-        {isOpen ? <X className="text-white h-8 w-8" /> : <MessageCircle className="text-white h-8 w-8" />}
-      </button>
+        onClick={onClose}
+      />
 
       {/* Chat Window */}
       <div 
-        className={`fixed bottom-24 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl z-40 border border-gray-200 overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right ${
-          isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0 pointer-events-none'
+        className={`fixed bottom-0 md:bottom-24 right-0 md:right-6 w-full md:w-96 bg-white md:rounded-2xl shadow-2xl z-40 border-t md:border border-gray-200 overflow-hidden flex flex-col transition-all duration-300 transform ${
+          isOpen 
+            ? 'translate-y-0 opacity-100' 
+            : 'translate-y-full md:translate-y-20 md:opacity-0 md:scale-95 pointer-events-none'
         }`}
-        style={{ maxHeight: '600px', height: '70vh' }}
+        style={{ height: '85vh', maxHeight: '600px' }}
       >
         {/* Header */}
-        <div className="bg-teal-600 p-4 flex items-center gap-3 shrink-0">
-          <div className="bg-white/20 p-2 rounded-full">
-            <Bot className="text-white h-6 w-6" />
+        <div className="bg-teal-600 p-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-full">
+              <Bot className="text-white h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Vitalis Asistent</h3>
+              <p className="text-teal-100 text-xs flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> Asistente IA
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-white font-bold text-lg">Vitalis Asistent</h3>
-            <p className="text-teal-100 text-xs flex items-center gap-1">
-              <Sparkles className="h-3 w-3" /> Asistente IA
-            </p>
-          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X className="h-6 w-6" />
+          </button>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50 scroll-smooth">
           {messages.map((msg, idx) => (
             <div 
               key={idx} 
@@ -144,12 +157,12 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
         </div>
 
         {/* Input Area */}
-        <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-100 shrink-0">
+        <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-100 shrink-0 pb-safe">
           <div className="relative">
             <input
               type="text"
               placeholder="Pregunta sobre medicamentos..."
-              className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all disabled:opacity-50"
+              className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-full text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all disabled:opacity-50"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
@@ -164,9 +177,9 @@ const Assistant: React.FC<AssistantProps> = ({ products }) => {
           </div>
           <div className="text-center mt-2 flex justify-center items-center gap-1">
              {errorState ? (
-                 <span className="text-[10px] text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Conexión inestable</span>
+                 <span className="text-[10px] text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Error de Conexión</span>
              ) : (
-                 <p className="text-[10px] text-gray-400">VitalBot puede cometer errores. Consulta a un médico.</p>
+                 <p className="text-[10px] text-gray-400">Vitalis Asistent puede cometer errores. Consulta a un médico.</p>
              )}
           </div>
         </form>

@@ -1,8 +1,11 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { Product, Order, Category, CartItem } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { DollarSign, CheckCircle, Clock, Trash2, Plus, Sparkles, LogOut, Edit2, X, ClipboardList, AlertTriangle, Store, ShoppingCart, Minus, Banknote, Search, TrendingUp, Loader2, Package, Phone, MapPin } from 'lucide-react';
-import { generateProductDescription } from '../services/gemini';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { Product, Order, Category, CartItem, User, Supplier, SearchLog, Banner } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { CheckCircle, Trash2, Sparkles, LogOut, Edit2, X, ShoppingCart, Minus, Plus, Search, TrendingUp, Loader2, FileDown, PenTool, ScanBarcode, Share2, Copy, MessageCircle, Image as ImageIcon, Instagram } from 'lucide-react';
+import { generateProductDescription, generateSocialPost } from '../services/gemini';
+import { GoogleGenAI } from "@google/genai";
+import BarcodeScanner from './BarcodeScanner';
+import { streamUsers, streamSuppliers, addSupplierDB, deleteSupplierDB, streamSearchLogs, addBlogPostDB, streamBanners, addBannerDB, deleteBannerDB, uploadImageToStorage } from '../services/db';
 
 interface AdminPanelProps {
   products: Product[];
@@ -17,6 +20,7 @@ interface AdminPanelProps {
   onAddOrder: (o: Order) => Promise<void>;
   onUpdateOrderStatus: (id: string, status: 'DELIVERED') => Promise<void>;
   onLogout: () => void;
+  currentUserRole?: 'ADMIN' | 'CASHIER' | 'DRIVER' | 'USER'; 
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -26,27 +30,54 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddProduct, 
   onEditProduct,
   onDeleteProduct, 
-  onUpdateStock,
+  onUpdateStock, 
   onAddCategory,
   onDeleteCategory,
   onAddOrder,
   onUpdateOrderStatus,
-  onLogout
+  onLogout,
+  currentUserRole = 'ADMIN'
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'pos' | 'products' | 'categories' | 'inventory' | 'orders'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pos' | 'products' | 'categories' | 'inventory' | 'orders' | 'users' | 'marketing' | 'suppliers' | 'demand'>('dashboard');
   
   // Dashboard / Reports State
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
 
+  // Extended Data State
+  const [users, setUsers] = useState<User[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+
+  // Forms State
+  const [supplierForm, setSupplierForm] = useState({ name: '', contactName: '', phone: '', email: '' });
+  
+  // Marketing State
+  const [blogTopic, setBlogTopic] = useState('');
+  const [marketingProduct, setMarketingProduct] = useState('');
+  const [generatedPost, setGeneratedPost] = useState('');
+  const [postPlatform, setPostPlatform] = useState<'INSTAGRAM'|'WHATSAPP'>('INSTAGRAM');
+  const [bannerTitle, setBannerTitle] = useState('');
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  
+  // Inventory Search State
+  const [inventorySearch, setInventorySearch] = useState('');
+
   // Product Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [prodName, setProdName] = useState('');
-  const [prodPrice, setProdPrice] = useState(''); // Precio Unidad
-  const [prodUnitsPerBox, setProdUnitsPerBox] = useState(''); // Unidades por Caja
-  const [prodBoxPrice, setProdBoxPrice] = useState(''); // Precio Caja
+  const [prodPrice, setProdPrice] = useState('');
+  const [prodCostPrice, setProdCostPrice] = useState(''); 
+  const [prodUnitsPerBox, setProdUnitsPerBox] = useState('');
+  const [prodBoxPrice, setProdBoxPrice] = useState('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodCat, setProdCat] = useState('');
   const [prodImage, setProdImage] = useState<string>('');
+  const [prodBarcode, setProdBarcode] = useState('');
+  const [prodExpiry, setProdExpiry] = useState('');
+  const [prodSupplier, setProdSupplier] = useState('');
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,69 +85,214 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Category Form State
   const [catName, setCatName] = useState('');
   const [catImage, setCatImage] = useState('');
-  const catFileInputRef = useRef<HTMLInputElement>(null);
 
   // POS State
   const [posCart, setPosCart] = useState<CartItem[]>([]);
   const [posSearch, setPosSearch] = useState('');
-  const [posCategoryFilter, setPosCategoryFilter] = useState<string>('ALL'); // Nuevo estado para filtro
   const [posCashReceived, setPosCashReceived] = useState('');
   const [posPaymentMethod, setPosPaymentMethod] = useState<'CASH' | 'TRANSFER'>('CASH');
-
-  // Stats
-  const totalRevenue = orders
-    .filter(o => o.status === 'DELIVERED')
-    .reduce((acc, curr) => acc + curr.total, 0);
+  const [showScanner, setShowScanner] = useState(false);
   
-  const pendingOrders = orders.filter(o => o.status === 'PENDING');
-  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+  // Load Data Streams
+  useEffect(() => {
+      const unsubUsers = streamUsers((data) => setUsers(data));
+      const unsubSuppliers = streamSuppliers((data) => setSuppliers(data));
+      const unsubLogs = streamSearchLogs((data) => setSearchLogs(data));
+      const unsubBanners = streamBanners((data) => setBanners(data));
 
-  // --- Handlers ---
-  const handleGenerateDesc = async () => {
-    if (!prodName) return alert("Ingresa el nombre del producto primero.");
+      return () => { unsubUsers(); unsubSuppliers(); unsubLogs(); unsubBanners(); };
+  }, []);
+
+  // Stats logic
+  const totalRevenue = orders.filter(o => o.status === 'DELIVERED').reduce((acc, curr) => acc + curr.total, 0);
+  const totalProfit = orders.filter(o => o.status === 'DELIVERED').reduce((acc, order) => {
+      let cost = 0;
+      order.items.forEach(item => {
+          const product = products.find(p => p.id === item.id);
+          const unitCost = product?.costPrice || 0; 
+          const units = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
+          cost += unitCost * (item.quantity * units);
+      });
+      return acc + (order.total - cost);
+  }, 0);
+
+  // Chart Data Preparation
+  const chartData = useMemo(() => {
+      const data: any[] = [];
+      const grouped: {[key: string]: number} = {};
+
+      orders.filter(o => o.status === 'DELIVERED').forEach(order => {
+          const date = new Date(order.date);
+          let key = '';
+          if (reportPeriod === 'daily') key = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          else if (reportPeriod === 'weekly') key = date.toLocaleDateString();
+          else if (reportPeriod === 'monthly') key = `Día ${date.getDate()}`;
+          else key = date.toLocaleString('default', { month: 'short' });
+
+          grouped[key] = (grouped[key] || 0) + order.total;
+      });
+
+      Object.keys(grouped).forEach(key => data.push({ name: key, ventas: grouped[key] }));
+      return data;
+  }, [orders, reportPeriod]);
+
+  // POS Logic
+  const addToPosCart = (product: Product) => {
+      setPosCart(prev => {
+          const exists = prev.find(item => item.id === product.id);
+          if (exists) {
+              return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+          }
+          return [...prev, { ...product, quantity: 1, selectedUnit: 'UNIT' }];
+      });
+  };
+  const removeFromPosCart = (id: string) => setPosCart(prev => prev.filter(i => i.id !== id));
+  const posTotal = posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  const handlePosCheckout = async () => {
+      if (posCart.length === 0) return alert("Carrito vacío");
+      const newOrder: Order = {
+          id: `POS-${Date.now()}`,
+          customerName: "Cliente Mostrador",
+          customerPhone: "",
+          customerAddress: "Tienda Física",
+          items: posCart,
+          subtotal: posTotal,
+          deliveryFee: 0,
+          total: posTotal,
+          paymentMethod: posPaymentMethod,
+          cashGiven: posCashReceived ? parseFloat(posCashReceived) : undefined,
+          status: 'DELIVERED',
+          source: 'POS',
+          date: new Date().toISOString()
+      };
+
+      await onAddOrder(newOrder);
+      
+      // Update Stock
+      for (const item of posCart) {
+          const product = products.find(p => p.id === item.id);
+          if (product) {
+              await onUpdateStock(item.id, Math.max(0, product.stock - item.quantity));
+          }
+      }
+
+      setPosCart([]);
+      setPosCashReceived('');
+      alert("Venta registrada correctamente");
+  };
+
+  const downloadCSV = (content: string, fileName: string) => {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const handleSupplierSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      await addSupplierDB({ id: `sup_${Date.now()}`, ...supplierForm });
+      setSupplierForm({ name: '', contactName: '', phone: '', email: '' });
+  };
+
+  const handleGenerateBlog = async () => {
+      setIsGenerating(true);
+      try {
+        // @ts-ignore
+        const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Escribe un artículo de blog corto, informativo y optimista para la farmacia "Vitalis" sobre: "${blogTopic}". 
+            Incluye un título atractivo. Usa formato HTML simple (<p>, <strong>, <ul>). Máximo 200 palabras.`,
+        });
+        const text = response.text || "";
+        const cleanContent = text.replace(/```html/g, '').replace(/```/g, '');
+        // Simple extraction logic
+        const title = blogTopic; 
+
+        await addBlogPostDB({
+            id: `blog_${Date.now()}`,
+            title: title,
+            content: cleanContent,
+            date: new Date().toISOString(),
+            author: 'Vitalis AI'
+        });
+        setBlogTopic('');
+        alert("Artículo generado y publicado!");
+      } catch (e) {
+          console.error(e);
+          alert("Error generando blog.");
+      } finally {
+          setIsGenerating(false);
+      }
+  };
+
+  const handleGeneratePost = async () => {
+      if (!marketingProduct) return alert("Selecciona un producto");
+      const p = products.find(x => x.id === marketingProduct);
+      if (!p) return;
+      setIsGenerating(true);
+      const text = await generateSocialPost(p, postPlatform);
+      setGeneratedPost(text);
+      setIsGenerating(false);
+  };
+
+  const handleAddBanner = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!bannerInputRef.current?.files?.[0]) return alert("Selecciona una imagen");
+      setIsUploadingBanner(true);
+      try {
+          const file = bannerInputRef.current.files[0];
+          const url = await uploadImageToStorage(file, `banners/${Date.now()}_${file.name}`);
+          await addBannerDB({
+              id: `ban_${Date.now()}`,
+              image: url,
+              title: bannerTitle,
+              active: true
+          });
+          setBannerTitle('');
+          if (bannerInputRef.current) bannerInputRef.current.value = '';
+      } catch (error) {
+          console.error(error);
+          alert("Error subiendo banner");
+      } finally {
+          setIsUploadingBanner(false);
+      }
+  };
+  
+  const handleGenerateDescription = async () => {
+    if (!prodName) return alert("Escribe el nombre del producto primero.");
     setIsGenerating(true);
     const desc = await generateProductDescription(prodName);
     setProdDesc(desc);
     setIsGenerating(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string) => void) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-            setter(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const handleGeneratePurchaseList = () => {
+      const lowStock = products.filter(p => p.stock < 10);
+      const bySupplier: {[key: string]: Product[]} = {};
+      
+      lowStock.forEach(p => {
+          const supName = suppliers.find(s => s.id === p.supplierId)?.name || 'Sin Proveedor';
+          if (!bySupplier[supName]) bySupplier[supName] = [];
+          bySupplier[supName].push(p);
+      });
 
-  const handleEditClick = (product: Product) => {
-    setEditingId(product.id);
-    setProdName(product.name);
-    setProdPrice(product.price.toString());
-    setProdDesc(product.description);
-    setProdCat(product.category);
-    setProdImage(product.image);
-    // Cargar datos de caja si existen
-    setProdUnitsPerBox(product.unitsPerBox ? product.unitsPerBox.toString() : '');
-    setProdBoxPrice(product.boxPrice ? product.boxPrice.toString() : '');
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+      let content = "LISTA DE COMPRA - VITALIS\n\n";
+      Object.keys(bySupplier).forEach(sup => {
+          content += `PROVEEDOR: ${sup}\n`;
+          bySupplier[sup].forEach(p => {
+              content += `- ${p.name} (Stock: ${p.stock}). Sugerido: +${50 - p.stock}\n`;
+          });
+          content += "\n";
+      });
 
-  const resetProductForm = () => {
-    setEditingId(null);
-    setProdName('');
-    setProdPrice('');
-    setProdUnitsPerBox('');
-    setProdBoxPrice('');
-    setProdDesc('');
-    setProdCat(categories[0]?.name || '');
-    setProdImage('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+      downloadCSV(content, `compra_${new Date().toISOString().split('T')[0]}.txt`);
   };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
@@ -126,20 +302,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const finalImage = prodImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' fill='%23f1f5f9'%3E%3Crect width='300' height='300' /%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%2394a3b8'%3ESin Imagen%3C/text%3E%3C/svg%3E";
     const tempId = editingId || Date.now().toString();
 
-    // Logic for optional box fields
-    const uPerBox = parseInt(prodUnitsPerBox);
-    const bPrice = parseFloat(prodBoxPrice);
-    
     const productData: Product = {
       id: tempId,
       name: prodName,
       price: parseFloat(prodPrice),
+      costPrice: parseFloat(prodCostPrice) || undefined,
       description: prodDesc,
       category: finalCat,
       image: finalImage,
-      stock: 100, // Default stock for new items, will be overwritten on edit
-      unitsPerBox: (!isNaN(uPerBox) && uPerBox > 1) ? uPerBox : undefined,
-      boxPrice: (!isNaN(bPrice) && bPrice > 0) ? bPrice : undefined
+      stock: 100,
+      unitsPerBox: parseInt(prodUnitsPerBox) || undefined,
+      boxPrice: parseFloat(prodBoxPrice) || undefined,
+      barcode: prodBarcode || undefined,
+      expiryDate: prodExpiry || undefined,
+      supplierId: prodSupplier || undefined
     };
 
     try {
@@ -157,477 +333,76 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const resetProductForm = () => {
+    setEditingId(null);
+    setProdName(''); setProdPrice(''); setProdCostPrice(''); setProdUnitsPerBox(''); setProdBoxPrice('');
+    setProdDesc(''); setProdCat(categories[0]?.name || ''); setProdImage(''); setProdBarcode(''); setProdExpiry(''); setProdSupplier('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleEditClick = (product: Product) => {
+    setEditingId(product.id);
+    setProdName(product.name);
+    setProdPrice(product.price.toString());
+    setProdCostPrice(product.costPrice ? product.costPrice.toString() : '');
+    setProdDesc(product.description);
+    setProdCat(product.category);
+    setProdImage(product.image);
+    setProdUnitsPerBox(product.unitsPerBox ? product.unitsPerBox.toString() : '');
+    setProdBoxPrice(product.boxPrice ? product.boxPrice.toString() : '');
+    setProdBarcode(product.barcode || '');
+    setProdExpiry(product.expiryDate || '');
+    setProdSupplier(product.supplierId || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => { if (typeof reader.result === 'string') setter(reader.result); };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCategorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!catName.trim()) return;
-    setIsSubmitting(true);
-
-    const finalImage = catImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' fill='%23f1f5f9'%3E%3Crect width='300' height='300' /%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%2394a3b8'%3ECategoría%3C/text%3E%3C/svg%3E";
-
-    const newCat: Category = {
-      id: `c_${Date.now()}`,
-      name: catName,
-      image: finalImage
-    };
-
-    try {
-      await onAddCategory(newCat);
-      setCatName('');
-      setCatImage('');
-      if (catFileInputRef.current) catFileInputRef.current.value = '';
-    } catch (e) {
-      console.error(e);
-      alert("Error al guardar categoría");
-    } finally {
-      setIsSubmitting(false);
-    }
+      e.preventDefault();
+      const finalImage = catImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' fill='%23f1f5f9'%3E%3Crect width='300' height='300' /%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%2394a3b8'%3ECategoría%3C/text%3E%3C/svg%3E";
+      await onAddCategory({ id: `cat_${Date.now()}`, name: catName, image: finalImage });
+      setCatName(''); setCatImage('');
   };
 
-  const getReservedStock = (productId: string, currentCart: CartItem[]) => {
-    return currentCart.reduce((acc, item) => {
-      if (item.id !== productId) return acc;
-      const unitsPerItem = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
-      return acc + (item.quantity * unitsPerItem);
-    }, 0);
-  };
-
-  const addToPosCart = (product: Product, unitType: 'UNIT' | 'BOX') => {
-    const quantityToAdd = unitType === 'BOX' ? (product.unitsPerBox || 1) : 1;
-    const currentReserved = getReservedStock(product.id, posCart);
-    
-    if (currentReserved + quantityToAdd > product.stock) {
-        return alert(`Stock insuficiente. Quedan ${product.stock} disponibles.`);
-    }
-
-    setPosCart(prev => {
-      // Find existing item with SAME id AND SAME unitType
-      const existingIndex = prev.findIndex(item => item.id === product.id && item.selectedUnit === unitType);
-      
-      if (existingIndex > -1) {
-        const newCart = [...prev];
-        newCart[existingIndex] = { ...newCart[existingIndex], quantity: newCart[existingIndex].quantity + 1 };
-        return newCart;
-      }
-      
-      // Add new line item
-      return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
-    });
-  };
-
-  const updatePosQuantity = (index: number, delta: number) => {
-    setPosCart(prev => {
-      const item = prev[index];
-      const product = products.find(p => p.id === item.id);
-      
-      if (!product) return prev;
-
-      const unitsPerItem = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
-      
-      // Calculate what the NEW total reserved would be
-      const otherItemsReserved = getReservedStock(item.id, prev) - (item.quantity * unitsPerItem);
-      const newQty = item.quantity + delta;
-      const newTotalReserved = otherItemsReserved + (newQty * unitsPerItem);
-
-      if (newTotalReserved > product.stock) {
-          alert("Stock máximo alcanzado");
-          return prev;
-      }
-      if (newQty < 1) return prev;
-      
-      const newCart = [...prev];
-      newCart[index] = { ...item, quantity: newQty };
-      return newCart;
-    });
-  };
-  
-  const removePosItem = (index: number) => {
-      setPosCart(prev => prev.filter((_, i) => i !== index));
-  }
-
-  const handlePosCheckout = async () => {
-    if (posCart.length === 0) return;
-    setIsSubmitting(true);
-    
-    let currentTotal = 0;
-    // Map to aggregate deductions per product ID
-    const stockDeductions = new Map<string, number>();
-
-    // 1. Calculate totals and stock deductions required
-    for (const item of posCart) {
-       const isBox = item.selectedUnit === 'BOX';
-       const unitPrice = isBox ? (item.boxPrice || 0) : item.price;
-       const unitsPerItem = isBox ? (item.unitsPerBox || 1) : 1;
-       
-       currentTotal += unitPrice * item.quantity;
-       
-       const unitsToDeduct = item.quantity * unitsPerItem;
-       const currentDeduction = stockDeductions.get(item.id) || 0;
-       stockDeductions.set(item.id, currentDeduction + unitsToDeduct);
-    }
-
-    try {
-        // 2. Perform Stock Updates in parallel
-        const stockUpdatePromises = [];
-        for (const [prodId, totalDeduction] of stockDeductions.entries()) {
-             const currentProduct = products.find(p => p.id === prodId);
-             if (currentProduct) {
-                 const newStock = Math.max(0, currentProduct.stock - totalDeduction);
-                 stockUpdatePromises.push(onUpdateStock(prodId, newStock));
-             }
-        }
-        await Promise.all(stockUpdatePromises);
-
-        // 3. Create Order
-        const newOrder: Order = {
-            id: `POS-${Date.now()}`,
-            customerName: 'Cliente en Local',
-            customerPhone: '-',
-            customerAddress: 'Tienda Física',
-            items: posCart,
-            subtotal: currentTotal,
-            deliveryFee: 0,
-            total: currentTotal,
-            paymentMethod: posPaymentMethod,
-            cashGiven: posPaymentMethod === 'CASH' && posCashReceived ? parseFloat(posCashReceived) : undefined,
-            status: 'DELIVERED',
-            source: 'POS',
-            date: new Date().toISOString()
-        };
-
-        await onAddOrder(newOrder);
-
-        // 4. Reset UI
-        setPosCart([]);
-        setPosCashReceived('');
-        alert("Venta registrada correctamente");
-    } catch (error) {
-        console.error("Error al procesar venta:", error);
-        alert("Hubo un error al procesar la venta. Verifique la conexión.");
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
-  // Helper for POS quick cash
-  const getQuickCashOptions = (total: number) => {
-    const options = [total];
-    if (total <= 5) options.push(5);
-    if (total <= 10) options.push(10);
-    if (total <= 20) options.push(20);
-    if (total <= 50) options.push(50);
-    if (total <= 100) options.push(100);
-    // Remove duplicates and sort
-    return Array.from(new Set(options)).sort((a, b) => a - b);
-  };
-  
-  const calculateCartTotal = (cart: CartItem[]) => {
-      return cart.reduce((acc, item) => {
-          const price = item.selectedUnit === 'BOX' ? (item.boxPrice || 0) : item.price;
-          return acc + (price * item.quantity);
-      }, 0);
-  };
-
-  const getSalesData = useMemo(() => {
-    const now = new Date();
-    const salesOrders = orders.filter(o => o.status === 'DELIVERED');
-    const data: { [key: string]: number } = {};
-    let totalPeriodSales = 0;
-
-    if (reportPeriod === 'daily') {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(now.getDate() - i);
-        const key = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-        data[key] = 0;
-      }
-      salesOrders.forEach(o => {
-        const d = new Date(o.date);
-        const diffTime = Math.abs(now.getTime() - d.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        if (diffDays <= 7) {
-          const key = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-          if (data[key] !== undefined) {
-            data[key] += o.total;
-            totalPeriodSales += o.total;
-          }
-        }
-      });
-    } else if (reportPeriod === 'weekly') {
-       salesOrders.forEach(o => {
-          const d = new Date(o.date);
-          if (d.getFullYear() === now.getFullYear()) {
-             const oneJan = new Date(d.getFullYear(), 0, 1);
-             const numberOfDays = Math.floor((d.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
-             const week = Math.ceil((d.getDay() + 1 + numberOfDays) / 7);
-             const key = `Semana ${week}`;
-             data[key] = (data[key] || 0) + o.total;
-             totalPeriodSales += o.total;
-          }
-       });
-    } else if (reportPeriod === 'monthly') {
-      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      monthNames.forEach(m => data[m] = 0);
-      salesOrders.forEach(o => {
-        const d = new Date(o.date);
-        if (d.getFullYear() === now.getFullYear()) {
-          const key = monthNames[d.getMonth()];
-          data[key] += o.total;
-          totalPeriodSales += o.total;
-        }
-      });
-    } else if (reportPeriod === 'yearly') {
-      salesOrders.forEach(o => {
-        const d = new Date(o.date);
-        const key = d.getFullYear().toString();
-        data[key] = (data[key] || 0) + o.total;
-        totalPeriodSales += o.total;
-      });
-    }
-
-    const chartData = Object.keys(data).map(key => ({
-      name: key,
-      ventas: data[key]
-    }));
-
-    return { chartData, totalPeriodSales };
-  }, [orders, reportPeriod]);
-
-  const renderDashboard = () => {
-    const pieData = [
-      { name: 'Entregados', value: deliveredOrders.length },
-      { name: 'Pendientes', value: pendingOrders.length },
-    ];
-    
-    const posOrders = orders.filter(o => o.source === 'POS');
-    const onlineOrders = orders.filter(o => o.source !== 'POS');
-    const { chartData, totalPeriodSales } = getSalesData;
-
-    return (
-      <div className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-             <div>
-                <p className="text-sm text-gray-500">Ingresos Totales (Histórico)</p>
-                <p className="text-2xl font-bold text-teal-600">${totalRevenue.toFixed(2)}</p>
-             </div>
-             <div className="bg-teal-50 p-3 rounded-full">
-               <DollarSign className="text-teal-600 h-6 w-6" />
-             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-             <div>
-                <p className="text-sm text-gray-500">Ventas Online</p>
-                <p className="text-2xl font-bold text-purple-600">{onlineOrders.length}</p>
-             </div>
-             <div className="bg-purple-50 p-3 rounded-full">
-               <ShoppingCart className="text-purple-600 h-6 w-6" />
-             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-             <div>
-                <p className="text-sm text-gray-500">Ventas en Local</p>
-                <p className="text-2xl font-bold text-blue-600">{posOrders.length}</p>
-             </div>
-             <div className="bg-blue-50 p-3 rounded-full">
-               <Store className="text-blue-600 h-6 w-6" />
-             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-             <div>
-                <p className="text-sm text-gray-500">Pendientes</p>
-                <p className="text-2xl font-bold text-orange-500">{pendingOrders.length}</p>
-             </div>
-             <div className="bg-orange-50 p-3 rounded-full">
-               <Clock className="text-orange-500 h-6 w-6" />
-             </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-teal-600" /> Reporte de Ventas
-              </h3>
-            </div>
-            <div className="flex bg-gray-100 p-1 rounded-lg mt-4 md:mt-0">
-              <button onClick={() => setReportPeriod('daily')} className={`px-4 py-1 text-sm rounded-md transition-all ${reportPeriod === 'daily' ? 'bg-white text-teal-700 shadow font-bold' : 'text-gray-500 hover:text-gray-700'}`}>Diario</button>
-              <button onClick={() => setReportPeriod('weekly')} className={`px-4 py-1 text-sm rounded-md transition-all ${reportPeriod === 'weekly' ? 'bg-white text-teal-700 shadow font-bold' : 'text-gray-500 hover:text-gray-700'}`}>Semanal</button>
-              <button onClick={() => setReportPeriod('monthly')} className={`px-4 py-1 text-sm rounded-md transition-all ${reportPeriod === 'monthly' ? 'bg-white text-teal-700 shadow font-bold' : 'text-gray-500 hover:text-gray-700'}`}>Mensual</button>
-              <button onClick={() => setReportPeriod('yearly')} className={`px-4 py-1 text-sm rounded-md transition-all ${reportPeriod === 'yearly' ? 'bg-white text-teal-700 shadow font-bold' : 'text-gray-500 hover:text-gray-700'}`}>Anual</button>
-            </div>
-          </div>
-
-          <div className="mb-6 bg-teal-50 border border-teal-100 rounded-lg p-4 flex items-center justify-between">
-            <span className="text-teal-800 font-medium">Total Ventas</span>
-            <span className="text-2xl font-bold text-teal-700">${totalPeriodSales.toFixed(2)}</span>
-          </div>
-
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(val: number) => `$${val}`} />
-                <Tooltip 
-                  cursor={{ fill: '#f0fdfa' }}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas']}
-                />
-                <Bar dataKey="ventas" fill="#0d9488" radius={[4, 4, 0, 0]} barSize={reportPeriod === 'yearly' ? 60 : 30} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Row for PieChart and Inventory Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 h-80">
-            <h3 className="text-lg font-bold mb-4 text-gray-700">Estado de Pedidos</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? '#0d9488' : '#f97316'} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 h-80 flex flex-col">
-             <h3 className="text-lg font-bold mb-4 text-gray-700">Resumen de Inventario</h3>
-             <div className="flex-grow flex flex-col justify-center space-y-4">
-                <div className="flex justify-between items-center border-b pb-2">
-                   <span className="text-gray-600">Total Productos</span>
-                   <span className="font-bold text-xl">{products.length}</span>
-                </div>
-                <div className="flex justify-between items-center border-b pb-2">
-                   <span className="text-gray-600">Categorías</span>
-                   <span className="font-bold text-xl">{categories.length}</span>
-                </div>
-                <div className="flex justify-between items-center border-b pb-2">
-                   <span className="text-gray-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-orange-500"/> Stock Bajo (&lt;10)</span>
-                   <span className="font-bold text-xl text-orange-600">{products.filter(p => p.stock < 10).length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                   <span className="text-gray-600 flex items-center gap-2"><X className="h-4 w-4 text-red-500"/> Sin Stock</span>
-                   <span className="font-bold text-xl text-red-600">{products.filter(p => p.stock === 0).length}</span>
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderInventory = () => (
-    <div className="space-y-6">
-       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-         <h3 className="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2">
-           <ClipboardList className="h-5 w-5 text-teal-600" /> Inventario de Productos
-         </h3>
-         <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cat.</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Config. Caja</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock (Unidades)</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {products.map(product => {
-                  const isLowStock = product.stock < 10;
-                  const hasBox = product.unitsPerBox && product.unitsPerBox > 1;
-                  const estimatedBoxes = hasBox ? Math.floor(product.stock / (product.unitsPerBox || 1)) : 0;
-                  
-                  return (
-                    <tr key={product.id}>
-                      <td className="px-6 py-4 whitespace-nowrap flex items-center">
-                         <img className="h-10 w-10 rounded-full object-cover mr-4" src={product.image} alt="" />
-                         <div>
-                            <span className="text-sm font-medium text-gray-900 block">{product.name}</span>
-                            <span className="text-xs text-gray-500">${product.price} (Unid)</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                         {hasBox ? (
-                             <div className="flex flex-col">
-                                 <span className="font-bold flex items-center gap-1 text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full w-fit">
-                                   <Package className="h-3 w-3"/> x{product.unitsPerBox}
-                                 </span>
-                                 <span className="text-xs text-teal-600 mt-1 pl-1">${product.boxPrice}</span>
-                             </div>
-                         ) : (
-                             <span className="text-gray-400 text-xs">-</span>
-                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                         <div className="flex items-center gap-2">
-                            <input 
-                                type="number"
-                                min="0"
-                                className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
-                                value={product.stock}
-                                onChange={(e) => onUpdateStock(product.id, parseInt(e.target.value) || 0)}
-                            />
-                            {hasBox && (
-                                <span className="text-xs text-gray-400 whitespace-nowrap">
-                                    (~ {estimatedBoxes} cajas)
-                                </span>
-                            )}
-                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {isLowStock ? <span className="text-orange-600 text-xs font-bold flex items-center"><AlertTriangle className="h-4 w-4 mr-1"/> Bajo</span> : <span className="text-green-600 text-xs font-bold flex items-center"><CheckCircle className="h-4 w-4 mr-1"/> Ok</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-         </div>
-       </div>
-    </div>
-  );
+  const isAdmin = currentUserRole === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Navbar Admin */}
       <div className="bg-white shadow sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex flex-1 overflow-hidden">
-              <div className="flex-shrink-0 flex items-center text-teal-700 font-bold text-xl mr-4">Panel Admin</div>
-              {/* Scrollable Navigation for Mobile */}
+              <div className="flex-shrink-0 flex items-center text-teal-700 font-bold text-xl mr-4">Panel {currentUserRole}</div>
               <div className="flex -my-px space-x-4 overflow-x-auto pb-1 sm:ml-6 sm:space-x-8 no-scrollbar items-center">
-                {['dashboard', 'pos', 'products', 'categories', 'inventory', 'orders'].map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab as any)}
-                      className={`${activeTab === tab ? 'border-teal-500 text-gray-900 bg-teal-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'} whitespace-nowrap inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium capitalize rounded-t-md transition-colors`}
-                    >
-                      {tab === 'pos' ? 'Punto de Venta' : tab === 'products' ? 'Productos' : tab === 'categories' ? 'Categorías' : tab === 'inventory' ? 'Inventario' : tab === 'orders' ? 'Pedidos' : 'Dashboard'}
-                    </button>
-                ))}
+                <button onClick={() => setActiveTab('dashboard')} className={`${activeTab === 'dashboard' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Dashboard</button>
+                <button onClick={() => setActiveTab('pos')} className={`${activeTab === 'pos' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>POS</button>
+                <button onClick={() => setActiveTab('orders')} className={`${activeTab === 'orders' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Pedidos</button>
+                
+                {/* Restricted Tabs */}
+                {isAdmin && (
+                    <>
+                        <button onClick={() => setActiveTab('products')} className={`${activeTab === 'products' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Productos</button>
+                        <button onClick={() => setActiveTab('inventory')} className={`${activeTab === 'inventory' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Inventario</button>
+                        <button onClick={() => setActiveTab('categories')} className={`${activeTab === 'categories' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Categorías</button>
+                        <button onClick={() => setActiveTab('suppliers')} className={`${activeTab === 'suppliers' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Proveedores</button>
+                        <button onClick={() => setActiveTab('marketing')} className={`${activeTab === 'marketing' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Marketing</button>
+                        <button onClick={() => setActiveTab('demand')} className={`${activeTab === 'demand' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Demanda</button>
+                        <button onClick={() => setActiveTab('users')} className={`${activeTab === 'users' ? 'border-teal-500 text-gray-900 bg-teal-50' : 'text-gray-500'} px-3 py-2 border-b-2 text-sm font-medium`}>Usuarios</button>
+                    </>
+                )}
               </div>
             </div>
-            <div className="flex items-center pl-4 bg-white shadow-[-10px_0_10px_-5px_rgba(255,255,255,1)]">
+            <div className="flex items-center pl-4 bg-white">
               <button onClick={onLogout} className="text-gray-500 hover:text-red-600 flex items-center gap-2">
-                <span className="hidden sm:inline text-sm">Salir</span>
                 <LogOut className="h-5 w-5" />
               </button>
             </div>
@@ -636,436 +411,434 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto py-4 px-2 sm:px-6 lg:px-8">
-        {activeTab === 'dashboard' && renderDashboard()}
         
-        {/* POS Tab Optimized */}
-        {activeTab === 'pos' && (
-            <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-9rem)]">
-                {/* Left Column: Products */}
-                <div className="w-full md:w-3/4 flex flex-col bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-3 border-b border-gray-200 bg-gray-50 space-y-3 shrink-0">
-                        {/* Search */}
-                        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded px-3 py-2">
-                            <Search className="text-gray-400 h-4 w-4" />
-                            <input 
-                                type="text"
-                                placeholder="Buscar producto (nombre, código)..."
-                                className="w-full bg-transparent outline-none text-sm text-gray-700"
-                                value={posSearch}
-                                onChange={(e) => setPosSearch(e.target.value)}
-                            />
-                            {posSearch && <button onClick={() => setPosSearch('')}><X className="h-4 w-4 text-gray-400"/></button>}
-                        </div>
-                        {/* Categories Chips */}
-                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
-                            <button 
-                                onClick={() => setPosCategoryFilter('ALL')}
-                                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${posCategoryFilter === 'ALL' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                            >
-                                Todos
-                            </button>
-                            {categories.map(c => (
-                                <button 
-                                    key={c.id}
-                                    onClick={() => setPosCategoryFilter(c.name)}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${posCategoryFilter === c.name ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                >
-                                    {c.name}
-                                </button>
-                            ))}
-                        </div>
+        {/* Render Tabs */}
+        {activeTab === 'dashboard' && (
+            <div className="space-y-6 animate-in fade-in">
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold">Resumen General</h2>
+                        <select className="border rounded p-1" value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value as any)}>
+                            <option value="daily">Hoy</option>
+                            <option value="weekly">Semana</option>
+                            <option value="monthly">Mes</option>
+                        </select>
                     </div>
-
-                    <div className="flex-grow overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 content-start">
-                        {products
-                            .filter(p => {
-                                const matchesSearch = p.name.toLowerCase().includes(posSearch.toLowerCase());
-                                const matchesCategory = posCategoryFilter === 'ALL' || p.category === posCategoryFilter;
-                                return matchesSearch && matchesCategory;
-                            })
-                            .map(p => {
-                                const hasBox = p.unitsPerBox && p.unitsPerBox > 1;
-                                // Calculate stock availability for UI
-                                const reserved = getReservedStock(p.id, posCart);
-                                const available = Math.max(0, p.stock - reserved);
-                                const unitsPerBox = p.unitsPerBox || 9999;
-
-                                return (
-                                    <div 
-                                        key={p.id} 
-                                        className={`border rounded-lg p-2 flex flex-col items-start relative transition-all duration-200 hover:shadow-md bg-white ${available <= 0 ? 'opacity-60 bg-gray-50' : 'hover:border-teal-400'}`}
-                                    >
-                                        <div 
-                                            className="w-full h-24 mb-2 overflow-hidden rounded bg-gray-100 relative cursor-pointer"
-                                            onClick={() => available > 0 && addToPosCart(p, 'UNIT')}
-                                        >
-                                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                                            {available <= 0 && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[10px] font-bold uppercase tracking-wide">Agotado</div>}
-                                        </div>
-                                        
-                                        <h4 
-                                            className="font-bold text-xs text-gray-800 line-clamp-2 mb-1 leading-tight h-8 w-full cursor-pointer"
-                                            onClick={() => available > 0 && addToPosCart(p, 'UNIT')}
-                                        >
-                                            {p.name}
-                                        </h4>
-                                        
-                                        <div className="flex justify-between items-end w-full mt-auto">
-                                            <div className="flex flex-col">
-                                                <p className="text-teal-700 font-extrabold text-sm">${p.price.toFixed(2)}</p>
-                                                {hasBox && <span className="text-[10px] text-gray-500">Unid.</span>}
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-1">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${available < 5 ? 'bg-orange-100 text-orange-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>
-                                                    {available}
-                                                </span>
-                                                
-                                                {/* Botón para agregar CAJA si existe */}
-                                                {hasBox && available >= unitsPerBox && (
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            addToPosCart(p, 'BOX');
-                                                        }}
-                                                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-1 rounded transition-colors flex items-center gap-0.5 px-1.5"
-                                                        title={`Agregar Caja ($${p.boxPrice})`}
-                                                    >
-                                                        <Package className="h-3 w-3" />
-                                                        <span className="text-[10px] font-bold">x{p.unitsPerBox}</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                    </div>
-                </div>
-
-                {/* Right Column: Ticket / Cart */}
-                <div className="w-full md:w-1/4 bg-white rounded-lg shadow-sm border border-gray-100 flex flex-col h-[50vh] md:h-full">
-                    {/* Ticket Header */}
-                    <div className="p-3 bg-teal-600 text-white flex justify-between items-center rounded-t-lg shrink-0">
-                        <span className="flex items-center gap-2 font-bold text-sm"><Store className="h-4 w-4"/> Ticket de Venta</span>
-                        <button 
-                            onClick={() => setPosCart([])} 
-                            disabled={posCart.length === 0}
-                            className="text-[10px] bg-teal-700 px-2 py-1 rounded hover:bg-teal-800 disabled:opacity-50"
-                        >
-                            Limpiar
-                        </button>
-                    </div>
-                    
-                    {/* Cart Items List */}
-                    <div className="flex-grow overflow-y-auto p-2 space-y-1">
-                        {posCart.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
-                                <ShoppingCart className="h-10 w-10 mb-2"/>
-                                <span className="text-xs">Ticket vacío</span>
-                            </div>
-                        ) : (
-                            posCart.map((item, index) => {
-                                const isBox = item.selectedUnit === 'BOX';
-                                const price = isBox ? (item.boxPrice || 0) : item.price;
-                                return (
-                                    <div key={`${item.id}-${item.selectedUnit}`} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0 hover:bg-gray-50 p-1 rounded">
-                                        <div className="flex-grow min-w-0 pr-2">
-                                            <p className="font-medium text-gray-800 text-xs truncate flex items-center gap-1">
-                                                {item.name}
-                                                {isBox && <span className="bg-blue-100 text-blue-800 text-[9px] px-1 rounded font-bold whitespace-nowrap">CAJA x{item.unitsPerBox}</span>}
-                                            </p>
-                                            <p className="text-[10px] text-gray-500">${price.toFixed(2)} x {item.quantity}</p>
-                                        </div>
-                                        <div className="flex items-center gap-1 bg-gray-100 rounded px-1">
-                                            <button onClick={() => updatePosQuantity(index, -1)} className="p-0.5 text-gray-500 hover:text-red-500"><Minus className="h-3 w-3"/></button>
-                                            <span className="font-bold text-gray-700 text-xs w-4 text-center">{item.quantity}</span>
-                                            <button onClick={() => updatePosQuantity(index, 1)} className="p-0.5 text-gray-500 hover:text-green-500"><Plus className="h-3 w-3"/></button>
-                                        </div>
-                                        <div className="flex flex-col items-end ml-2">
-                                             <span className="font-bold text-gray-800 text-xs">${(price * item.quantity).toFixed(2)}</span>
-                                             <button onClick={() => removePosItem(index)} className="text-[10px] text-red-400 hover:text-red-600"><Trash2 className="h-3 w-3"/></button>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-
-                    {/* Totals & Payment Actions */}
-                    <div className="p-3 bg-gray-50 border-t border-gray-200 shrink-0">
-                        {/* Total Display */}
-                        <div className="flex justify-between items-baseline mb-3">
-                            <span className="text-gray-500 text-xs font-bold uppercase">Total a Pagar</span>
-                            <span className="text-2xl font-black text-gray-800">${calculateCartTotal(posCart).toFixed(2)}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
+                            <p className="text-gray-500 text-sm font-bold uppercase">Ventas Totales</p>
+                            <p className="text-2xl font-black text-teal-700">${totalRevenue.toFixed(2)}</p>
                         </div>
-                        
-                        {/* Payment Method Toggle */}
-                        <div className="flex bg-gray-200 rounded p-0.5 mb-3">
-                            <button 
-                                onClick={() => setPosPaymentMethod('CASH')}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-bold transition-all ${posPaymentMethod === 'CASH' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}
-                            >
-                                <Banknote className="h-3 w-3" /> Efectivo
-                            </button>
-                            <button 
-                                onClick={() => setPosPaymentMethod('TRANSFER')}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-bold transition-all ${posPaymentMethod === 'TRANSFER' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}
-                            >
-                                <Store className="h-3 w-3" /> Transf.
-                            </button>
-                        </div>
-
-                        {/* Cash Input */}
-                        {posPaymentMethod === 'CASH' && (
-                            <div className="mb-3 animate-in fade-in zoom-in duration-200">
-                                <div className="flex gap-2 mb-2">
-                                     <input 
-                                        type="number" 
-                                        className="w-1/2 border border-gray-300 rounded p-1.5 text-sm outline-none focus:border-teal-500 font-bold"
-                                        placeholder="Recibido..."
-                                        value={posCashReceived}
-                                        onChange={(e) => setPosCashReceived(e.target.value)}
-                                     />
-                                     <div className="w-1/2 bg-white border border-gray-200 rounded p-1.5 flex flex-col justify-center px-2">
-                                         <span className="text-[10px] text-gray-400 leading-none">Vuelto</span>
-                                         <span className={`text-sm font-bold leading-tight ${
-                                             (parseFloat(posCashReceived || '0') - calculateCartTotal(posCart)) < 0 
-                                             ? 'text-red-500' 
-                                             : 'text-green-600'
-                                         }`}>
-                                             ${Math.max(0, parseFloat(posCashReceived || '0') - calculateCartTotal(posCart)).toFixed(2)}
-                                         </span>
-                                     </div>
-                                </div>
-                                {/* Quick Cash Buttons */}
-                                <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                                    <button onClick={() => setPosCashReceived(calculateCartTotal(posCart).toString())} className="px-2 py-1 bg-teal-100 text-teal-800 rounded text-[10px] font-bold hover:bg-teal-200 whitespace-nowrap">Exacto</button>
-                                    {getQuickCashOptions(calculateCartTotal(posCart)).map(val => (
-                                        <button key={val} onClick={() => setPosCashReceived(val.toString())} className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-[10px] font-bold hover:bg-gray-300 whitespace-nowrap">${val}</button>
-                                    ))}
-                                </div>
+                        {isAdmin && (
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                                <p className="text-gray-500 text-sm font-bold uppercase">Ganancia Neta</p>
+                                <p className="text-2xl font-black text-green-700">${totalProfit.toFixed(2)}</p>
                             </div>
                         )}
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <p className="text-gray-500 text-sm font-bold uppercase">Pedidos Pendientes</p>
+                            <p className="text-2xl font-black text-blue-700">{orders.filter(o => o.status === 'PENDING').length}</p>
+                        </div>
+                    </div>
 
-                        <button 
-                            onClick={handlePosCheckout}
-                            disabled={posCart.length === 0 || isSubmitting}
-                            className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                        >
-                            {isSubmitting ? <Loader2 className="animate-spin h-5 w-5"/> : 'COBRAR'}
-                        </button>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="ventas" fill="#0d9488" name="Ventas ($)" />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>
         )}
-        {activeTab === 'products' && (
-             <div className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold mb-4">{editingId ? 'Editar' : 'Agregar'} Producto</h3>
-                    <form onSubmit={handleProductSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input className="border p-2 rounded" placeholder="Nombre" value={prodName} onChange={e => setProdName(e.target.value)} required />
-                            <select className="border p-2 rounded" value={prodCat} onChange={e => setProdCat(e.target.value)}>
-                                <option value="">Categoría...</option>
-                                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                            </select>
-                        </div>
-                        
-                        {/* Precios y Cajas */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded border border-gray-200">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">Precio Unitario ($)</label>
-                                <input className="border p-2 rounded w-full" placeholder="0.00" type="number" step="0.01" value={prodPrice} onChange={e => setProdPrice(e.target.value)} required />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">Unidades por Caja (Opcional)</label>
-                                <input className="border p-2 rounded w-full" placeholder="Ej. 10, 30, 100" type="number" value={prodUnitsPerBox} onChange={e => setProdUnitsPerBox(e.target.value)} />
-                            </div>
-                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">Precio Caja ($) (Opcional)</label>
-                                <input className="border p-2 rounded w-full" placeholder="0.00" type="number" step="0.01" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
-                            </div>
-                        </div>
 
-                        <div className="flex gap-2 items-center">
-                            <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e, setProdImage)} />
-                            {prodImage && <img src={prodImage} className="h-10 w-10 object-cover" />}
-                        </div>
-                        <textarea className="border p-2 rounded w-full" placeholder="Descripción" value={prodDesc} onChange={e => setProdDesc(e.target.value)} required />
-                        
-                        <div className="flex justify-between items-center">
-                            <button type="button" onClick={handleGenerateDesc} className="text-teal-600 text-sm text-left flex items-center gap-1">
-                            {isGenerating ? <Loader2 className="animate-spin h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                            Generar Descripción con IA
-                            </button>
-                            <button type="submit" className="bg-teal-600 text-white px-6 py-2 rounded font-bold hover:bg-teal-700">Guardar</button>
-                        </div>
-                    </form>
-                </div>
-                <div className="bg-white rounded-lg shadow border border-gray-100">
-                    {products.map(p => (
-                        <div key={p.id} className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex items-center gap-4">
-                                <img src={p.image} className="h-12 w-12 rounded object-cover" />
-                                <div>
-                                    <p className="font-bold">{p.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                        Unit: ${p.price} | Stock: {p.stock}
-                                        {p.unitsPerBox && p.unitsPerBox > 1 && (
-                                            <span className="ml-2 text-teal-600 font-medium">
-                                                (Caja x{p.unitsPerBox}: ${p.boxPrice})
-                                            </span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2 w-full sm:w-auto justify-end">
-                                <button onClick={() => handleEditClick(p)} className="text-blue-500 p-2"><Edit2 className="h-5 w-5"/></button>
-                                <button onClick={() => onDeleteProduct(p.id)} className="text-red-500 p-2"><Trash2 className="h-5 w-5"/></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+        {/* --- POS Tab --- */}
+        {activeTab === 'pos' && (
+             <div className="bg-white p-4 md:p-6 rounded shadow animate-in fade-in flex flex-col md:flex-row gap-6 h-[85vh]">
+                 {showScanner && <BarcodeScanner onScan={(code) => { 
+                     const p = products.find(prod => prod.barcode === code);
+                     if(p) { addToPosCart(p); setShowScanner(false); } else { alert("Producto no encontrado"); setShowScanner(false); }
+                 }} onClose={() => setShowScanner(false)} />}
+                 
+                 <div className="w-full md:w-2/3 flex flex-col">
+                     <div className="flex gap-2 mb-4">
+                         <div className="relative flex-grow">
+                             <input className="w-full border p-2 pl-8 rounded" placeholder="Buscar producto o código..." value={posSearch} onChange={e => setPosSearch(e.target.value)} autoFocus />
+                             <Search className="absolute left-2 top-2.5 text-gray-400 h-4 w-4"/>
+                         </div>
+                         <button onClick={() => setShowScanner(true)} className="bg-gray-800 text-white p-2 rounded"><ScanBarcode/></button>
+                     </div>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto pr-2">
+                         {products.filter(p => p.name.toLowerCase().includes(posSearch.toLowerCase()) || p.barcode === posSearch).map(p => (
+                             <div key={p.id} onClick={() => addToPosCart(p)} className="border rounded p-3 cursor-pointer hover:border-teal-500 hover:shadow-md transition">
+                                 <p className="font-bold text-sm truncate">{p.name}</p>
+                                 <p className="text-teal-600 font-bold">${p.price.toFixed(2)}</p>
+                                 <p className="text-xs text-gray-400">Stock: {p.stock}</p>
+                             </div>
+                         ))}
+                     </div>
+                 </div>
+
+                 <div className="w-full md:w-1/3 bg-gray-50 border-l p-4 flex flex-col">
+                     <h3 className="font-bold mb-4 flex items-center gap-2"><ShoppingCart size={18}/> Carrito Actual</h3>
+                     <div className="flex-grow overflow-y-auto space-y-2 mb-4">
+                         {posCart.map(item => (
+                             <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded border">
+                                 <div className="flex-grow">
+                                     <p className="text-sm font-medium">{item.name}</p>
+                                     <p className="text-xs text-gray-500">${item.price.toFixed(2)} x {item.quantity}</p>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                     <p className="font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+                                     <button onClick={() => removeFromPosCart(item.id)} className="text-red-500"><X size={14}/></button>
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
+                     <div className="border-t pt-4 space-y-3">
+                         <div className="flex justify-between text-xl font-black"><span>Total</span><span>${posTotal.toFixed(2)}</span></div>
+                         <div className="flex gap-2">
+                             <button onClick={() => setPosPaymentMethod('CASH')} className={`flex-1 py-2 rounded border ${posPaymentMethod === 'CASH' ? 'bg-teal-100 border-teal-500 text-teal-800' : 'bg-white'}`}>Efectivo</button>
+                             <button onClick={() => setPosPaymentMethod('TRANSFER')} className={`flex-1 py-2 rounded border ${posPaymentMethod === 'TRANSFER' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-white'}`}>Transf.</button>
+                         </div>
+                         {posPaymentMethod === 'CASH' && (
+                             <input type="number" placeholder="Dinero recibido" className="w-full border p-2 rounded" value={posCashReceived} onChange={e => setPosCashReceived(e.target.value)} />
+                         )}
+                         <button onClick={handlePosCheckout} className="w-full bg-teal-600 text-white py-3 rounded font-bold hover:bg-teal-700">COBRAR</button>
+                     </div>
+                 </div>
              </div>
         )}
-        {activeTab === 'categories' && (
+
+        {/* --- INVENTORY TAB --- */}
+        {activeTab === 'inventory' && isAdmin && (
+            <div className="bg-white p-6 rounded shadow animate-in fade-in">
+                <div className="flex justify-between mb-4">
+                    <h3 className="font-bold text-lg">Control de Inventario</h3>
+                    <div className="relative">
+                        <input className="border p-2 pl-8 rounded" placeholder="Buscar..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+                        <Search className="absolute left-2 top-2.5 text-gray-400 h-4 w-4"/>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr className="bg-gray-50">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Actual</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {products.filter(p => p.name.toLowerCase().includes(inventorySearch.toLowerCase())).map(p => (
+                                <tr key={p.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{p.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.stock < 10 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                            {p.stock}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center gap-2">
+                                        <button onClick={() => onUpdateStock(p.id, p.stock - 1)} className="p-1 bg-gray-100 rounded hover:bg-gray-200"><Minus size={16}/></button>
+                                        <button onClick={() => onUpdateStock(p.id, p.stock + 1)} className="p-1 bg-gray-100 rounded hover:bg-gray-200"><Plus size={16}/></button>
+                                        <input 
+                                            type="number" 
+                                            className="w-20 border rounded p-1 ml-2 text-center" 
+                                            defaultValue={p.stock}
+                                            onBlur={(e) => onUpdateStock(p.id, parseInt(e.target.value))}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* --- CATEGORIES TAB --- */}
+        {activeTab === 'categories' && isAdmin && (
+            <div className="bg-white p-6 rounded shadow animate-in fade-in">
+                <h3 className="font-bold text-lg mb-4">Gestión de Categorías</h3>
+                <form onSubmit={handleCategorySubmit} className="flex gap-4 mb-8 bg-gray-50 p-4 rounded items-end">
+                    <div className="flex-grow">
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Nombre</label>
+                        <input className="w-full border p-2 rounded" value={catName} onChange={e => setCatName(e.target.value)} required />
+                    </div>
+                    {/* Simplified Image Input */}
+                    <button className="bg-teal-600 text-white px-4 py-2 rounded font-bold h-10">Crear</button>
+                </form>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {categories.map(c => (
+                        <div key={c.id} className="border rounded p-4 relative group">
+                            <img src={c.image} className="h-20 w-full object-contain mb-2 mix-blend-multiply" />
+                            <p className="font-bold text-center">{c.name}</p>
+                            <button onClick={() => onDeleteCategory(c.id)} className="absolute top-2 right-2 bg-red-100 text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* --- ORDERS TAB --- */}
+        {activeTab === 'orders' && (
+            <div className="bg-white p-6 rounded shadow animate-in fade-in">
+                <h3 className="font-bold text-lg mb-4">Historial de Pedidos</h3>
+                <div className="space-y-4">
+                    {orders.map(order => (
+                        <div key={order.id} className="border rounded-lg p-4 hover:shadow-md transition">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <p className="font-bold text-lg">{order.customerName}</p>
+                                    <p className="text-sm text-gray-500">{new Date(order.date).toLocaleString()} • {order.paymentMethod}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-black text-xl text-teal-700">${order.total.toFixed(2)}</p>
+                                    <span className={`text-xs px-2 py-1 rounded font-bold ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : order.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                        {order.status}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-3 pl-2 border-l-2 border-gray-200">
+                                {order.items.map(i => <p key={i.id}>{i.quantity}x {i.name}</p>)}
+                            </div>
+                            {order.status !== 'DELIVERED' && (
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => onUpdateOrderStatus(order.id, 'DELIVERED')} className="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2">
+                                        <CheckCircle size={16}/> Marcar Entregado
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* --- USERS TAB --- */}
+        {activeTab === 'users' && isAdmin && (
+            <div className="bg-white p-6 rounded shadow animate-in fade-in">
+                <h3 className="font-bold text-lg mb-4">Usuarios Registrados</h3>
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {users.map(u => (
+                            <tr key={u.uid}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.displayName}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span className="bg-gray-100 px-2 py-1 rounded text-xs">{u.role}</span></td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-bold">{u.points}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
+
+        {/* --- SUPPLIERS TAB --- */}
+        {activeTab === 'suppliers' && isAdmin && (
             <div className="space-y-6">
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold mb-4">Agregar Categoría</h3>
-                    <form onSubmit={handleCategorySubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input 
-                                className="border p-2 rounded w-full" 
-                                placeholder="Nombre de la Categoría" 
-                                value={catName} 
-                                onChange={e => setCatName(e.target.value)} 
-                                required 
-                            />
-                            <div className="flex gap-2 items-center">
-                                <input 
-                                    type="file" 
-                                    ref={catFileInputRef} 
-                                    onChange={(e) => handleImageUpload(e, setCatImage)} 
-                                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                                />
-                                {catImage && <img src={catImage} className="h-10 w-10 object-cover rounded shadow-sm" alt="Preview" />}
-                            </div>
-                        </div>
-                        <button type="submit" disabled={isSubmitting} className="bg-teal-600 text-white px-6 py-2 rounded font-bold hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
-                            {isSubmitting ? <Loader2 className="animate-spin h-5 w-5"/> : <><Plus className="h-5 w-5" /> Guardar Categoría</>}
-                        </button>
-                    </form>
-                </div>
-
-                <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
-                    <div className="p-4 border-b bg-gray-50">
-                            <h3 className="text-lg font-bold text-gray-700">Categorías Existentes</h3>
+                    <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-lg font-bold">Gestión de Proveedores</h3>
+                         <button onClick={handleGeneratePurchaseList} className="bg-blue-100 text-blue-700 px-3 py-2 rounded text-sm font-bold hover:bg-blue-200 flex items-center gap-2"><FileDown size={16}/> Lista de Compra</button>
                     </div>
-                    <div className="divide-y divide-gray-100">
-                    {categories.map(c => (
-                            <div key={c.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                <div className="flex items-center gap-4">
-                                    <img src={c.image} className="h-12 w-12 rounded-lg object-cover shadow-sm" alt={c.name} />
-                                    <span className="font-bold text-gray-800 text-lg">{c.name}</span>
-                                </div>
-                                <button 
-                                    onClick={() => {
-                                        if(window.confirm('¿Eliminar categoría? Los productos asociados podrían quedar sin categoría.')) {
-                                            onDeleteCategory(c.id);
-                                        }
-                                    }} 
-                                    className="text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"
-                                    title="Eliminar Categoría"
-                                >
-                                    <Trash2 className="h-5 w-5"/>
-                                </button>
+                    <form onSubmit={handleSupplierSubmit} className="flex flex-wrap gap-4 items-end bg-gray-50 p-4 rounded">
+                        <input className="border p-2 rounded" placeholder="Empresa" value={supplierForm.name} onChange={e => setSupplierForm({...supplierForm, name: e.target.value})} required />
+                        <input className="border p-2 rounded" placeholder="Contacto" value={supplierForm.contactName} onChange={e => setSupplierForm({...supplierForm, contactName: e.target.value})} />
+                        <input className="border p-2 rounded" placeholder="Teléfono" value={supplierForm.phone} onChange={e => setSupplierForm({...supplierForm, phone: e.target.value})} />
+                        <button className="bg-teal-600 text-white px-4 py-2 rounded font-bold">Agregar</button>
+                    </form>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {suppliers.map(s => (
+                            <div key={s.id} className="p-4 border rounded shadow-sm relative">
+                                <h4 className="font-bold">{s.name}</h4>
+                                <p className="text-sm text-gray-500">{s.contactName} • {s.phone}</p>
+                                <button onClick={() => deleteSupplierDB(s.id)} className="absolute top-2 right-2 text-red-400"><Trash2 size={16}/></button>
                             </div>
-                    ))}
-                    {categories.length === 0 && (
-                        <div className="p-8 text-center text-gray-400 italic">No hay categorías registradas.</div>
-                    )}
+                        ))}
                     </div>
                 </div>
             </div>
         )}
-        {activeTab === 'inventory' && renderInventory()}
-        {activeTab === 'orders' && (
-            <div className="space-y-4">
-                {orders.map(order => (
-                    <div key={order.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col gap-3">
-                        {/* Header Row */}
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-600 mb-1">
-                                    #{order.id.slice(-6)}
-                                </span>
-                                <h4 className="font-bold text-gray-900">{order.customerName}</h4>
-                                <div className="text-sm text-gray-500 space-y-0.5 mt-1">
-                                    <p className="flex items-center gap-1"><Phone size={14} className="text-gray-400"/> {order.customerPhone}</p>
-                                    <p className="flex items-center gap-1"><MapPin size={14} className="text-gray-400"/> {order.customerAddress}</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-black text-xl text-teal-700">${order.total.toFixed(2)}</p>
-                                <div className={`text-xs font-bold px-2 py-1 rounded inline-flex items-center gap-1 mt-1 ${order.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                                    {order.status === 'PENDING' ? <Clock size={12}/> : <CheckCircle size={12}/>}
-                                    {order.status === 'PENDING' ? 'Pendiente' : 'Entregado'}
-                                </div>
-                                {/* Payment Method Badge */}
-                                <div className="text-xs text-gray-500 mt-1 flex flex-col items-end gap-1">
-                                    {order.paymentMethod === 'CASH' ? 
-                                        <>
-                                            <span className="flex items-center gap-1"><Banknote size={12}/> Efectivo</span>
-                                            {order.cashGiven && (
-                                                <span className="text-gray-400 text-[10px]">
-                                                    Paga con: ${order.cashGiven} (Vuelto: ${(order.cashGiven - order.total).toFixed(2)})
-                                                </span>
-                                            )}
-                                        </> 
-                                        : 
-                                        <span className="flex items-center gap-1"><Store size={12}/> Transf.</span>
-                                    }
-                                </div>
-                            </div>
+
+        {/* --- DEMAND REPORT TAB --- */}
+        {activeTab === 'demand' && isAdmin && (
+             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><TrendingUp className="text-red-500"/> Demanda Insatisfecha</h3>
+                 <p className="text-sm text-gray-500 mb-4">Productos que los clientes buscan pero no encuentran (0 resultados).</p>
+                 <table className="min-w-full divide-y divide-gray-200">
+                     <thead><tr><th className="text-left py-2">Término Buscado</th><th className="text-left py-2">Fecha</th><th className="text-left py-2">Intentos</th></tr></thead>
+                     <tbody>
+                         {searchLogs.map(log => (
+                             <tr key={log.id}>
+                                 <td className="py-2 font-bold text-gray-800">{log.term}</td>
+                                 <td className="py-2 text-gray-500">{log.date}</td>
+                                 <td className="py-2"><span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">{log.count}</span></td>
+                             </tr>
+                         ))}
+                     </tbody>
+                 </table>
+             </div>
+        )}
+
+        {/* --- MARKETING (Including Blog & Social) --- */}
+        {activeTab === 'marketing' && isAdmin && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in">
+                
+                {/* 1. Generador de Redes Sociales */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-blue-100">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-700"><Share2 className="h-5 w-5"/> Generador de Redes Sociales</h3>
+                    <p className="text-sm text-gray-500 mb-4">Selecciona un producto y crea un post atractivo en segundos.</p>
+                    
+                    <div className="space-y-4">
+                        <select className="w-full border p-2 rounded" value={marketingProduct} onChange={e => setMarketingProduct(e.target.value)}>
+                            <option value="">-- Seleccionar Producto --</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name} (${p.price})</option>)}
+                        </select>
+                        
+                        <div className="flex gap-2 bg-gray-50 p-2 rounded">
+                             <button onClick={() => setPostPlatform('INSTAGRAM')} className={`flex-1 py-1 rounded text-sm font-bold flex items-center justify-center gap-2 ${postPlatform === 'INSTAGRAM' ? 'bg-pink-100 text-pink-700' : 'text-gray-500'}`}>
+                                 <Instagram size={16}/> Instagram/FB
+                             </button>
+                             <button onClick={() => setPostPlatform('WHATSAPP')} className={`flex-1 py-1 rounded text-sm font-bold flex items-center justify-center gap-2 ${postPlatform === 'WHATSAPP' ? 'bg-green-100 text-green-700' : 'text-gray-500'}`}>
+                                 <MessageCircle size={16}/> WhatsApp
+                             </button>
                         </div>
 
-                        {/* Divider */}
-                        <hr className="border-gray-100" />
+                        <button onClick={handleGeneratePost} disabled={isGenerating || !marketingProduct} className="w-full bg-blue-600 text-white py-2 rounded font-bold flex items-center justify-center gap-2">
+                             {isGenerating ? <Loader2 className="animate-spin"/> : <Sparkles size={16}/>} Generar Post
+                        </button>
 
-                        {/* Items List */}
-                        <div>
-                            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Detalle del Pedido</p>
-                            <ul className="space-y-2 bg-gray-50 p-3 rounded-md">
-                                {order.items.map((item, idx) => {
-                                    const isBox = item.selectedUnit === 'BOX';
-                                    const price = isBox ? (item.boxPrice || 0) : item.price;
-                                    return (
-                                        <li key={idx} className="flex justify-between text-sm items-center border-b border-gray-100 last:border-0 pb-2 last:pb-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-gray-700 w-6">{item.quantity}x</span>
-                                                <span className="text-gray-800">{item.name}</span>
-                                                {isBox && <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">CAJA x{item.unitsPerBox}</span>}
-                                            </div>
-                                            <span className="text-gray-600 font-medium">${(price * item.quantity).toFixed(2)}</span>
-                                        </li>
-                                    )
-                                })}
-                            </ul>
-                        </div>
-
-                        {/* Actions */}
-                        {order.status === 'PENDING' && (
-                            <div className="mt-2 flex justify-end">
-                                <button onClick={() => onUpdateOrderStatus(order.id, 'DELIVERED')} className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4" /> Marcar como Entregado
-                                </button>
+                        {generatedPost && (
+                            <div className="mt-4">
+                                <textarea className="w-full border p-2 rounded text-sm h-32" value={generatedPost} onChange={(e) => setGeneratedPost(e.target.value)}></textarea>
+                                <div className="flex gap-2 mt-2">
+                                    <button onClick={() => navigator.clipboard.writeText(generatedPost)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded text-xs font-bold flex items-center justify-center gap-2"><Copy size={14}/> Copiar</button>
+                                    {postPlatform === 'WHATSAPP' && (
+                                        <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(generatedPost)}`)} className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 py-2 rounded text-xs font-bold flex items-center justify-center gap-2"><MessageCircle size={14}/> Abrir WhatsApp</button>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
-                ))}
+                </div>
+
+                {/* 2. Banners y Promociones */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-yellow-100">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-yellow-700"><ImageIcon className="h-5 w-5"/> Banners Promocionales</h3>
+                    <div className="mb-6 space-y-3">
+                         <div className="flex gap-2">
+                            <input className="flex-grow border p-2 rounded" placeholder="Título del Banner (Opcional)" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)}/>
+                         </div>
+                         <input type="file" accept="image/*" ref={bannerInputRef} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"/>
+                         <button onClick={handleAddBanner} disabled={isUploadingBanner} className="bg-yellow-600 text-white px-4 py-2 rounded font-bold w-full disabled:opacity-50">
+                             {isUploadingBanner ? 'Subiendo...' : 'Publicar Banner'}
+                         </button>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {banners.map(b => (
+                            <div key={b.id} className="flex items-center gap-3 p-2 border rounded bg-gray-50 relative group">
+                                <img src={b.image} className="h-10 w-20 object-cover rounded"/>
+                                <p className="text-sm font-medium truncate flex-grow">{b.title || 'Sin Título'}</p>
+                                <button onClick={() => deleteBannerDB(b.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16}/></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 3. Generador de Blog (Full Width) */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-purple-100 border-l-4 border-l-purple-500 lg:col-span-2">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-purple-700"><PenTool className="h-5 w-5"/> Generador de Blog IA</h3>
+                    <div className="flex gap-4">
+                        <input className="flex-grow border p-2 rounded" placeholder="Tema del artículo (Ej: Beneficios de la Vitamina C)" value={blogTopic} onChange={e => setBlogTopic(e.target.value)} />
+                        <button onClick={handleGenerateBlog} disabled={isGenerating || !blogTopic} className="bg-purple-600 text-white px-4 py-2 rounded font-bold flex items-center gap-2">
+                            {isGenerating ? <Loader2 className="animate-spin"/> : <Sparkles size={16}/>} Generar
+                        </button>
+                    </div>
+                </div>
+
             </div>
         )}
+
+        {/* --- PRODUCTS TAB --- */}
+        {activeTab === 'products' && isAdmin && (
+             <div className="bg-white p-6 rounded shadow">
+                 <h3 className="font-bold mb-4">Gestión de Productos</h3>
+                 <form onSubmit={handleProductSubmit} className="space-y-4 mb-8">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input className="border p-2 rounded w-full" placeholder="Nombre del Producto" value={prodName} onChange={e => setProdName(e.target.value)} required />
+                        <input className="border p-2 rounded w-full" placeholder="Código de Barras (Opcional)" value={prodBarcode} onChange={e => setProdBarcode(e.target.value)} />
+                     </div>
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                         <input className="border p-2 rounded" type="number" placeholder="Precio Venta" value={prodPrice} onChange={e => setProdPrice(e.target.value)} required />
+                         <input className="border p-2 rounded" type="number" placeholder="Costo" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
+                         <input className="border p-2 rounded" type="number" placeholder="Unidades por Caja" value={prodUnitsPerBox} onChange={e => setProdUnitsPerBox(e.target.value)} />
+                         <input className="border p-2 rounded" type="number" placeholder="Precio Caja" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
+                     </div>
+                     
+                     <div className="flex gap-2">
+                        <textarea className="border p-2 rounded w-full" placeholder="Descripción" value={prodDesc} onChange={e => setProdDesc(e.target.value)} />
+                        <button type="button" onClick={handleGenerateDescription} className="bg-purple-100 text-purple-600 px-3 rounded hover:bg-purple-200" title="Generar con IA"><Sparkles size={20}/></button>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <select className="border p-2 rounded" value={prodCat} onChange={e => setProdCat(e.target.value)}>
+                            <option value="">Categoría...</option>
+                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <select className="border p-2 rounded" value={prodSupplier} onChange={e => setProdSupplier(e.target.value)}>
+                             <option value="">Seleccionar Proveedor...</option>
+                             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                         <div className="flex items-center gap-2">
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                ref={fileInputRef}
+                                className="text-sm"
+                                onChange={(e) => handleImageUpload(e, setProdImage)}
+                            />
+                        </div>
+                     </div>
+                     
+                     <button className="bg-teal-600 text-white px-4 py-2 rounded font-bold w-full md:w-auto">{isSubmitting ? 'Guardando...' : 'Guardar Producto'}</button>
+                     {editingId && <button type="button" onClick={resetProductForm} className="ml-2 text-gray-500">Cancelar Edición</button>}
+                 </form>
+
+                 <div className="border-t pt-4">
+                     {products.map(p => (
+                         <div key={p.id} className="border-b p-2 flex justify-between items-center hover:bg-gray-50">
+                             <div className="flex items-center gap-3">
+                                 <img src={p.image} className="h-10 w-10 object-contain rounded" />
+                                 <div>
+                                     <p className="font-bold text-sm">{p.name}</p>
+                                     <p className="text-xs text-gray-500">${p.price.toFixed(2)} | Stock: {p.stock}</p>
+                                 </div>
+                             </div>
+                             <div className="flex gap-2">
+                                 <button onClick={() => handleEditClick(p)}><Edit2 size={16} className="text-blue-500"/></button>
+                                 <button onClick={() => onDeleteProduct(p.id)}><Trash2 size={16} className="text-red-500"/></button>
+                             </div>
+                         </div>
+                     ))}
+                 </div>
+             </div>
+        )}
+
       </div>
     </div>
   );
