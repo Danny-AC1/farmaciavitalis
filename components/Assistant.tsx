@@ -76,15 +76,17 @@ const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
       let errorMsg = 'Tuve un problema al conectar con el servidor.';
       const rawError = error.message || error.toString();
 
-      if (rawError.includes('401') || rawError.includes('403')) {
-          errorMsg = 'Error de autenticación (403). Verifica que la API Key sea correcta y que la "Google Generative AI API" esté habilitada en tu Google Cloud Console.';
+      if (rawError.includes('403')) {
+          errorMsg = '⛔ ACCESO DENEGADO (403): Tu API Key ha sido rechazada.\n\nCausa probable: Google revocó tu clave porque fue detectada públicamente en GitHub/Internet.\n\nSOLUCIÓN:\n1. Genera una NUEVA Key en aistudio.google.com\n2. Ponla en tu archivo .env\n3. NO subas el .env a GitHub.';
+      } else if (rawError.includes('401')) {
+          errorMsg = 'Error 401: API Key inválida o mal formada.';
       } else if (rawError.includes('404')) {
-          errorMsg = 'Modelo no disponible (404). Tu clave podría no tener acceso a Gemini 2.5 Flash.';
+          errorMsg = 'Error 404: Modelo no encontrado. Verifica que tu clave tenga acceso a "gemini-2.5-flash".';
       } else if (rawError.includes('429')) {
-          errorMsg = 'Demasiadas solicitudes. Intenta más tarde.';
+          errorMsg = 'Demasiadas solicitudes. Por favor espera un momento.';
       }
 
-      setMessages(prev => [...prev, { role: 'model', text: `❌ ${errorMsg}` }]);
+      setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
       setErrorState(errorMsg);
     } finally {
       setIsLoading(false);
@@ -101,12 +103,7 @@ const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
         onClick={onClose}
       />
 
-      {/* Chat Window 
-          Mobile optimizations:
-          - top-[72px] to clear Navbar (h-16 + spacing)
-          - bottom-[72px] to clear BottomNav (h-16 + spacing)
-          - left-2/right-2 to show a gap from screen edges
-      */}
+      {/* Chat Window */}
       <div 
         className={`fixed 
           z-[60] 
@@ -164,11 +161,11 @@ const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div 
-                className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${
                   msg.role === 'user' 
                     ? 'bg-teal-600 text-white rounded-tr-none' 
                     : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
-                } ${msg.text.includes('Error') ? 'border-red-200 bg-red-50 text-red-800' : ''}`}
+                } ${msg.text.includes('Error') || msg.text.includes('ACCESO DENEGADO') ? 'border-red-200 bg-red-50 text-red-800 font-medium' : ''}`}
               >
                 {msg.text}
               </div>
@@ -205,7 +202,7 @@ const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
           </div>
           <div className="text-center mt-2 flex justify-center items-center gap-1">
              {errorState ? (
-                 <span className="text-[10px] text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Error de Conexión</span>
+                 <span className="text-[10px] text-red-500 flex items-center gap-1 font-bold"><AlertTriangle className="h-3 w-3"/> Revisa tu API Key</span>
              ) : (
                  <p className="text-[10px] text-gray-400">Vitalis Asistent puede cometer errores. Consulta a un médico.</p>
              )}

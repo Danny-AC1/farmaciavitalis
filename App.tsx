@@ -29,11 +29,11 @@ import {
   streamBanners, 
   logSearch 
 } from './services/db';
-import { checkInteractions } from './services/gemini';
+import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
-import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle, Stethoscope, Sparkles } from 'lucide-react';
 
 const getReservedStock = (productId: string, currentCart: CartItem[]) => {
   return currentCart.reduce((acc, item) => {
@@ -145,13 +145,18 @@ const App: React.FC = () => {
   const [interactionWarning, setInteractionWarning] = useState<string | null>(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
   
+  // Search State including Option 1 (Symptom Search)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSymptomMode, setIsSymptomMode] = useState(false);
+  const [isSearchingAI, setIsSearchingAI] = useState(false);
+  const [aiSearchResults, setAiSearchResults] = useState<string[]>([]); // Product IDs
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [lastOrderLink, setLastOrderLink] = useState('');
 
   // Initialization
@@ -184,25 +189,36 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // UNSATISFIED DEMAND LOGGING
+  // UNSATISFIED DEMAND LOGGING & AI SEARCH TRIGGER
   useEffect(() => {
-      if (!searchTerm) return;
-      const delayDebounceFn = setTimeout(() => {
-          const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name : null;
-          let found = [];
-          if (categoryName) {
-              found = products.filter(p => p.category === categoryName && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-          } else {
-              found = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-          }
+      if (!searchTerm) {
+          setAiSearchResults([]);
+          return;
+      }
 
-          if (found.length === 0) {
-              logSearch(searchTerm);
+      const delayDebounceFn = setTimeout(async () => {
+          if (isSymptomMode && searchTerm.length > 3) {
+              setIsSearchingAI(true);
+              const ids = await searchProductsBySymptoms(searchTerm, products);
+              setAiSearchResults(ids);
+              setIsSearchingAI(false);
+          } else if (!isSymptomMode) {
+              // Standard logging for demand
+              const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name : null;
+              let found = [];
+              if (categoryName) {
+                  found = products.filter(p => p.category === categoryName && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+              } else {
+                  found = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+              }
+              if (found.length === 0) {
+                  logSearch(searchTerm);
+              }
           }
-      }, 2000);
+      }, 1000); // 1s debounce for AI
 
       return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, products, activeCategory, categories]);
+  }, [searchTerm, isSymptomMode, products, activeCategory, categories]);
 
   // AI Interaction Check Effect (Option 5)
   useEffect(() => {
@@ -396,11 +412,31 @@ const App: React.FC = () => {
 
   if (isLoadingData) return (<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="h-12 w-12 text-teal-600 animate-spin" /></div>);
 
-  // Derived state for Home View
-  const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredGlobalProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Derived state for Home View & Search Logic
   const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name || activeCategory : '';
-  const filteredCategoryProducts = activeCategory ? products.filter(p => p.category === categoryName && (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase()))) : [];
+  
+  let displayedProducts: Product[] = [];
+
+  if (isSymptomMode && searchTerm) {
+      if (aiSearchResults.length > 0) {
+          displayedProducts = products.filter(p => aiSearchResults.includes(p.id));
+      } else {
+          // Fallback if AI hasn't returned yet or returned empty but searching
+          displayedProducts = []; 
+      }
+  } else if (searchTerm) {
+      // Standard search
+      displayedProducts = products.filter(p => 
+          (activeCategory ? p.category === categoryName : true) &&
+          (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+           p.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+  } else if (activeCategory) {
+      // Category Browse
+      displayedProducts = products.filter(p => p.category === categoryName);
+  }
+
+  const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-50">
@@ -421,25 +457,41 @@ const App: React.FC = () => {
                 
                 {/* 1. SEARCH BAR - ALWAYS FIRST (Persistent) */}
                 <div className="relative w-full mb-8 z-30 sticky top-16 bg-gray-50 pt-2 pb-2 transition-all">
-                    <div className="relative">
-                        <input 
-                            type="text" 
-                            placeholder={activeCategory ? `Buscar en ${categoryName}...` : "Buscar productos..."}
-                            className="w-full pl-12 pr-14 py-4 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-md bg-white text-lg transition-all" 
-                            value={searchTerm} 
-                            onChange={(e) => setSearchTerm(e.target.value)} 
-                        />
-                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                            <Search className="h-6 w-6" />
-                        </div>
+                    <div className="relative flex gap-2">
+                        {/* Option 1: Symptom Mode Toggle */}
                         <button 
-                            onClick={startVoiceSearch} 
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
-                            title="Buscar por voz"
+                            onClick={() => { setIsSymptomMode(!isSymptomMode); setSearchTerm(''); setAiSearchResults([]); }}
+                            className={`p-3 rounded-xl shadow-md transition-all flex items-center justify-center ${isSymptomMode ? 'bg-purple-600 text-white' : 'bg-white text-gray-400 hover:text-purple-600'}`}
+                            title={isSymptomMode ? "Volver a búsqueda normal" : "Activar búsqueda por síntomas"}
                         >
-                            <Mic className="h-5 w-5 text-gray-600" />
+                            <Stethoscope className="h-6 w-6" />
                         </button>
+
+                        <div className="relative flex-grow">
+                            <input 
+                                type="text" 
+                                placeholder={isSymptomMode ? "¿Qué malestar sientes? (Ej: tengo fiebre)" : (activeCategory ? `Buscar en ${categoryName}...` : "Buscar productos...")}
+                                className={`w-full pl-12 pr-14 py-4 rounded-xl border transition-all text-lg shadow-md focus:outline-none focus:ring-2 ${isSymptomMode ? 'border-purple-200 focus:ring-purple-500 bg-purple-50 text-purple-900 placeholder-purple-300' : 'border-gray-200 focus:ring-teal-500 bg-white text-gray-900'}`} 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                            />
+                            <div className={`absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none ${isSymptomMode ? 'text-purple-500' : 'text-gray-400'}`}>
+                                {isSearchingAI ? <Loader2 className="h-6 w-6 animate-spin"/> : (isSymptomMode ? <Sparkles className="h-6 w-6"/> : <Search className="h-6 w-6" />)}
+                            </div>
+                            <button 
+                                onClick={startVoiceSearch} 
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white/50 hover:bg-white p-2 rounded-full transition-colors"
+                                title="Buscar por voz"
+                            >
+                                <Mic className={`h-5 w-5 ${isSymptomMode ? 'text-purple-600' : 'text-gray-600'}`} />
+                            </button>
+                        </div>
                     </div>
+                    {isSymptomMode && (
+                        <p className="text-xs text-purple-600 font-bold mt-1 ml-14 flex items-center gap-1 animate-in fade-in">
+                            <Sparkles className="h-3 w-3"/> IA Triage Activo: Describe tus síntomas.
+                        </p>
+                    )}
                 </div>
 
                 {/* 2. CATEGORY VIEW or HOME VIEW */}
@@ -451,14 +503,14 @@ const App: React.FC = () => {
                         <h3 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
                             <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded text-lg mr-3">{categoryName}</span> Productos
                         </h3>
-                        {filteredCategoryProducts.length === 0 ? (
+                        {displayedProducts.length === 0 ? (
                             <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
                                 <ShoppingBag className="h-16 w-16 text-gray-200 mx-auto mb-4" />
                                 <p className="text-gray-500 text-lg">No hay productos aquí.</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {filteredCategoryProducts.map(product => (
+                                {displayedProducts.map(product => (
                                     <ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={setSelectedProduct} />
                                 ))}
                             </div>
@@ -522,20 +574,31 @@ const App: React.FC = () => {
                         )}
 
                         {/* SEARCH RESULTS */}
-                        {searchTerm && filteredGlobalProducts.length > 0 && (
+                        {searchTerm && (
                             <div className="animate-in slide-in-from-bottom-5 duration-500">
-                                <h3 className="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-teal-500 pl-4">Resultados de Búsqueda</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                                    {filteredGlobalProducts.map(product => (
-                                        <ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={setSelectedProduct} />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {searchTerm && filteredGlobalProducts.length === 0 && (
-                            <div className="text-center py-20 animate-in fade-in">
-                                <p className="text-gray-400 text-lg">No encontramos productos con "{searchTerm}"</p>
-                                <button onClick={() => setSearchTerm('')} className="mt-4 text-teal-600 font-bold hover:underline">Ver todo el catálogo</button>
+                                <h3 className={`text-2xl font-bold mb-6 border-l-4 pl-4 ${isSymptomMode ? 'text-purple-800 border-purple-500' : 'text-gray-800 border-teal-500'}`}>
+                                    {isSymptomMode ? 'Sugerencias Médicas (IA)' : 'Resultados de Búsqueda'}
+                                </h3>
+                                
+                                {isSearchingAI ? (
+                                    <div className="text-center py-20">
+                                        <Loader2 className="h-12 w-12 text-purple-600 animate-spin mx-auto mb-4" />
+                                        <p className="text-purple-600 font-bold">Analizando síntomas con IA...</p>
+                                    </div>
+                                ) : displayedProducts.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                                        {displayedProducts.map(product => (
+                                            <ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={setSelectedProduct} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-20 animate-in fade-in">
+                                        <p className="text-gray-400 text-lg">
+                                            {isSymptomMode ? "No encontramos tratamientos exactos para eso." : `No encontramos productos con "${searchTerm}"`}
+                                        </p>
+                                        <button onClick={() => { setSearchTerm(''); setIsSymptomMode(false); }} className="mt-4 text-teal-600 font-bold hover:underline">Ver todo el catálogo</button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

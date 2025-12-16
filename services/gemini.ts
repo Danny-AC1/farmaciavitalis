@@ -5,9 +5,6 @@ import { Product } from '../types';
 const getApiKey = (): string | null => {
   let key = '';
 
-  // NOTA: Vite reemplaza 'process.env.API_KEY' con el string literal en tiempo de compilación.
-  // No debemos comprobar 'typeof process' aquí porque en el navegador process no existe,
-  // pero el reemplazo de string SÍ ocurre.
   try {
     // @ts-ignore
     if (import.meta.env.VITE_API_KEY) {
@@ -24,36 +21,111 @@ const getApiKey = (): string | null => {
     console.debug("Error leyendo variables de entorno", e);
   }
 
-  if (!key) return null;
-
-  // LIMPIEZA AGRESIVA:
-  // A veces las claves vienen como '"AIza..."' (con comillas literales) desde Vercel/env.
-  // Eliminamos comillas simples y dobles del inicio y final.
-  key = key.trim();
-  key = key.replace(/^["']|["']$/g, '');
-
-  // Log de depuración seguro (solo muestra los primeros 6 caracteres)
-  if (key.length > 10) {
-      console.log(`🔑 API Key detectada: ${key.substring(0, 6)}...${key.substring(key.length - 4)} (Longitud: ${key.length})`);
-  } else {
-      console.warn("⚠️ API Key detectada pero parece muy corta o inválida.");
+  if (!key) {
+      console.error("⛔ VITALIS ERROR: No se encontró la API KEY. Crea un archivo .env con VITE_API_KEY=...");
+      return null;
   }
 
-  // Validaciones básicas
-  if (key === '' || key.includes('undefined') || key.includes('tu_clave')) {
+  // LIMPIEZA AGRESIVA:
+  // Elimina comillas, espacios y caracteres invisibles que causan error 403
+  key = key.trim().replace(/^["']|["']$/g, '').replace(/\s/g, '');
+
+  if (key.length < 10 || key.includes('undefined') || key.includes('tu_clave')) {
+    console.error("⛔ VITALIS ERROR: La API KEY parece inválida o es un placeholder.");
     return null;
   }
 
   return key;
 };
 
+// --- OPCIÓN 1: BÚSQUEDA POR SÍNTOMAS ---
+export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return [];
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        
+        // Creamos un contexto ligero para no saturar el token limit
+        const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
+
+        const prompt = `Actúa como un farmacéutico experto. El cliente describe este síntoma: "${symptom}".
+        
+        Analiza el siguiente inventario y devuelve un array JSON con los IDs de los productos que mejor resuelvan ese síntoma.
+        Prioriza coincidencias médicas exactas.
+        
+        INVENTARIO:
+        ${inventory}
+        
+        Responde SOLO el array JSON de strings (ej: ["1", "5"]). Si ninguno sirve, responde [].`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+        });
+
+        const text = response.text || "[]";
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("Error en búsqueda por síntomas:", e);
+        return [];
+    }
+};
+
+// --- OPCIÓN 5: VENTA CRUZADA INTELIGENTE ---
+export const getCrossSellSuggestion = async (targetProduct: Product, allProducts: Product[]): Promise<{product: Product | undefined, reason: string}> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return { product: undefined, reason: "" };
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        
+        // Filtrar el producto actual y reducir contexto
+        const candidates = allProducts
+            .filter(p => p.id !== targetProduct.id && p.stock > 0)
+            .map(p => `${p.id}: ${p.name} ($${p.price})`);
+
+        if (candidates.length === 0) return { product: undefined, reason: "" };
+
+        const prompt = `Un cliente está comprando "${targetProduct.name}" (${targetProduct.category}).
+        Descripción: ${targetProduct.description}.
+        
+        De la siguiente lista de productos candidatos, elige EL MEJOR producto complementario para hacer "Cross-Selling" (venta cruzada).
+        Ejemplo: Si compra antibiótico, sugiere probióticos o agua. Si compra pañales, sugiere crema.
+        
+        CANDIDATOS:
+        ${candidates.join('\n')}
+        
+        Responde SOLO un JSON con este formato:
+        { "suggestedId": "id_del_producto", "reason": "Frase corta de marketing persuasivo (máx 10 palabras)" }
+        
+        Si no hay nada lógico, responde { "suggestedId": null, "reason": "" }.`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+        });
+
+        const result = JSON.parse(response.text || "{}");
+        
+        if (result.suggestedId) {
+            const suggestedProduct = allProducts.find(p => p.id === result.suggestedId);
+            return { product: suggestedProduct, reason: result.reason };
+        }
+        return { product: undefined, reason: "" };
+
+    } catch (e) {
+        console.error("Error en cross-sell:", e);
+        return { product: undefined, reason: "" };
+    }
+};
+
 // Helper to generate a description for a new product
 export const generateProductDescription = async (productName: string): Promise<string> => {
   const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    return "Error: Falta configurar la API Key (VITE_API_KEY) en el archivo .env o Vercel.";
-  }
+  if (!apiKey) return "Error: Falta API Key.";
 
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -61,18 +133,10 @@ export const generateProductDescription = async (productName: string): Promise<s
       model: 'gemini-2.5-flash',
       contents: `Escribe una descripción corta, atractiva y profesional para vender el siguiente producto farmacéutico: "${productName}". Máximo 2 oraciones. En español.`,
     });
-    
     return response.text || "No se pudo generar la descripción.";
   } catch (error: any) {
-    console.error("Error generating description:", error);
-    const msg = error.message || error.toString();
-    if (msg.includes("401") || msg.includes("403")) {
-        return "Error 403: API Key rechazada. Verifica en Google Cloud Console que la 'Google Generative AI API' esté habilitada.";
-    }
-    if (msg.includes("404")) {
-        return "Error 404: Modelo no encontrado. Tu clave podría no tener acceso a gemini-2.5-flash.";
-    }
-    return "Error de conexión con IA.";
+    console.error(error);
+    return "Error generando descripción.";
   }
 };
 
@@ -81,19 +145,8 @@ export const generateSocialPost = async (product: Product, platform: 'INSTAGRAM'
   if (!apiKey) return "Error: Falta API Key.";
 
   const prompt = platform === 'INSTAGRAM'
-    ? `Actúa como un experto en Marketing Digital para la farmacia "Vitalis". Crea un caption de Instagram/Facebook atractivo para el producto: "${product.name}" (Precio: $${product.price}). 
-       La descripción del producto es: "${product.description}".
-       Requisitos:
-       1. Usa emojis médicos y alegres.
-       2. Destaca el beneficio principal.
-       3. Incluye un llamado a la acción para pedir a domicilio en Machalilla.
-       4. Agrega 5 hashtags relevantes (#FarmaciaVitalis #Salud #Machalilla...).`
-    : `Actúa como un vendedor amable de la farmacia "Vitalis". Crea un mensaje corto para lista de difusión de WhatsApp ofreciendo: "${product.name}" a $${product.price}.
-       Requisitos:
-       1. Saludo breve y amigable.
-       2. Emoji llamativo al inicio.
-       3. Menciona que tenemos envíos a domicilio.
-       4. Sin hashtags.`;
+    ? `Actúa como experto en Marketing. Post para Instagram del producto: "${product.name}" ($${product.price}). Desc: "${product.description}". Emojis, Hashtags, Llamado a la acción.`
+    : `Mensaje de difusión WhatsApp corto para: "${product.name}" ($${product.price}). Amable, emojis, sin hashtags.`;
 
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -101,10 +154,10 @@ export const generateSocialPost = async (product: Product, platform: 'INSTAGRAM'
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
-    return response.text || "No se pudo generar el post.";
+    return response.text || "Error generando post.";
   } catch (error) {
     console.error(error);
-    return "Error generando el post.";
+    return "Error generando post.";
   }
 };
 
@@ -118,22 +171,19 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
   }
 
   const productContext = products.length > 0 ? products.map(p => 
-    `- ${p.name} (${p.category}): $${p.price}. Stock: ${p.stock}. Desc: ${p.description}`
-  ).join('\n') : "No hay productos disponibles por el momento.";
+    `- ${p.name} (${p.category}): $${p.price}. Stock: ${p.stock}.`
+  ).join('\n') : "Inventario vacío.";
 
   const systemInstruction = `
-    Eres "VitalBot", el asistente virtual farmacéutico de la farmacia "Vitales".
-    Tu objetivo es ayudar a los clientes con información sobre productos y recomendaciones básicas.
-    
-    REGLAS IMPORTANTES:
-    1. INVENTARIO: Solo recomiendas productos que están en la siguiente lista. Si no está en la lista, di que no lo tenemos.
-    2. SEGURIDAD: NO eres médico. Para síntomas graves o recetas, recomienda ir al doctor. Usa frases como "Te sugeriría...", "Este producto suele usarse para...".
-    3. TONO: Amable, profesional y empático.
-    4. RESPUESTAS: Cortas y concisas (máximo 3 oraciones salvo que pidan detalles).
-    5. DETALLES: Si te preguntan "para qué sirve", explica basándote en la descripción o conocimiento general farmacéutico.
-
-    LISTA DE PRODUCTOS DISPONIBLES EN TIENDA:
+    Eres "VitalBot", farmacéutico virtual de Farmacia Vitalis.
+    INVENTARIO ACTUAL:
     ${productContext}
+    
+    REGLAS:
+    1. Responde preguntas de salud básicas y recomienda productos DEL INVENTARIO.
+    2. Si el producto no está, dilo amablemente.
+    3. Respuestas cortas (max 3 oraciones).
+    4. NO recetes medicamentos controlados, sugiere ir al médico.
   `;
 
   try {
@@ -157,13 +207,9 @@ export const checkInteractions = async (productNames: string[]): Promise<{safe: 
 
     try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Actúa como farmacéutico senior. Analiza si existe alguna INTERACCIÓN PELIGROSA O PRECAUCIÓN IMPORTANTE al combinar estos productos:
-        ${productNames.join(', ')}
-        
-        Responde SOLO en este formato JSON:
-        { "safe": true/false, "message": "Mensaje corto de advertencia (máx 15 palabras) si no es seguro, o string vacío si es seguro." }
-        
-        Si son vitaminas o productos de aseo, asume safe: true. Solo alerta interacciones farmacológicas reales (ej: Alcohol + Antibiótico).`;
+        const prompt = `Farmacéutico senior. Analiza interacciones peligrosas entre: ${productNames.join(', ')}.
+        Responde JSON: { "safe": boolean, "message": "string corto (max 15 palabras) si hay riesgo, o vacío" }.
+        Asume safe: true para vitaminas/aseo.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',

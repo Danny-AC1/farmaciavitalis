@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Farmacia Vitalis 💊
 
-# Run and deploy your AI Studio app
+Aplicación de catálogo farmacéutico con IA integrada.
 
-This contains everything you need to run your app locally.
+## 🔐 Configuración de Seguridad (API Key)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1tehPXKSsOEx974YRXQDycOu1kbdDsvD5
+Para que la Inteligencia Artificial (Búsqueda por síntomas, Asistente, etc.) funcione, necesitas una API Key de Google Gemini.
 
-## Run Locally
+**IMPORTANTE:** Nunca subas tu API Key a GitHub.
 
-**Prerequisites:**  Node.js
+### Pasos para configurar:
 
+1. **Generar Clave:** Ve a [Google AI Studio](https://aistudio.google.com/app/apikey) y crea una clave nueva.
+2. **Crear archivo local:**
+   - Crea un archivo llamado `.env` en la raíz del proyecto.
+   - Pega tu clave con el siguiente formato:
+     ```env
+     VITE_API_KEY=Tu_Clave_Empieza_Con_AIzaSy...
+     ```
+3. **Ejecutar proyecto:**
+   ```bash
+   npm run dev
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Solución de Problemas (Error 403/404)
+
+Si recibes errores de API:
+
+1. Asegúrate de que tu clave esté habilitada en Google Cloud Console.
+2. Verifica que no hayas subido el archivo `.env` al repositorio. Si lo hiciste, Google revoca la clave automáticamente.
+3. Genera una nueva clave y repite los pasos.

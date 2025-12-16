@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, CartItem, Subscription } from '../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, TrendingDown, Plus } from 'lucide-react';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB } from '../services/db';
+import { getCrossSellSuggestion } from '../services/gemini';
 
 interface ProductDetailProps {
   product: Product;
@@ -16,6 +17,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const [emailAlert, setEmailAlert] = useState(currentUserEmail || '');
   const [alertSent, setAlertSent] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  
+  // Cross-Sell Logic (Option 5)
+  const [suggestion, setSuggestion] = useState<{product: Product | undefined, reason: string} | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+
+  useEffect(() => {
+      // Fetch AI suggestion on mount if products available
+      if (products.length > 0) {
+          setLoadingSuggestion(true);
+          getCrossSellSuggestion(product, products).then(res => {
+              setSuggestion(res);
+              setLoadingSuggestion(false);
+          });
+      }
+  }, [product, products]);
 
   const getReservedStock = () => {
     return cart.reduce((acc, item) => {
@@ -30,14 +46,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const hasBox = product.unitsPerBox && product.unitsPerBox > 1;
   const unitsPerBox = product.unitsPerBox || 9999;
 
-  // Generic Suggestion Logic: Same category, lower price, available stock
-  const cheaperAlternative = products.find(p => 
-      p.id !== product.id && 
-      p.category === product.category && 
-      p.price < product.price && 
-      p.stock > 0
-  );
-
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");
       await addStockAlertDB(emailAlert, product.id);
@@ -48,7 +56,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
       if (!currentUserEmail) return alert("Debes iniciar sesión para suscribirte.");
       const sub: Subscription = {
           id: `sub_${Date.now()}`,
-          userId: currentUserEmail, // Using email as ID for demo simplicity, preferably UID
+          userId: currentUserEmail,
           productId: product.id,
           productName: product.name,
           frequencyDays: 30,
@@ -92,17 +100,29 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
             <p className="text-gray-600 text-base leading-relaxed mb-6 md:mb-8">{product.description}</p>
 
-            {/* GENERIC SUGGESTION */}
-            {cheaperAlternative && (
-                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3">
-                    <TrendingDown className="text-green-600 shrink-0 mt-1" />
-                    <div>
-                        <p className="text-xs font-bold text-green-800 uppercase">Ahorro Inteligente</p>
-                        <p className="text-sm text-gray-700">
-                            Prueba <strong>{cheaperAlternative.name}</strong> por solo 
-                            <span className="font-bold text-green-700 ml-1">${cheaperAlternative.price.toFixed(2)}</span>.
-                        </p>
-                        <button onClick={() => { onClose(); /* Logic to open other product would go here, simple close for now */ }} className="text-xs underline text-green-600 font-bold mt-1">Ver alternativa</button>
+            {/* AI Recommendation (Cross-Selling) */}
+            {loadingSuggestion ? (
+                <div className="mb-6 bg-purple-50 border border-purple-100 rounded-lg p-3 flex items-center gap-2 text-purple-700 text-xs animate-pulse">
+                    <Sparkles className="h-4 w-4"/> Buscando recomendación farmacéutica...
+                </div>
+            ) : suggestion && suggestion.product && (
+                <div className="mb-6 bg-gradient-to-r from-purple-50 to-white border border-purple-100 rounded-lg p-3 relative overflow-hidden group">
+                    <div className="flex items-start gap-3 relative z-10">
+                        <img src={suggestion.product.image} className="h-12 w-12 rounded object-cover mix-blend-multiply bg-white border border-gray-100"/>
+                        <div className="flex-grow">
+                            <p className="text-[10px] font-bold text-purple-600 uppercase flex items-center gap-1"><Sparkles size={10}/> Recomendado para ti</p>
+                            <p className="text-sm font-bold text-gray-800 leading-tight">{suggestion.product.name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 italic">"{suggestion.reason}"</p>
+                            <div className="flex items-center justify-between mt-2">
+                                <span className="font-bold text-purple-700">${suggestion.product.price.toFixed(2)}</span>
+                                <button 
+                                    onClick={() => { onClose(); onAddToCart(suggestion.product!, 'UNIT'); }} 
+                                    className="bg-purple-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-purple-700 transition"
+                                >
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -118,7 +138,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                     <button onClick={() => onAddToCart(product, 'UNIT')} className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-600/20"><ShoppingCart className="h-5 w-5" /> Agregar Unidad</button>
                   </div>
 
-                  {/* Box Option - Uses previously unused vars */}
+                  {/* Box Option */}
                   {hasBox && product.boxPrice && (
                       <div className="p-4 border border-blue-200 rounded-xl hover:border-blue-400 transition-colors bg-blue-50/50">
                           <div className="flex justify-between items-center mb-3">
