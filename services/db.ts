@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense } from '../types';
+import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule } from '../types';
 
 // Nombres de las colecciones
 const PRODUCTS_COLLECTION = 'products';
@@ -31,6 +31,8 @@ const BLOG_COLLECTION = 'blog_posts';
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 const STOCK_ALERTS_COLLECTION = 'stock_alerts';
 const EXPENSES_COLLECTION = 'expenses';
+const FAMILY_COLLECTION = 'family_members';
+const MEDICATIONS_COLLECTION = 'medications';
 
 // --- HELPERS ---
 export const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
@@ -135,11 +137,8 @@ export const addOrderDB = async (order: Order) => {
 
 export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order?: Order) => {
   try {
-      // Find doc ref first (since we might have ID mismatch issues in some setups, but here we try direct)
-      // For simplicity in this structure:
       let orderRef = doc(db, ORDERS_COLLECTION, id);
       
-      // Safety check if ID is not direct Firestore ID
       if(id.startsWith('ORD-') || id.startsWith('POS-')) {
           const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
           const snapshot = await getDocs(q);
@@ -150,9 +149,8 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
 
       await updateDoc(orderRef, { status });
 
-      // LOYALTY LOGIC: Add points on DELIVERY
       if (status === 'DELIVERED' && order && order.userId) {
-          const pointsEarned = Math.floor(order.total); // 1 punto por dólar
+          const pointsEarned = Math.floor(order.total);
           if (pointsEarned > 0) {
             const userRef = doc(db, USERS_COLLECTION, order.userId);
             await updateDoc(userRef, { points: increment(pointsEarned) });
@@ -167,7 +165,6 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
 // --- USERS ---
 export const saveUserDB = async (user: User) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
-    // Ensure points exist
     const dataToSave = { ...user, points: user.points || 0 };
     await setDoc(userRef, dataToSave, { merge: true }); 
 };
@@ -189,6 +186,46 @@ export const streamUsers = (callback: (users: User[]) => void) => {
         callback(users);
     });
 };
+
+// --- FAMILY CARE & MEDICATIONS ---
+export const streamFamilyMembers = (userId: string, callback: (members: FamilyMember[]) => void) => {
+    const q = query(collection(db, FAMILY_COLLECTION), where('userId', '==', userId));
+    return onSnapshot(q, (snapshot) => {
+        const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FamilyMember[];
+        callback(members);
+    });
+};
+
+export const addFamilyMemberDB = async (member: FamilyMember) => {
+    const { id, ...data } = member;
+    await addDoc(collection(db, FAMILY_COLLECTION), data);
+};
+
+export const streamMedications = (userId: string, callback: (meds: MedicationSchedule[]) => void) => {
+    const q = query(collection(db, MEDICATIONS_COLLECTION), where('userId', '==', userId));
+    return onSnapshot(q, (snapshot) => {
+        const meds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MedicationSchedule[];
+        callback(meds);
+    });
+};
+
+export const addMedicationDB = async (med: MedicationSchedule) => {
+    const { id, ...data } = med;
+    await addDoc(collection(db, MEDICATIONS_COLLECTION), data);
+};
+
+export const takeDoseDB = async (medId: string, newStock: number) => {
+    const medRef = doc(db, MEDICATIONS_COLLECTION, medId);
+    await updateDoc(medRef, { 
+        currentStock: newStock,
+        lastTaken: new Date().toISOString()
+    });
+};
+
+export const deleteMedicationDB = async (medId: string) => {
+    await deleteDoc(doc(db, MEDICATIONS_COLLECTION, medId));
+};
+
 
 // --- COUPONS & BANNERS ---
 export const streamCoupons = (callback: (coupons: Coupon[]) => void) => {
@@ -224,8 +261,6 @@ export const deleteSupplierDB = async (id: string) => { await deleteDoc(doc(db, 
 
 // --- UNSATISFIED DEMAND ---
 export const logSearch = async (term: string) => {
-    // Simple implementation: Add new doc every time. Aggregation happens on read or via cloud function in real app.
-    // For this demo, we check if one exists for today
     const today = new Date().toISOString().split('T')[0];
     const q = query(collection(db, SEARCH_LOGS_COLLECTION), where('term', '==', term), where('date', '==', today));
     const snapshot = await getDocs(q);

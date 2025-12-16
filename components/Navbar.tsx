@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Heart, ShoppingCart, User as UserIcon, Gift } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf } from 'lucide-react';
 import { User } from '../types';
 
 interface NavbarProps {
@@ -36,10 +37,14 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, o
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center cursor-pointer select-none" onClick={handleSecretClick}>
-            <Heart className={`h-8 w-8 text-white mr-2 fill-current transition-transform ${clickCount > 0 ? 'scale-110' : ''}`} />
+            {/* Nuevo Logo: Cruz Farmacéutica + Hoja Verde */}
+            <div className={`relative h-10 w-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center mr-3 border border-white/20 shadow-md transition-transform duration-200 ${clickCount > 0 ? 'scale-110' : ''}`}>
+                <Plus className="h-7 w-7 text-white" strokeWidth={3.5} />
+                <Leaf className="absolute h-5 w-5 text-green-300 bottom-1 right-0.5 fill-green-300/80 drop-shadow-sm rotate-12" strokeWidth={2} />
+            </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">VITALIS</h1>
-              <p className="text-xs text-teal-100">Tu Salud Al Día</p>
+              <p className="text-xs text-teal-100 font-medium">Tu Salud Al Día</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">

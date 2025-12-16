@@ -123,6 +123,31 @@ export interface Expense {
   date: string;
 }
 
+// --- NUEVAS INTERFACES PARA FAMILY CARE & PASTILLERO ---
+
+export interface FamilyMember {
+  id: string;
+  userId: string; // Dueño de la cuenta principal
+  name: string;
+  relationship: 'ME' | 'PARENT' | 'CHILD' | 'PARTNER' | 'OTHER';
+  color: string; // Código de color para UI
+  avatar?: string;
+}
+
+export interface MedicationSchedule {
+  id: string;
+  userId: string;
+  familyMemberId: string;
+  name: string;
+  productId?: string; // Link opcional al catálogo para reabastecer
+  totalStock: number; // Cuántas pastillas hay en la caja
+  currentStock: number; // Cuántas quedan
+  dose: string; // Ej: "1 tableta"
+  frequencyLabel: string; // Ej: "Cada 8 horas"
+  lastTaken?: string;
+  active: boolean;
+}
+
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
 
 export const ADMIN_PASSWORD = "1996";

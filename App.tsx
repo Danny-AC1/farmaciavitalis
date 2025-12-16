@@ -10,6 +10,7 @@ import ProductDetail from './components/ProductDetail';
 import PrescriptionModal from './components/PrescriptionModal';
 import AuthModal from './components/AuthModal';
 import UserOrdersModal from './components/UserOrdersModal';
+import FamilyHealthModal from './components/FamilyHealthModal';
 
 import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData, User, Banner } from './types';
 import { 
@@ -33,7 +34,7 @@ import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
-import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle, Stethoscope, Sparkles } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingBag, X, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle, Stethoscope, Sparkles, Pill, Activity, Sun, HeartPulse, Baby, BriefcaseMedical } from 'lucide-react';
 
 const getReservedStock = (productId: string, currentCart: CartItem[]) => {
   return currentCart.reduce((acc, item) => {
@@ -41,6 +42,62 @@ const getReservedStock = (productId: string, currentCart: CartItem[]) => {
     const unitsPerItem = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
     return acc + (item.quantity * unitsPerItem);
   }, 0);
+};
+
+// Helper para asignar estilos modernos basados en el nombre de la categoría
+const getCategoryStyle = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('medicamento') || n.includes('farmacia')) return { 
+    icon: Pill, 
+    bg: 'bg-blue-50', 
+    text: 'text-blue-700', 
+    border: 'border-blue-100',
+    accent: 'bg-blue-200'
+  };
+  if (n.includes('vitamina') || n.includes('suplemento')) return { 
+    icon: Sun, 
+    bg: 'bg-orange-50', 
+    text: 'text-orange-700', 
+    border: 'border-orange-100',
+    accent: 'bg-orange-200'
+  };
+  if (n.includes('auxilio') || n.includes('herida')) return { 
+    icon: BriefcaseMedical, 
+    bg: 'bg-red-50', 
+    text: 'text-red-700', 
+    border: 'border-red-100',
+    accent: 'bg-red-200'
+  };
+  if (n.includes('cuidado') || n.includes('personal') || n.includes('piel')) return { 
+    icon: Sparkles, 
+    bg: 'bg-purple-50', 
+    text: 'text-purple-700', 
+    border: 'border-purple-100',
+    accent: 'bg-purple-200'
+  };
+  if (n.includes('bebé') || n.includes('materno')) return { 
+    icon: Baby, 
+    bg: 'bg-pink-50', 
+    text: 'text-pink-700', 
+    border: 'border-pink-100',
+    accent: 'bg-pink-200'
+  };
+  if (n.includes('sexual') || n.includes('intimo')) return { 
+    icon: HeartPulse, 
+    bg: 'bg-rose-50', 
+    text: 'text-rose-700', 
+    border: 'border-rose-100',
+    accent: 'bg-rose-200'
+  };
+  
+  // Default
+  return { 
+    icon: Activity, 
+    bg: 'bg-teal-50', 
+    text: 'text-teal-700', 
+    border: 'border-teal-100',
+    accent: 'bg-teal-200'
+  };
 };
 
 interface ProductCardProps {
@@ -136,6 +193,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserOrdersModal, setShowUserOrdersModal] = useState(false);
+  const [showFamilyHealthModal, setShowFamilyHealthModal] = useState(false); // NEW
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -397,10 +455,20 @@ const App: React.FC = () => {
     setView('SUCCESS');
   };
 
-  const handleBottomNavChange = (tab: 'home' | 'categories' | 'assistant') => {
-    if (tab === 'home') { setView('HOME'); setActiveCategory(null); setIsAssistantOpen(false); } 
-    else if (tab === 'categories') { setView('HOME'); setActiveCategory(null); setSearchTerm(''); setIsAssistantOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); } 
-    else if (tab === 'assistant') { setIsAssistantOpen(!isAssistantOpen); }
+  const handleBottomNavChange = (tab: 'home' | 'orders' | 'assistant' | 'health') => {
+    if (tab === 'home') { 
+        setView('HOME'); 
+        setActiveCategory(null); 
+        setIsAssistantOpen(false); 
+    } else if (tab === 'orders') { 
+        if (!currentUser) { setShowAuthModal(true); } else { setShowUserOrdersModal(true); }
+        setIsAssistantOpen(false);
+    } else if (tab === 'assistant') { 
+        setIsAssistantOpen(!isAssistantOpen); 
+    } else if (tab === 'health') {
+        if (!currentUser) { setShowAuthModal(true); } else { setShowFamilyHealthModal(true); }
+        setIsAssistantOpen(false);
+    }
   };
 
   const handleUserClick = () => {
@@ -421,18 +489,15 @@ const App: React.FC = () => {
       if (aiSearchResults.length > 0) {
           displayedProducts = products.filter(p => aiSearchResults.includes(p.id));
       } else {
-          // Fallback if AI hasn't returned yet or returned empty but searching
           displayedProducts = []; 
       }
   } else if (searchTerm) {
-      // Standard search
       displayedProducts = products.filter(p => 
           (activeCategory ? p.category === categoryName : true) &&
           (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
            p.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
   } else if (activeCategory) {
-      // Category Browse
       displayedProducts = products.filter(p => p.category === categoryName);
   }
 
@@ -553,22 +618,31 @@ const App: React.FC = () => {
                             </div>
                         )}
 
-                        {/* CATEGORIES GRID */}
+                        {/* MODERN CATEGORIES GRID (Bento Style) */}
                         {filteredCategories.length > 0 && !searchTerm && (
                             <>
                                 <h3 className="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-teal-500 pl-4">Nuestras Categorías</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-                                    {filteredCategories.map(category => (
-                                        <div key={category.id} onClick={() => { setActiveCategory(category.id); setSearchTerm(''); }} className="group cursor-pointer bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-                                            <div className="h-48 overflow-hidden relative">
-                                                <div className="absolute inset-0 bg-black opacity-20 group-hover:opacity-10 transition-opacity z-10"></div>
-                                                <img src={category.image} alt={category.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20">
-                                                    <h4 className="text-white text-xl font-bold flex justify-between items-center">{category.name} <ChevronRight className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" /></h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                                    {filteredCategories.map(category => {
+                                        const style = getCategoryStyle(category.name);
+                                        return (
+                                          <div 
+                                            key={category.id} 
+                                            onClick={() => { setActiveCategory(category.id); setSearchTerm(''); }} 
+                                            className={`cursor-pointer ${style.bg} border ${style.border} rounded-2xl p-4 md:p-6 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-95 flex flex-col justify-between h-32 md:h-40 relative overflow-hidden group`}
+                                          >
+                                              <div className="relative z-10">
+                                                 <div className={`p-2 rounded-xl w-fit mb-3 ${style.accent} bg-opacity-50`}>
+                                                    <style.icon className={`h-6 w-6 md:h-8 md:w-8 ${style.text}`} />
+                                                 </div>
+                                                 <h4 className={`font-bold text-sm md:text-lg ${style.text}`}>{category.name}</h4>
+                                              </div>
+                                              
+                                              {/* Decorative Background Icon */}
+                                              <style.icon className={`absolute -right-4 -bottom-4 h-24 w-24 ${style.text} opacity-10 transform rotate-12 group-hover:rotate-0 transition-transform duration-500`} />
+                                          </div>
+                                        );
+                                    })}
                                 </div>
                             </>
                         )}
@@ -709,6 +783,16 @@ const App: React.FC = () => {
           />
       )}
 
+      {/* NEW: Family Health Modal */}
+      {showFamilyHealthModal && currentUser && (
+          <FamilyHealthModal
+            user={currentUser}
+            products={products}
+            onClose={() => setShowFamilyHealthModal(false)}
+            onAddToCart={addToCart}
+          />
+      )}
+
       {/* Assistant */}
       {view === 'HOME' && (
          <>
@@ -719,7 +803,7 @@ const App: React.FC = () => {
          </>
       )}
 
-      {view === 'HOME' && <BottomNav activeTab={isAssistantOpen ? 'assistant' : activeCategory ? 'categories' : 'home'} cartCount={cart.length} onTabChange={handleBottomNavChange} onCartClick={() => { setIsCartOpen(true); setIsAssistantOpen(false); }} />}
+      {view === 'HOME' && <BottomNav activeTab={isAssistantOpen ? 'assistant' : showFamilyHealthModal ? 'health' : 'home'} cartCount={cart.length} onTabChange={handleBottomNavChange} onCartClick={() => { setIsCartOpen(true); setIsAssistantOpen(false); }} />}
 
       {/* Cart Sidebar */}
       {isCartOpen && view === 'HOME' && (
