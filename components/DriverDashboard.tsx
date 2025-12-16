@@ -1,7 +1,7 @@
 import React from 'react';
 import { Order } from '../types';
 import { updateOrderStatusDB } from '../services/db';
-import { Truck, CheckCircle, MapPin, Phone, Clock, LogOut } from 'lucide-react';
+import { Truck, CheckCircle, MapPin, Phone, Clock, LogOut, Navigation } from 'lucide-react';
 
 interface DriverDashboardProps {
     orders: Order[];
@@ -27,6 +27,23 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
         window.open(`tel:${phone}`);
     };
 
+    const generateOptimizedRoute = () => {
+        if (activeOrders.length === 0) return;
+        const origin = encodeURIComponent("Farmacia Vitalis, Machalilla, Ecuador");
+        // Google Maps URL allows active route construction
+        // Format: origin=X&destination=Y&waypoints=A|B|C
+        // Limiting to first 9 orders to fit URL limits (usually fine for motorcycle delivery runs)
+        const stops = activeOrders.slice(0, 9).map(o => encodeURIComponent(o.customerAddress + ", Machalilla, Ecuador"));
+        
+        if (stops.length === 0) return;
+
+        const destination = stops.pop(); // Last stop is destination
+        const waypoints = stops.join('|');
+
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+        window.open(url, '_blank');
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 pb-10">
             <div className="bg-teal-800 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
@@ -50,7 +67,14 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
                     </div>
                 </div>
 
-                <h2 className="font-bold text-gray-700 text-lg border-b pb-2">Cola de Entregas</h2>
+                <div className="flex items-center justify-between border-b border-gray-300 pb-2">
+                    <h2 className="font-bold text-gray-700 text-lg">Cola de Entregas</h2>
+                    {activeOrders.length > 0 && (
+                        <button onClick={generateOptimizedRoute} className="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md">
+                            <Navigation size={14} /> Optimizar Ruta GPS
+                        </button>
+                    )}
+                </div>
 
                 {activeOrders.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">

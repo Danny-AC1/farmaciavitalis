@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData, User, Coupon, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../types';
-import { Truck, X, Banknote, Gift, Landmark } from 'lucide-react';
+import { Truck, X, Banknote, Gift, Landmark, Copy } from 'lucide-react';
 import { streamCoupons } from '../services/db';
 
 interface CheckoutProps {
@@ -138,9 +138,45 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
                   </div>
 
                   {formData.paymentMethod === 'CASH' && (
-                     <div className="bg-white p-3 rounded-lg border border-teal-100 mt-3">
+                     <div className="bg-white p-3 rounded-lg border border-teal-100 mt-3 animate-in fade-in">
                          <input type="number" placeholder="¿Con cuánto pagas?" className="w-full border-b pb-1 outline-none text-lg font-bold" value={cashGiven} onChange={(e) => setCashGiven(e.target.value)} />
                          {cashGiven && !isNaN(parseFloat(cashGiven)) && <p className={`mt-2 font-bold text-sm ${changeDue >= 0 ? 'text-green-600' : 'text-red-500'}`}>Cambio: ${changeDue >= 0 ? changeDue.toFixed(2) : 'Insuficiente'}</p>}
+                     </div>
+                  )}
+
+                  {formData.paymentMethod === 'TRANSFER' && (
+                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mt-3 animate-in fade-in">
+                         <h4 className="font-bold text-blue-800 mb-3 text-sm flex items-center gap-2">
+                             <Landmark size={16}/> Datos Bancarios
+                         </h4>
+                         <div className="space-y-2 text-sm text-gray-700">
+                             <div className="flex justify-between border-b border-blue-100 pb-1">
+                                 <span className="font-semibold text-gray-500">Banco:</span> 
+                                 <span className="font-bold">Pichincha</span>
+                             </div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1">
+                                 <span className="font-semibold text-gray-500">Tipo:</span> 
+                                 <span className="font-bold">Cta. Ahorros</span>
+                             </div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1 items-center">
+                                 <span className="font-semibold text-gray-500">Número:</span> 
+                                 <div className="flex items-center gap-2">
+                                    <span className="font-bold select-all">2204665481</span>
+                                    <button onClick={() => navigator.clipboard.writeText('220XXXXXXX')} className="text-blue-500 hover:text-blue-700"><Copy size={12}/></button>
+                                 </div>
+                             </div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1">
+                                 <span className="font-semibold text-gray-500">Nombre:</span> 
+                                 <span className="font-bold">Ascencio Carvajal Danny</span>
+                             </div>
+                             <div className="flex justify-between">
+                                 <span className="font-semibold text-gray-500">RUC/CI:</span> 
+                                 <span className="font-bold select-all">1314237148</span>
+                             </div>
+                         </div>
+                         <p className="text-xs text-blue-600 mt-3 italic bg-white p-2 rounded border border-blue-100">
+                             * Por favor realiza la transferencia y envía el comprobante al finalizar el pedido.
+                         </p>
                      </div>
                   )}
 

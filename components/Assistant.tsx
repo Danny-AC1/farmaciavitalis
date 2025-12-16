@@ -101,14 +101,42 @@ const Assistant: React.FC<AssistantProps> = ({ products, isOpen, onClose }) => {
         onClick={onClose}
       />
 
-      {/* Chat Window */}
+      {/* Chat Window 
+          Mobile optimizations:
+          - top-[72px] to clear Navbar (h-16 + spacing)
+          - bottom-[72px] to clear BottomNav (h-16 + spacing)
+          - left-2/right-2 to show a gap from screen edges
+      */}
       <div 
-        className={`fixed bottom-0 md:bottom-24 right-0 md:right-6 w-full md:w-96 bg-white md:rounded-2xl shadow-2xl z-40 border-t md:border border-gray-200 overflow-hidden flex flex-col transition-all duration-300 transform ${
-          isOpen 
-            ? 'translate-y-0 opacity-100' 
-            : 'translate-y-full md:translate-y-20 md:opacity-0 md:scale-95 pointer-events-none'
-        }`}
-        style={{ height: '85vh', maxHeight: '600px' }}
+        className={`fixed 
+          z-[60] 
+          bg-white 
+          shadow-2xl 
+          border-gray-200 
+          overflow-hidden 
+          flex flex-col 
+          transition-all duration-300 transform
+          
+          /* Mobile Positioning (Stretches between header and footer) */
+          left-3 right-3
+          top-[72px] 
+          bottom-[72px]
+          rounded-2xl
+          border
+          
+          /* Desktop Positioning Overrides */
+          md:top-auto
+          md:left-auto
+          md:right-6 
+          md:bottom-24
+          md:w-96 
+          md:h-[600px]
+          
+          ${isOpen 
+            ? 'translate-y-0 opacity-100 scale-100' 
+            : 'translate-y-[110%] md:translate-y-20 opacity-0 md:opacity-0 md:scale-95 pointer-events-none'
+          }
+        `}
       >
         {/* Header */}
         <div className="bg-teal-600 p-4 flex items-center justify-between shrink-0">

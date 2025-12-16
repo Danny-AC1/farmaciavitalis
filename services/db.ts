@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription } from '../types';
+import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense } from '../types';
 
 // Nombres de las colecciones
 const PRODUCTS_COLLECTION = 'products';
@@ -30,6 +30,7 @@ const SEARCH_LOGS_COLLECTION = 'search_logs';
 const BLOG_COLLECTION = 'blog_posts';
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 const STOCK_ALERTS_COLLECTION = 'stock_alerts';
+const EXPENSES_COLLECTION = 'expenses';
 
 // --- HELPERS ---
 export const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
@@ -264,6 +265,29 @@ export const addSubscriptionDB = async (sub: Subscription) => {
     const { id, ...data } = sub;
     await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), data);
 };
+
+export const streamSubscriptions = (callback: (subs: Subscription[]) => void) => {
+    const q = query(collection(db, SUBSCRIPTIONS_COLLECTION));
+    return onSnapshot(q, (snapshot) => {
+        const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Subscription[];
+        callback(subs);
+    });
+};
+
+// --- EXPENSES ---
+export const addExpenseDB = async (expense: Expense) => {
+    const { id, ...data } = expense;
+    await addDoc(collection(db, EXPENSES_COLLECTION), data);
+};
+
+export const streamExpenses = (callback: (expenses: Expense[]) => void) => {
+    const q = query(collection(db, EXPENSES_COLLECTION), orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Expense[];
+        callback(expenses);
+    });
+};
+export const deleteExpenseDB = async (id: string) => { await deleteDoc(doc(db, EXPENSES_COLLECTION, id)); };
 
 
 // --- SEEDING ---

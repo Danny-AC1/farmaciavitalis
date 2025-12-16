@@ -150,3 +150,31 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
     return null;
   }
 };
+
+export const checkInteractions = async (productNames: string[]): Promise<{safe: boolean, message: string}> => {
+    const apiKey = getApiKey();
+    if (!apiKey || productNames.length < 2) return { safe: true, message: "" };
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `Actúa como farmacéutico senior. Analiza si existe alguna INTERACCIÓN PELIGROSA O PRECAUCIÓN IMPORTANTE al combinar estos productos:
+        ${productNames.join(', ')}
+        
+        Responde SOLO en este formato JSON:
+        { "safe": true/false, "message": "Mensaje corto de advertencia (máx 15 palabras) si no es seguro, o string vacío si es seguro." }
+        
+        Si son vitaminas o productos de aseo, asume safe: true. Solo alerta interacciones farmacológicas reales (ej: Alcohol + Antibiótico).`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+        });
+        
+        const text = response.text || "{}";
+        return JSON.parse(text);
+    } catch (e) {
+        console.error(e);
+        return { safe: true, message: "" };
+    }
+};

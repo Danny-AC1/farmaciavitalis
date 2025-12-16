@@ -29,10 +29,11 @@ import {
   streamBanners, 
   logSearch 
 } from './services/db';
+import { checkInteractions } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
-import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingBag, X, ChevronRight, ArrowLeft, Loader2, Package, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle } from 'lucide-react';
 
 const getReservedStock = (productId: string, currentCart: CartItem[]) => {
   return currentCart.reduce((acc, item) => {
@@ -140,6 +141,10 @@ const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   
+  // AI Safety Check
+  const [interactionWarning, setInteractionWarning] = useState<string | null>(null);
+  const [checkingInteractions, setCheckingInteractions] = useState(false);
+  
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
@@ -198,6 +203,25 @@ const App: React.FC = () => {
 
       return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, products, activeCategory, categories]);
+
+  // AI Interaction Check Effect (Option 5)
+  useEffect(() => {
+      if (isCartOpen && cart.length >= 2) {
+          const runCheck = async () => {
+              setCheckingInteractions(true);
+              setInteractionWarning(null);
+              const names = cart.map(i => i.name);
+              const result = await checkInteractions(names);
+              if (!result.safe) {
+                  setInteractionWarning(result.message);
+              }
+              setCheckingInteractions(false);
+          };
+          runCheck();
+      } else {
+          setInteractionWarning(null);
+      }
+  }, [cart, isCartOpen]);
 
   const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
     const quantityToAdd = unitType === 'BOX' ? (product.unitsPerBox || 1) : 1;
@@ -646,6 +670,27 @@ const App: React.FC = () => {
                     <h2 className="text-lg font-medium text-gray-900">Carrito</h2>
                     <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-gray-500"><X className="h-6 w-6" /></button>
                   </div>
+                  
+                  {/* Option 5: AI Interaction Checker UI */}
+                  {cart.length >= 2 && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center gap-2 mb-1">
+                              <ShieldCheck className="h-4 w-4 text-teal-600"/>
+                              <span className="text-xs font-bold text-gray-600 uppercase">Seguridad Farmacéutica</span>
+                          </div>
+                          {checkingInteractions ? (
+                              <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin"/> Analizando interacciones...</div>
+                          ) : interactionWarning ? (
+                              <div className="bg-red-50 p-2 rounded text-xs text-red-700 border border-red-200 flex gap-2">
+                                  <AlertTriangle className="h-4 w-4 shrink-0"/>
+                                  <span>{interactionWarning}</span>
+                              </div>
+                          ) : (
+                              <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Combinación segura detectada.</p>
+                          )}
+                      </div>
+                  )}
+
                   <div className="mt-8">
                     {cart.length === 0 ? <p className="text-gray-500 text-center">Vacío.</p> : (
                       <ul className="divide-y divide-gray-200">

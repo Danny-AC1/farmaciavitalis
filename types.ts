@@ -1,3 +1,4 @@
+
 export interface Product {
   id: string;
   name: string;
@@ -114,9 +115,17 @@ export interface Subscription {
   active: boolean;
 }
 
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: 'SERVICES' | 'SALARY' | 'SUPPLIES' | 'OTHER';
+  date: string;
+}
+
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
 
-export const ADMIN_PASSWORD ="1996";
+export const ADMIN_PASSWORD = "1996";
 export const CASHIER_PASSWORD = "1234"; // Simple password for cashier
 export const DRIVER_PASSWORD = "moto"; // Simple password for driver
 export const DELIVERY_FEE = 1.00;
