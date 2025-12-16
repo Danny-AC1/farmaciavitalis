@@ -11,6 +11,7 @@ import PrescriptionModal from './components/PrescriptionModal';
 import AuthModal from './components/AuthModal';
 import UserOrdersModal from './components/UserOrdersModal';
 import FamilyHealthModal from './components/FamilyHealthModal';
+import ServicesModal from './components/ServicesModal';
 
 import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData, User, Banner } from './types';
 import { 
@@ -194,6 +195,7 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserOrdersModal, setShowUserOrdersModal] = useState(false);
   const [showFamilyHealthModal, setShowFamilyHealthModal] = useState(false); // NEW
+  const [showServicesModal, setShowServicesModal] = useState(false); // NEW (Option 1)
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -455,7 +457,7 @@ const App: React.FC = () => {
     setView('SUCCESS');
   };
 
-  const handleBottomNavChange = (tab: 'home' | 'orders' | 'assistant' | 'health') => {
+  const handleBottomNavChange = (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services') => {
     if (tab === 'home') { 
         setView('HOME'); 
         setActiveCategory(null); 
@@ -467,6 +469,9 @@ const App: React.FC = () => {
         setIsAssistantOpen(!isAssistantOpen); 
     } else if (tab === 'health') {
         if (!currentUser) { setShowAuthModal(true); } else { setShowFamilyHealthModal(true); }
+        setIsAssistantOpen(false);
+    } else if (tab === 'services') {
+        setShowServicesModal(true);
         setIsAssistantOpen(false);
     }
   };
@@ -513,6 +518,7 @@ const App: React.FC = () => {
           onLogoClick={() => { setView('HOME'); setActiveCategory(null); }}
           onUserClick={handleUserClick}
           currentUser={currentUser}
+          onTabChange={handleBottomNavChange}
         />
       )}
 
@@ -609,11 +615,14 @@ const App: React.FC = () => {
                             </div>
                         )}
 
-                        {/* PRESCRIPTION BTN */}
+                        {/* SERVICE & PRESCRIPTION BUTTONS */}
                         {!searchTerm && (
-                            <div className="mb-12 flex justify-center">
-                                <button onClick={() => setShowPrescriptionModal(true)} className="bg-white border-2 border-teal-500 text-teal-700 hover:bg-teal-50 px-6 py-4 rounded-xl shadow-md flex items-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95">
+                            <div className="mb-12 flex flex-col sm:flex-row justify-center gap-4">
+                                <button onClick={() => setShowPrescriptionModal(true)} className="flex-1 bg-white border-2 border-teal-500 text-teal-700 hover:bg-teal-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95">
                                     <Camera className="h-6 w-6" /> Subir Receta Médica
+                                </button>
+                                <button onClick={() => setShowServicesModal(true)} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95">
+                                    <Stethoscope className="h-6 w-6" /> Consultorio / Servicios
                                 </button>
                             </div>
                         )}
@@ -773,6 +782,15 @@ const App: React.FC = () => {
       {/* Prescription Modal */}
       {showPrescriptionModal && <PrescriptionModal onClose={() => setShowPrescriptionModal(false)} />}
       
+      {/* Services Modal (Option 1) */}
+      {showServicesModal && (
+          <ServicesModal 
+            user={currentUser} 
+            onClose={() => setShowServicesModal(false)} 
+            onLoginRequest={() => { setShowServicesModal(false); setShowAuthModal(true); }}
+          />
+      )}
+      
       {/* User Orders Modal */}
       {showUserOrdersModal && currentUser && (
           <UserOrdersModal 
@@ -783,7 +801,7 @@ const App: React.FC = () => {
           />
       )}
 
-      {/* NEW: Family Health Modal */}
+      {/* Family Health Modal */}
       {showFamilyHealthModal && currentUser && (
           <FamilyHealthModal
             user={currentUser}

@@ -44,6 +44,7 @@ export interface Order {
   date: string;
   userId?: string;
   driverId?: string; // Nuevo: Asignación a repartidor
+  driverLocation?: { lat: number, lng: number, lastUpdate: string }; // Nuevo: GPS
 }
 
 export interface User {
@@ -148,6 +149,34 @@ export interface MedicationSchedule {
   active: boolean;
 }
 
+// --- NUEVAS INTERFACES PARA SERVICIOS (OPCION 1) ---
+export interface Service {
+  id: string;
+  name: string;
+  price: number;
+  durationMin: number;
+  description: string;
+}
+
+export interface ServiceBooking {
+  id: string;
+  userId?: string;
+  patientName: string;
+  serviceName: string;
+  date: string; // ISO Date for day
+  time: string; // "10:00"
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  phone: string;
+  notes?: string;
+}
+
+export interface StockAlert {
+  id: string;
+  email: string;
+  productId: string;
+  createdAt: string;
+}
+
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
 
 export const ADMIN_PASSWORD = "1996";
@@ -157,3 +186,11 @@ export const DELIVERY_FEE = 1.00;
 export const DELIVERY_CITY = "Machalilla";
 export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;
+
+export const AVAILABLE_SERVICES: Service[] = [
+  { id: 'srv_1', name: 'Inyectología', price: 3.00, durationMin: 15, description: 'Aplicación de inyecciones IM/IV con insumos incluidos.' },
+  { id: 'srv_2', name: 'Toma de Presión', price: 1.00, durationMin: 10, description: 'Control de presión arterial y registro.' },
+  { id: 'srv_3', name: 'Prueba de Glucosa', price: 2.50, durationMin: 10, description: 'Medición rápida de glucosa en sangre.' },
+  { id: 'srv_4', name: 'Nebulización', price: 5.00, durationMin: 30, description: 'Sesión de nebulización (incluye solución salina).' },
+  { id: 'srv_5', name: 'Curación de Heridas', price: 8.00, durationMin: 30, description: 'Limpieza y vendaje de heridas menores.' },
+];

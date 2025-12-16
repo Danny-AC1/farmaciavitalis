@@ -1,11 +1,15 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Product, Order, Category, CartItem, User, Supplier, SearchLog, Banner, Expense, Subscription } from '../types';
+import { Product, Order, Category, CartItem, User, Supplier, SearchLog, Banner, Expense, Subscription, Coupon, ServiceBooking, StockAlert } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { CheckCircle, Trash2, Sparkles, LogOut, Edit2, X, ShoppingCart, Minus, Plus, Search, TrendingUp, Loader2, FileDown, PenTool, ScanBarcode, Share2, Copy, MessageCircle, Image as ImageIcon, Instagram, LayoutDashboard, Store, Package, ClipboardList, Grid, Users, Megaphone, Menu, Truck, Printer, Calculator, History, AlertTriangle, DollarSign, Wallet, RefreshCw } from 'lucide-react';
+import { CheckCircle, Trash2, Sparkles, LogOut, Edit2, X, ShoppingCart, Minus, Plus, Search, TrendingUp, Loader2, FileDown, PenTool, ScanBarcode, Share2, Copy, MessageCircle, Image as ImageIcon, Instagram, LayoutDashboard, Store, Package, ClipboardList, Grid, Users, Megaphone, Menu, Truck, Printer, Calculator, History, AlertTriangle, DollarSign, Wallet, RefreshCw, Download, Ticket, CalendarCheck, BellRing } from 'lucide-react';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
 import BarcodeScanner from './BarcodeScanner';
-import { streamUsers, streamSuppliers, addSupplierDB, deleteSupplierDB, streamSearchLogs, addBlogPostDB, streamBanners, addBannerDB, deleteBannerDB, uploadImageToStorage, addExpenseDB, streamExpenses, deleteExpenseDB, streamSubscriptions } from '../services/db';
+import { 
+    streamUsers, streamSuppliers, addSupplierDB, deleteSupplierDB, streamSearchLogs, addBlogPostDB, streamBanners, addBannerDB, deleteBannerDB, 
+    uploadImageToStorage, addExpenseDB, streamExpenses, deleteExpenseDB, streamSubscriptions,
+    streamCoupons, addCouponDB, deleteCouponDB, streamBookings, updateBookingStatusDB, streamStockAlerts, deleteStockAlertDB
+} from '../services/db';
 
 interface AdminPanelProps {
   products: Product[];
@@ -38,7 +42,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onLogout,
   currentUserRole = 'ADMIN'
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'pos' | 'products' | 'categories' | 'inventory' | 'orders' | 'users' | 'marketing' | 'suppliers' | 'demand' | 'expenses' | 'subscriptions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pos' | 'products' | 'categories' | 'inventory' | 'orders' | 'users' | 'marketing' | 'suppliers' | 'demand' | 'expenses' | 'subscriptions' | 'coupons' | 'bookings' | 'alerts'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
 
   // Dashboard / Reports State
@@ -51,10 +55,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [banners, setBanners] = useState<Banner[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [bookings, setBookings] = useState<ServiceBooking[]>([]);
+  const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
 
   // Forms State
   const [supplierForm, setSupplierForm] = useState({ name: '', contactName: '', phone: '', email: '' });
   const [expenseForm, setExpenseForm] = useState({ description: '', amount: '', category: 'OTHER' });
+  const [couponForm, setCouponForm] = useState({ code: '', type: 'PERCENTAGE', value: '' });
   
   // Marketing State
   const [blogTopic, setBlogTopic] = useState('');
@@ -81,6 +89,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [prodBarcode, setProdBarcode] = useState('');
   const [prodExpiry, setProdExpiry] = useState('');
   const [prodSupplier, setProdSupplier] = useState('');
+
+  // Scanner State for Product Form
+  const [showProductScanner, setShowProductScanner] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,8 +122,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const unsubBanners = streamBanners((data) => setBanners(data));
       const unsubExpenses = streamExpenses((data) => setExpenses(data));
       const unsubSubs = streamSubscriptions((data) => setSubscriptions(data));
+      const unsubCoupons = streamCoupons((data) => setCoupons(data));
+      const unsubBookings = streamBookings((data) => setBookings(data));
+      const unsubAlerts = streamStockAlerts((data) => setStockAlerts(data));
 
-      return () => { unsubUsers(); unsubSuppliers(); unsubLogs(); unsubBanners(); unsubExpenses(); unsubSubs(); };
+      return () => { 
+          unsubUsers(); unsubSuppliers(); unsubLogs(); unsubBanners(); unsubExpenses(); unsubSubs();
+          unsubCoupons(); unsubBookings(); unsubAlerts();
+      };
   }, []);
 
   // Stats logic
@@ -296,6 +313,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           date: new Date().toISOString()
       });
       setExpenseForm({ description: '', amount: '', category: 'OTHER' });
+  };
+
+  const handleCouponSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!couponForm.code || !couponForm.value) return;
+      await addCouponDB({
+          id: `cpn_${Date.now()}`,
+          code: couponForm.code.toUpperCase(),
+          type: couponForm.type as any,
+          value: parseFloat(couponForm.value),
+          active: true
+      });
+      setCouponForm({ code: '', type: 'PERCENTAGE', value: '' });
+  };
+
+  const handleBookingStatus = async (id: string, status: ServiceBooking['status']) => {
+      await updateBookingStatusDB(id, status);
   };
 
 
@@ -650,6 +684,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               { id: 'expenses', label: 'Gastos (Caja)', icon: Wallet },
               { id: 'subscriptions', label: 'Suscripciones', icon: RefreshCw },
           ]
+      }, {
+          title: 'GESTIÓN EXTRA',
+          items: [
+              { id: 'coupons', label: 'Cupones', icon: Ticket },
+              { id: 'bookings', label: 'Citas Médicas', icon: CalendarCheck },
+              { id: 'alerts', label: 'Alertas Stock', icon: BellRing }
+          ]
       }] : [])
   ];
 
@@ -730,7 +771,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
       )}
 
-      {/* MODAL DE CORTE DE CAJA */}
+      {/* MODALS */}
       {showCashClosure && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
@@ -747,7 +788,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <p className="text-gray-500 text-sm">Fecha</p>
                                     <p className="text-xl font-bold text-gray-800">{stats.date}</p>
                                 </div>
-                                
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Pedidos:</span>
                                     <span className="font-bold bg-gray-100 px-2 rounded">{stats.orderCount}</span>
@@ -760,18 +800,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <span className="font-medium">Ventas Transf.:</span>
                                     <span className="font-bold">+ ${stats.transferSales.toFixed(2)}</span>
                                 </div>
-                                
                                 <div className="pt-4 border-t border-gray-200 flex justify-between items-center text-lg">
                                     <span className="font-black text-gray-800">TOTAL:</span>
                                     <span className="font-black text-teal-700">${stats.totalSales.toFixed(2)}</span>
                                 </div>
-
                                 <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
                                     <p className="text-xs text-yellow-800 font-bold uppercase mb-1">Efectivo en Caja:</p>
                                     <p className="text-xl font-black text-gray-800">${stats.cashSales.toFixed(2)}</p>
                                     <p className="text-[10px] text-gray-500 leading-tight mt-1">Este es el monto que deberías tener físicamente en el cajón.</p>
                                 </div>
-
                                 <button onClick={printClosureReport} className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-lg mt-4">
                                     <Printer size={18}/> Imprimir Reporte
                                 </button>
@@ -783,7 +820,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* CRM MODAL */}
       {showCRM && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-200">
@@ -793,21 +829,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className="p-6">
                     <div className="relative mb-6">
-                        <input 
-                            className="w-full border border-gray-300 p-3 pl-10 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" 
-                            placeholder="Buscar por nombre o teléfono..." 
-                            value={crmSearch} 
-                            onChange={e => setCrmSearch(e.target.value)} 
-                            autoFocus
-                        />
+                        <input className="w-full border border-gray-300 p-3 pl-10 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" placeholder="Buscar por nombre o teléfono..." value={crmSearch} onChange={e => setCrmSearch(e.target.value)} autoFocus />
                         <Search className="absolute left-3 top-3.5 text-gray-400 h-5 w-5"/>
                     </div>
-                    
                     <div className="space-y-4 max-h-[300px] overflow-y-auto">
                         {crmCustomerHistory.length === 0 ? (
-                            <p className="text-center text-gray-400 py-4">
-                                {crmSearch ? "No se encontraron pedidos." : "Escribe para buscar..."}
-                            </p>
+                            <p className="text-center text-gray-400 py-4">{crmSearch ? "No se encontraron pedidos." : "Escribe para buscar..."}</p>
                         ) : (
                             crmCustomerHistory.map(order => (
                                 <div key={order.id} className="border border-gray-200 rounded-lg p-3 text-sm hover:bg-gray-50 transition">
@@ -817,9 +844,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     </div>
                                     <div className="text-gray-600 mb-1 font-medium">{order.customerName}</div>
                                     <ul className="text-xs text-gray-500 list-disc list-inside">
-                                        {order.items.slice(0,3).map((i, idx) => (
-                                            <li key={idx}>{i.quantity}x {i.name}</li>
-                                        ))}
+                                        {order.items.slice(0,3).map((i, idx) => (<li key={idx}>{i.quantity}x {i.name}</li>))}
                                         {order.items.length > 3 && <li>... y más</li>}
                                     </ul>
                                 </div>
@@ -831,16 +856,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
+      {showProductScanner && (
+        <BarcodeScanner onScan={(code) => { setProdBarcode(code); setShowProductScanner(false); }} onClose={() => setShowProductScanner(false)} />
+      )}
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative pt-16 md:pt-0">
           <div className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8">
               <div className="max-w-6xl mx-auto">
-                {/* Render Tabs */}
+                {/* --- DASHBOARD TAB --- */}
                 {activeTab === 'dashboard' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                         <h2 className="text-2xl font-bold text-gray-800 mb-6">Panel de Control</h2>
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            {/* ... (Existing Dashboard content) ... */}
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-gray-700">Resumen de Rendimiento</h3>
                                 <select className="border rounded-lg text-sm p-2 bg-gray-50 outline-none focus:ring-2 focus:ring-teal-500" value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value as any)}>
@@ -871,7 +900,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <span className="text-3xl font-black text-blue-800">{orders.filter(o => o.status === 'PENDING').length}</span>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <div className="lg:col-span-2 h-80 w-full">
                                     <ResponsiveContainer width="100%" height="100%">
@@ -884,7 +912,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                {/* PROFITABILITY TABLE (Option 4) */}
                                 <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
                                     <h4 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><DollarSign size={16}/> Top Productos Rentables</h4>
                                     <div className="space-y-3">
@@ -907,7 +934,122 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- EXPENSES TAB (Option 3) --- */}
+                {/* --- COUPONS TAB (New) --- */}
+                {activeTab === 'coupons' && isAdmin && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Ticket/> Gestión de Cupones</h3>
+                        <form onSubmit={handleCouponSubmit} className="flex gap-4 items-end bg-gray-50 p-5 rounded-xl border border-gray-100 mb-6">
+                            <div className="w-1/3">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Código</label>
+                                <input className="w-full border p-2 rounded uppercase" value={couponForm.code} onChange={e => setCouponForm({...couponForm, code: e.target.value.toUpperCase()})} placeholder="EJ: DESC10" required/>
+                            </div>
+                            <div className="w-1/4">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Tipo</label>
+                                <select className="w-full border p-2 rounded" value={couponForm.type} onChange={e => setCouponForm({...couponForm, type: e.target.value as any})}>
+                                    <option value="PERCENTAGE">Porcentaje (%)</option>
+                                    <option value="FIXED">Monto Fijo ($)</option>
+                                </select>
+                            </div>
+                            <div className="w-1/4">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Valor</label>
+                                <input type="number" className="w-full border p-2 rounded" value={couponForm.value} onChange={e => setCouponForm({...couponForm, value: e.target.value})} placeholder="10" required/>
+                            </div>
+                            <button className="bg-teal-600 text-white px-4 py-2 rounded font-bold h-10">Crear</button>
+                        </form>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {coupons.map(c => (
+                                <div key={c.id} className="border border-dashed border-teal-300 bg-teal-50 p-4 rounded-lg flex justify-between items-center relative group">
+                                    <div>
+                                        <p className="font-bold text-teal-800 text-lg">{c.code}</p>
+                                        <p className="text-sm text-teal-600">{c.type === 'PERCENTAGE' ? `${c.value}% OFF` : `$${c.value} Descuento`}</p>
+                                    </div>
+                                    <button onClick={() => deleteCouponDB(c.id)} className="bg-white p-2 rounded-full text-red-500 hover:bg-red-50 shadow-sm"><Trash2 size={16}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- BOOKINGS TAB (New) --- */}
+                {activeTab === 'bookings' && isAdmin && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><CalendarCheck/> Citas y Servicios</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Fecha/Hora</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Paciente</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Servicio</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {bookings.map(bk => (
+                                        <tr key={bk.id}>
+                                            <td className="px-6 py-4">
+                                                <p className="font-bold text-gray-800">{bk.date}</p>
+                                                <p className="text-xs text-gray-500">{bk.time}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="font-medium text-gray-900">{bk.patientName}</p>
+                                                <p className="text-xs text-gray-500">{bk.phone}</p>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-700">{bk.serviceName}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${bk.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : bk.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                    {bk.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 flex gap-2">
+                                                {bk.status === 'PENDING' && <button onClick={() => handleBookingStatus(bk.id, 'CONFIRMED')} className="text-blue-600 hover:underline text-xs font-bold">Confirmar</button>}
+                                                {bk.status === 'CONFIRMED' && <button onClick={() => handleBookingStatus(bk.id, 'COMPLETED')} className="text-green-600 hover:underline text-xs font-bold">Completar</button>}
+                                                <button onClick={() => handleBookingStatus(bk.id, 'CANCELLED')} className="text-red-600 hover:underline text-xs font-bold">Cancelar</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ALERTS TAB (New) --- */}
+                {activeTab === 'alerts' && isAdmin && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BellRing/> Alertas de Stock (Interesados)</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Correo Interesado</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Fecha Solicitud</th>
+                                        <th className="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {stockAlerts.map(alert => {
+                                        const prod = products.find(p => p.id === alert.productId);
+                                        return (
+                                            <tr key={alert.id}>
+                                                <td className="px-6 py-4 font-bold text-gray-800">{prod ? prod.name : 'Producto Eliminado'}</td>
+                                                <td className="px-6 py-4 text-sm text-blue-600 underline">{alert.email}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-500">{new Date(alert.createdAt).toLocaleDateString()}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button onClick={() => deleteStockAlertDB(alert.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- EXISTING TABS (Expenses, Subscriptions, POS, etc.) --- */}
                 {activeTab === 'expenses' && isAdmin && (
                     <div className="space-y-6 animate-in fade-in">
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -961,7 +1103,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- SUBSCRIPTIONS TAB (Option 1) --- */}
                 {activeTab === 'subscriptions' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><RefreshCw/> Suscripciones Activas (Plan Salud)</h3>
@@ -985,7 +1126,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- POS Tab --- */}
                 {activeTab === 'pos' && (
                     <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)]">
                         {showScanner && <BarcodeScanner onScan={(code) => { 
@@ -1059,15 +1199,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- INVENTORY TAB --- */}
                 {activeTab === 'inventory' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-xl text-gray-800">Control de Inventario</h3>
                             <div className="flex gap-2">
-                                {/* WA Stock Alert (Option 5) */}
                                 <button onClick={handleSendStockAlert} className="bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-green-600 flex items-center gap-2 shadow-sm">
                                     <MessageCircle size={16}/> Enviar Alerta Stock
+                                </button>
+                                <button onClick={handleGeneratePurchaseList} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm">
+                                    <Download size={16}/> Lista Compra
                                 </button>
                                 <div className="relative">
                                     <input className="border border-gray-200 p-2 pl-9 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Buscar..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
@@ -1075,8 +1216,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                             </div>
                         </div>
-
-                         {/* EXPIRY ALERT SECTION (Option 2) */}
                         {expiringProducts.length > 0 && (
                              <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
                                 <h4 className="font-bold text-orange-800 mb-2 flex items-center gap-2"><AlertTriangle size={18}/> Alertas de Caducidad (Próximos 3 meses)</h4>
@@ -1097,7 +1236,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                              </div>
                         )}
-
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead>
@@ -1118,12 +1256,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center gap-2">
                                                 <button onClick={() => onUpdateStock(p.id, p.stock - 1)} className="p-1.5 bg-gray-100 rounded-md hover:bg-gray-200 text-gray-600"><Minus size={14}/></button>
-                                                <input 
-                                                    type="number" 
-                                                    className="w-16 border border-gray-200 rounded-md p-1 text-center text-sm font-medium mx-1 focus:ring-1 focus:ring-teal-500 outline-none" 
-                                                    defaultValue={p.stock}
-                                                    onBlur={(e) => onUpdateStock(p.id, parseInt(e.target.value))}
-                                                />
+                                                <input type="number" className="w-16 border border-gray-200 rounded-md p-1 text-center text-sm font-medium mx-1 focus:ring-1 focus:ring-teal-500 outline-none" defaultValue={p.stock} onBlur={(e) => onUpdateStock(p.id, parseInt(e.target.value))} />
                                                 <button onClick={() => onUpdateStock(p.id, p.stock + 1)} className="p-1.5 bg-gray-100 rounded-md hover:bg-gray-200 text-gray-600"><Plus size={14}/></button>
                                             </td>
                                         </tr>
@@ -1134,7 +1267,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- CATEGORIES TAB --- */}
                 {activeTab === 'categories' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="font-bold text-xl text-gray-800 mb-6">Categorías</h3>
@@ -1159,7 +1291,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- ORDERS TAB --- */}
                 {activeTab === 'orders' && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="font-bold text-xl text-gray-800 mb-6">Historial de Pedidos</h3>
@@ -1205,7 +1336,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- USERS TAB --- */}
                 {activeTab === 'users' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="font-bold text-xl text-gray-800 mb-6">Usuarios Registrados</h3>
@@ -1234,7 +1364,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- SUPPLIERS TAB --- */}
                 {activeTab === 'suppliers' && isAdmin && (
                     <div className="space-y-6 animate-in fade-in">
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -1262,7 +1391,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- DEMAND REPORT TAB --- */}
                 {activeTab === 'demand' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800"><TrendingUp className="text-red-500"/> Demanda Insatisfecha</h3>
@@ -1286,22 +1414,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- MARKETING (Including Blog & Social) --- */}
                 {activeTab === 'marketing' && isAdmin && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in">
-                        {/* 1. Generador de Redes Sociales */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="p-2 bg-blue-100 rounded-lg"><Share2 className="h-5 w-5 text-blue-600"/></div>
                                 <h3 className="text-lg font-bold text-gray-800">Creador de Contenido IA</h3>
                             </div>
-                            
                             <div className="space-y-4">
                                 <select className="w-full border border-gray-200 p-2.5 rounded-lg text-sm bg-gray-50 focus:bg-white transition-colors outline-none focus:ring-2 focus:ring-blue-500" value={marketingProduct} onChange={e => setMarketingProduct(e.target.value)}>
                                     <option value="">-- Seleccionar Producto a Promocionar --</option>
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name} (${p.price})</option>)}
                                 </select>
-                                
                                 <div className="flex gap-2">
                                     <button onClick={() => setPostPlatform('INSTAGRAM')} className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${postPlatform === 'INSTAGRAM' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                                         <Instagram size={16}/> Instagram
@@ -1310,11 +1434,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <MessageCircle size={16}/> WhatsApp
                                     </button>
                                 </div>
-
                                 <button onClick={handleGeneratePost} disabled={isGenerating || !marketingProduct} className="w-full bg-slate-800 text-white py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition">
                                     {isGenerating ? <Loader2 className="animate-spin"/> : <Sparkles size={16} className="text-yellow-400"/>} Generar Copy
                                 </button>
-
                                 {generatedPost && (
                                     <div className="mt-4 animate-in fade-in">
                                         <textarea className="w-full border border-gray-200 p-3 rounded-lg text-sm h-32 bg-gray-50 focus:bg-white transition-colors" value={generatedPost} onChange={(e) => setGeneratedPost(e.target.value)}></textarea>
@@ -1328,8 +1450,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 )}
                             </div>
                         </div>
-
-                        {/* 2. Banners y Promociones */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                              <div className="flex items-center gap-2 mb-4">
                                 <div className="p-2 bg-yellow-100 rounded-lg"><ImageIcon className="h-5 w-5 text-yellow-600"/></div>
@@ -1342,7 +1462,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     {isUploadingBanner ? 'Subiendo...' : 'Publicar Banner'}
                                 </button>
                             </div>
-                            
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                 {banners.map(b => (
                                     <div key={b.id} className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg bg-white relative group">
@@ -1353,8 +1472,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 ))}
                             </div>
                         </div>
-
-                        {/* 3. Generador de Blog (Full Width) */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="p-2 bg-purple-100 rounded-lg"><PenTool className="h-5 w-5 text-purple-600"/></div>
@@ -1367,11 +1484,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </button>
                             </div>
                         </div>
-
                     </div>
                 )}
 
-                {/* --- PRODUCTS TAB --- */}
                 {activeTab === 'products' && isAdmin && (
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in">
                         <h3 className="text-xl font-bold text-gray-800 mb-6">Gestión de Productos</h3>
@@ -1383,10 +1498,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Código de Barras</label>
-                                    <input className="border border-gray-300 p-2.5 rounded-lg w-full outline-none focus:border-teal-500 bg-white" placeholder="Escanea o escribe..." value={prodBarcode} onChange={e => setProdBarcode(e.target.value)} />
+                                    <div className="flex gap-2">
+                                        <input className="border border-gray-300 p-2.5 rounded-lg w-full outline-none focus:border-teal-500 bg-white" placeholder="Escanea o escribe..." value={prodBarcode} onChange={e => setProdBarcode(e.target.value)} />
+                                        <button type="button" onClick={() => setShowProductScanner(true)} className="bg-gray-200 text-gray-700 p-2.5 rounded-lg hover:bg-gray-300 transition" title="Escanear Código">
+                                            <ScanBarcode size={20} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Precio Venta ($)</label>
@@ -1405,7 +1524,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <input className="border border-gray-300 p-2.5 rounded-lg w-full outline-none focus:border-teal-500 bg-white" type="number" step="0.01" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
                                 </div>
                             </div>
-                            
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
                                 <div className="flex gap-2">
@@ -1415,7 +1533,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     </button>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Categoría</label>
@@ -1433,20 +1550,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Imagen</label>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        ref={fileInputRef}
-                                        className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                                        onChange={(e) => handleImageUpload(e, setProdImage)}
-                                    />
+                                    <input type="file" accept="image/*" ref={fileInputRef} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" onChange={(e) => handleImageUpload(e, setProdImage)} />
                                 </div>
                                 <div>
                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha de Caducidad</label>
                                    <input type="date" className="border border-gray-300 p-2.5 rounded-lg w-full outline-none focus:border-teal-500 bg-white" value={prodExpiry} onChange={e => setProdExpiry(e.target.value)} />
                                 </div>
                             </div>
-                            
                             <div className="flex gap-3 pt-2">
                                 <button className="flex-1 bg-teal-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition disabled:opacity-70">
                                     {isSubmitting ? 'Guardando...' : (editingId ? 'Actualizar Producto' : 'Guardar Nuevo Producto')}
@@ -1454,7 +1564,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 {editingId && <button type="button" onClick={resetProductForm} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300">Cancelar</button>}
                             </div>
                         </form>
-
                         <div className="space-y-2">
                             {products.map(p => (
                                 <div key={p.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center hover:bg-gray-50 transition bg-white group">

@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule } from '../types';
+import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert } from '../types';
 
 // Nombres de las colecciones
 const PRODUCTS_COLLECTION = 'products';
@@ -33,6 +33,7 @@ const STOCK_ALERTS_COLLECTION = 'stock_alerts';
 const EXPENSES_COLLECTION = 'expenses';
 const FAMILY_COLLECTION = 'family_members';
 const MEDICATIONS_COLLECTION = 'medications';
+const BOOKINGS_COLLECTION = 'bookings';
 
 // --- HELPERS ---
 export const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
@@ -162,6 +163,28 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
   }
 };
 
+export const updateOrderLocationDB = async (id: string, lat: number, lng: number) => {
+    try {
+        let orderRef = doc(db, ORDERS_COLLECTION, id);
+        // Handle custom ID query if needed (similar to status update logic)
+        if(id.startsWith('ORD-')) {
+            const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) orderRef = snapshot.docs[0].ref;
+        }
+
+        await updateDoc(orderRef, {
+            driverLocation: {
+                lat,
+                lng,
+                lastUpdate: new Date().toISOString()
+            }
+        });
+    } catch (e) {
+        console.error("Error updating GPS", e);
+    }
+};
+
 // --- USERS ---
 export const saveUserDB = async (user: User) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
@@ -224,6 +247,32 @@ export const takeDoseDB = async (medId: string, newStock: number) => {
 
 export const deleteMedicationDB = async (medId: string) => {
     await deleteDoc(doc(db, MEDICATIONS_COLLECTION, medId));
+};
+
+// --- BOOKINGS (SERVICES) ---
+export const addBookingDB = async (booking: ServiceBooking) => {
+    const { id, ...data } = booking;
+    await addDoc(collection(db, BOOKINGS_COLLECTION), data);
+};
+
+export const streamBookings = (callback: (bookings: ServiceBooking[]) => void) => {
+    // Default: mostrar todas. En prod filtrarías por fecha reciente.
+    const q = query(collection(db, BOOKINGS_COLLECTION), orderBy('date', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ServiceBooking[];
+        callback(bookings);
+    });
+};
+
+export const updateBookingStatusDB = async (id: string, status: ServiceBooking['status']) => {
+    // Busca por ID si es booking
+    let ref = doc(db, BOOKINGS_COLLECTION, id);
+    if(id.startsWith('bk_')) {
+        const q = query(collection(db, BOOKINGS_COLLECTION), where('id', '==', id));
+        const snap = await getDocs(q);
+        if(!snap.empty) ref = snap.docs[0].ref;
+    }
+    await updateDoc(ref, { status });
 };
 
 
@@ -294,6 +343,18 @@ export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } =
 // --- ALERTS & SUBSCRIPTIONS ---
 export const addStockAlertDB = async (email: string, productId: string) => {
     await addDoc(collection(db, STOCK_ALERTS_COLLECTION), { email, productId, createdAt: new Date().toISOString() });
+};
+
+export const streamStockAlerts = (callback: (alerts: StockAlert[]) => void) => {
+    const q = query(collection(db, STOCK_ALERTS_COLLECTION), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockAlert[];
+        callback(alerts);
+    });
+};
+
+export const deleteStockAlertDB = async (id: string) => {
+    await deleteDoc(doc(db, STOCK_ALERTS_COLLECTION, id));
 };
 
 export const addSubscriptionDB = async (sub: Subscription) => {
