@@ -175,7 +175,7 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
   ).join('\n') : "Inventario vacío.";
 
   const systemInstruction = `
-    Eres "VitalBot", farmacéutico virtual de Farmacia Vitalis.
+    Eres "Vitalis Asistent", farmacéutico virtual de Farmacia Vitalis.
     INVENTARIO ACTUAL:
     ${productContext}
     
