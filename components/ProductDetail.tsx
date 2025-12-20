@@ -43,8 +43,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
   const reserved = getReservedStock();
   const available = Math.max(0, product.stock - reserved);
-  const hasBox = product.unitsPerBox && product.unitsPerBox > 1;
-  const unitsPerBox = product.unitsPerBox || 9999;
+  const hasBox = (product.unitsPerBox ?? 0) > 1;
+  const unitsPerBox = product.unitsPerBox ?? 1;
 
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");

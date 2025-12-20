@@ -1,51 +1,13 @@
-import { GoogleGenAI, Chat } from "@google/genai";
+
+import { GoogleGenAI } from "@google/genai";
 import { Product } from '../types';
-
-// Helper robusto para obtener la API Key en entorno Vite
-const getApiKey = (): string | null => {
-  let key = '';
-
-  try {
-    // @ts-ignore
-    if (import.meta.env.VITE_API_KEY) {
-      // @ts-ignore
-      key = import.meta.env.VITE_API_KEY;
-    } else if (process.env.API_KEY) {
-      key = process.env.API_KEY;
-    } else {
-        // Fallback final
-        // @ts-ignore
-        key = import.meta.env.API_KEY || '';
-    }
-  } catch (e) {
-    console.debug("Error leyendo variables de entorno", e);
-  }
-
-  if (!key) {
-      console.error("⛔ VITALIS ERROR: No se encontró la API KEY. Crea un archivo .env con VITE_API_KEY=...");
-      return null;
-  }
-
-  // LIMPIEZA AGRESIVA:
-  // Elimina comillas, espacios y caracteres invisibles que causan error 403
-  key = key.trim().replace(/^["']|["']$/g, '').replace(/\s/g, '');
-
-  if (key.length < 10 || key.includes('undefined') || key.includes('tu_clave')) {
-    console.error("⛔ VITALIS ERROR: La API KEY parece inválida o es un placeholder.");
-    return null;
-  }
-
-  return key;
-};
 
 // --- OPCIÓN 1: BÚSQUEDA POR SÍNTOMAS ---
 export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
-    const apiKey = getApiKey();
-    if (!apiKey) return [];
+    // Fix: Use process.env.API_KEY exclusively as per guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
-        
         // Creamos un contexto ligero para no saturar el token limit
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
 
@@ -59,8 +21,9 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
         
         Responde SOLO el array JSON de strings (ej: ["1", "5"]). Si ninguno sirve, responde [].`;
 
+        // Fix: Query GenAI with model and prompt in a single call. Using recommended model for basic tasks.
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: 'application/json' }
         });
@@ -75,12 +38,10 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
 
 // --- OPCIÓN 5: VENTA CRUZADA INTELIGENTE ---
 export const getCrossSellSuggestion = async (targetProduct: Product, allProducts: Product[]): Promise<{product: Product | undefined, reason: string}> => {
-    const apiKey = getApiKey();
-    if (!apiKey) return { product: undefined, reason: "" };
+    // Fix: Use process.env.API_KEY exclusively
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
-        
         // Filtrar el producto actual y reducir contexto
         const candidates = allProducts
             .filter(p => p.id !== targetProduct.id && p.stock > 0)
@@ -102,8 +63,9 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
         
         Si no hay nada lógico, responde { "suggestedId": null, "reason": "" }.`;
 
+        // Fix: Using recommended model for complex reasoning task
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: { responseMimeType: 'application/json' }
         });
@@ -124,13 +86,12 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
 
 // Helper to generate a description for a new product
 export const generateProductDescription = async (productName: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Error: Falta API Key.";
+  // Fix: Use process.env.API_KEY exclusively
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Escribe una descripción corta, atractiva y profesional para vender el siguiente producto farmacéutico: "${productName}". Máximo 2 oraciones. En español.`,
     });
     return response.text || "No se pudo generar la descripción.";
@@ -141,17 +102,16 @@ export const generateProductDescription = async (productName: string): Promise<s
 };
 
 export const generateSocialPost = async (product: Product, platform: 'INSTAGRAM' | 'WHATSAPP'): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Error: Falta API Key.";
+  // Fix: Use process.env.API_KEY exclusively
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
   const prompt = platform === 'INSTAGRAM'
     ? `Actúa como experto en Marketing. Post para Instagram del producto: "${product.name}" ($${product.price}). Desc: "${product.description}". Emojis, Hashtags, Llamado a la acción.`
     : `Mensaje de difusión WhatsApp corto para: "${product.name}" ($${product.price}). Amable, emojis, sin hashtags.`;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
     return response.text || "Error generando post.";
@@ -162,13 +122,9 @@ export const generateSocialPost = async (product: Product, platform: 'INSTAGRAM'
 };
 
 // Virtual Assistant Logic
-export const createAssistantChat = (products: Product[]): Chat | null => {
-  const apiKey = getApiKey();
-  
-  if (!apiKey) {
-      console.warn("Assistant disabled: Missing or Invalid API Key");
-      return null;
-  }
+// Fix: Use GoogleGenAI properly. Returning a chat session is fine.
+export const createAssistantChat = (products: Product[]) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
   const productContext = products.length > 0 ? products.map(p => 
     `- ${p.name} (${p.category}): $${p.price}. Stock: ${p.stock}.`
@@ -187,9 +143,8 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
   `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: systemInstruction,
       },
@@ -202,17 +157,17 @@ export const createAssistantChat = (products: Product[]): Chat | null => {
 };
 
 export const checkInteractions = async (productNames: string[]): Promise<{safe: boolean, message: string}> => {
-    const apiKey = getApiKey();
-    if (!apiKey || productNames.length < 2) return { safe: true, message: "" };
+    // Fix: Use process.env.API_KEY exclusively
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    if (productNames.length < 2) return { safe: true, message: "" };
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
         const prompt = `Farmacéutico senior. Analiza interacciones peligrosas entre: ${productNames.join(', ')}.
         Responde JSON: { "safe": boolean, "message": "string corto (max 15 palabras) si hay riesgo, o vacío" }.
         Asume safe: true para vitaminas/aseo.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: 'application/json' }
         });

@@ -1,3 +1,4 @@
+
 import { db, storage } from './firebase';
 import { 
   collection, 
@@ -339,6 +340,11 @@ export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {
     });
 };
 export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } = post; await addDoc(collection(db, BLOG_COLLECTION), data); };
+
+// Fix: Add deleteBlogPostDB to avoid exposing firestore internals to components
+export const deleteBlogPostDB = async (id: string) => {
+  await deleteDoc(doc(db, BLOG_COLLECTION, id));
+};
 
 // --- ALERTS & SUBSCRIPTIONS ---
 export const addStockAlertDB = async (email: string, productId: string) => {
