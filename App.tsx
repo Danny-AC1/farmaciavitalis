@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
@@ -36,6 +37,7 @@ import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
+// Added Minus to imports
 import { Plus, Minus, Search, ShoppingBag, X, ArrowLeft, Loader2, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle, Stethoscope, Sparkles, Pill, Activity, Sun, HeartPulse, Baby, BriefcaseMedical, Edit, Trash2 } from 'lucide-react';
 
 const AUTHORIZED_ADMIN_EMAILS = ['danny.asc25@gmail.com', 'd.e.a.c@outlook.com'];
@@ -372,12 +374,26 @@ const App: React.FC = () => {
         const unitLabel = isBox ? `Caja x${item.unitsPerBox}` : 'Unid';
         return `- ${item.quantity} x ${item.name} (${unitLabel}): $${(price * item.quantity).toFixed(2)}`;
     }).join('\n');
-    let paymentInfo = details.paymentMethod === 'CASH' ? 'Efectivo 💵' : 'Transferencia 🏦';
+    
+    let paymentInfo = details.paymentMethod === 'CASH' ? '*EFECTIVO* 💵' : '*TRANSFERENCIA BANCARIA* 🏦';
     if (details.paymentMethod === 'CASH' && cashGivenValue) {
         const change = cashGivenValue - finalTotal;
-        paymentInfo += `\n*Paga con:* $${cashGivenValue.toFixed(2)}\n*Vuelto:* $${change.toFixed(2)}`;
+        paymentInfo += `\n*Paga con:* $${cashGivenValue.toFixed(2)}\n*Cambio sugerido:* $${change.toFixed(2)}`;
     }
-    const message = `*NUEVO PEDIDO WEB - VITALIS* 💊\n\n*Cliente:* ${details.name}\n*Tel:* ${details.phone}\n*Dir:* ${details.address}, ${DELIVERY_CITY}\n*Pago:* ${paymentInfo}\n\n*PEDIDO:*\n${itemsList}\n\n*Subtotal:* $${cartSubtotal.toFixed(2)}\n*Envío:* $${DELIVERY_FEE.toFixed(2)}\n${discount > 0 ? `*Descuento:* -$${discount.toFixed(2)}\n` : ''}*TOTAL:* $${finalTotal.toFixed(2)}${details.paymentMethod === 'TRANSFER' ? '\n\n_(Adjunto comprobante de pago)_' : ''}`;
+    
+    const message = `*NUEVO PEDIDO WEB - VITALIS* 💊\n\n` +
+                    `*Cliente:* ${details.name}\n` +
+                    `*Tel:* ${details.phone}\n` +
+                    `*Dir:* ${details.address}, ${DELIVERY_CITY}\n\n` +
+                    `*MÉTODO DE PAGO:* ${paymentInfo}\n\n` +
+                    `*DETALLE DEL PEDIDO:*\n${itemsList}\n\n` +
+                    `*Subtotal:* $${cartSubtotal.toFixed(2)}\n` +
+                    `*Envío Machalilla:* $${DELIVERY_FEE.toFixed(2)}\n` +
+                    `${discount > 0 ? `*Descuento:* -$${discount.toFixed(2)}\n` : ''}` +
+                    `*TOTAL A PAGAR:* $${finalTotal.toFixed(2)}\n\n` +
+                    `${details.paymentMethod === 'TRANSFER' ? '⚠️ *IMPORTANTE:* Por favor, adjunte el comprobante de transferencia a este chat para procesar su pedido.' : '🛵 El repartidor llevará cambio para el monto indicado.'}\n\n` +
+                    `_¡Gracias por confiar en Vitalis! Tu salud al día._`;
+
     const link = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     setLastOrderLink(link);
     window.open(link, '_blank');

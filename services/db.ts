@@ -376,6 +376,10 @@ export const streamSubscriptions = (callback: (subs: Subscription[]) => void) =>
     });
 };
 
+export const deleteSubscriptionDB = async (id: string) => {
+    await deleteDoc(doc(db, SUBSCRIPTIONS_COLLECTION, id));
+};
+
 // --- EXPENSES ---
 export const addExpenseDB = async (expense: Expense) => {
     const { id, ...data } = expense;
