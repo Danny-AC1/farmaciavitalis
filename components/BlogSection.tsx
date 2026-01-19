@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { BlogPost } from '../types';
 import { streamBlogPosts, deleteBlogPostDB } from '../services/db';
@@ -28,8 +29,6 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
         }
     };
 
-    if (posts.length === 0 && !isAuthorized) return null;
-
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 animate-in fade-in duration-700">
             <div className="flex justify-between items-center mb-8">
@@ -52,7 +51,8 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
             {posts.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
                     <BookOpen className="h-12 w-12 mx-auto text-gray-200 mb-2" />
-                    <p className="text-gray-500 font-medium">Aún no hay consejos publicados.</p>
+                    <p className="text-gray-500 font-medium">Próximamente compartiremos consejos de salud para ti.</p>
+                    <p className="text-gray-400 text-xs mt-1">Nuestros farmacéuticos están preparando contenido de calidad.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

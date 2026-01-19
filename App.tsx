@@ -37,7 +37,6 @@ import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
-// Added Minus to imports
 import { Plus, Minus, Search, ShoppingBag, X, ArrowLeft, Loader2, MessageCircle, Camera, Mic, AlertTriangle, ShieldCheck, CheckCircle, Stethoscope, Sparkles, Pill, Activity, Sun, HeartPulse, Baby, BriefcaseMedical, Edit, Trash2 } from 'lucide-react';
 
 const AUTHORIZED_ADMIN_EMAILS = ['danny.asc25@gmail.com', 'd.e.a.c@outlook.com'];
@@ -212,6 +211,29 @@ const App: React.FC = () => {
     return () => { unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubAuth(); };
   }, []);
 
+  // --- LÓGICA DE DEEP LINKING (ENLACES DE PRODUCTO) ---
+  useEffect(() => {
+    if (products.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const productId = params.get('product');
+      if (productId && !selectedProduct) {
+        const product = products.find(p => p.id === productId);
+        if (product) setSelectedProduct(product);
+      }
+    }
+  }, [products]);
+
+  const handleSelectProduct = (product: Product | null) => {
+    setSelectedProduct(product);
+    const url = new URL(window.location.href);
+    if (product) {
+      url.searchParams.set('product', product.id);
+    } else {
+      url.searchParams.delete('product');
+    }
+    window.history.pushState({}, '', url.toString());
+  };
+
   useEffect(() => {
       if (!searchTerm) { setAiSearchResults([]); return; }
       const delayDebounceFn = setTimeout(async () => {
@@ -261,7 +283,7 @@ const App: React.FC = () => {
       }
       return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
     });
-    if (selectedProduct) setSelectedProduct(null);
+    if (selectedProduct) handleSelectProduct(null);
   };
   
   const removeFromCart = (index: number) => setCart(prev => prev.filter((_, i) => i !== index));
@@ -461,7 +483,7 @@ const App: React.FC = () => {
                     <div className="animate-in fade-in">
                         <button onClick={() => setActiveCategory(null)} className="flex items-center text-teal-600 font-bold mb-6 hover:text-teal-800 transition-colors"><ArrowLeft className="h-5 w-5 mr-1" /> Volver a Categorías</button>
                         <h3 className="text-3xl font-bold text-gray-900 mb-6 flex items-center"><span className="bg-teal-100 text-teal-800 px-3 py-1 rounded text-lg mr-3">{categoryName}</span> Productos</h3>
-                        {displayedProducts.length === 0 ? (<div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100"><ShoppingBag className="h-16 w-16 text-gray-200 mx-auto mb-4" /><p className="text-gray-500 text-lg">No hay productos aquí.</p></div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">{displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={setSelectedProduct} />))}</div>)}
+                        {displayedProducts.length === 0 ? (<div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100"><ShoppingBag className="h-16 w-16 text-gray-200 mx-auto mb-4" /><p className="text-gray-500 text-lg">No hay productos aquí.</p></div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">{displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={handleSelectProduct} />))}</div>)}
                     </div>
                 ) : (
                     <div className="animate-in fade-in">
@@ -512,7 +534,7 @@ const App: React.FC = () => {
                         {searchTerm && (
                             <div className="animate-in slide-in-from-bottom-5 duration-500">
                                 <h3 className={`text-2xl font-bold mb-6 border-l-4 pl-4 ${isSymptomMode ? 'text-purple-800 border-purple-500' : 'text-gray-800 border-teal-500'}`}>{isSymptomMode ? 'Sugerencias Médicas (IA)' : 'Resultados de Búsqueda'}</h3>
-                                {isSearchingAI ? (<div className="text-center py-20"><Loader2 className="h-12 w-12 text-purple-600 animate-spin mx-auto mb-4" /><p className="text-purple-600 font-bold">Analizando síntomas con IA...</p></div>) : displayedProducts.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">{displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={setSelectedProduct} />))}</div>) : (<div className="text-center py-20 animate-in fade-in"><p className="text-gray-400 text-lg">{isSymptomMode ? "No encontramos tratamientos exactos para eso." : `No encontramos productos con "${searchTerm}"`}</p><button onClick={() => { setSearchTerm(''); setIsSymptomMode(false); }} className="mt-4 text-teal-600 font-bold hover:underline">Ver todo el catálogo</button></div>)}
+                                {isSearchingAI ? (<div className="text-center py-20"><Loader2 className="h-12 w-12 text-purple-600 animate-spin mx-auto mb-4" /><p className="text-purple-600 font-bold">Analizando síntomas con IA...</p></div>) : displayedProducts.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">{displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={addToCart} onSelect={handleSelectProduct} />))}</div>) : (<div className="text-center py-20 animate-in fade-in"><p className="text-gray-400 text-lg">{isSymptomMode ? "No encontramos tratamientos exactos para eso." : `No encontramos productos con "${searchTerm}"`}</p><button onClick={() => { setSearchTerm(''); setIsSymptomMode(false); }} className="mt-4 text-teal-600 font-bold hover:underline">Ver todo el catálogo</button></div>)}
                             </div>
                         )}
 
@@ -540,7 +562,7 @@ const App: React.FC = () => {
         {view === 'SUCCESS' && (<div className="min-h-[80vh] flex items-center justify-center px-4"><div className="text-center p-8 bg-white rounded-xl shadow-lg max-w-lg"><div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6"><ShoppingBag className="h-10 w-10 text-green-600" /></div><h2 className="text-3xl font-bold text-gray-900 mb-2">¡Pedido Recibido!</h2><p className="text-gray-600 mb-6">Gracias por comprar en Vitalis. <br/>Recuerda enviar el detalle por WhatsApp.</p>{lastOrderLink && (<a href={lastOrderLink} target="_blank" rel="noopener noreferrer" className="block w-full bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition mb-4 flex items-center justify-center gap-2"><MessageCircle className="h-5 w-5" /> Enviar detalles por WhatsApp</a>)}<button onClick={() => { setView('HOME'); setActiveCategory(null); }} className="block w-full bg-teal-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-teal-700 transition">Volver a la Tienda</button></div></div>)}
       </main>
 
-      {selectedProduct && <ProductDetail product={selectedProduct} products={products} cart={cart} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} currentUserEmail={currentUser?.email} />}
+      {selectedProduct && <ProductDetail product={selectedProduct} products={products} cart={cart} onClose={() => handleSelectProduct(null)} onAddToCart={addToCart} currentUserEmail={currentUser?.email} />}
       {showAuthModal && (<AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); alert("¡Bienvenido!"); }} />)}
       {showPrescriptionModal && <PrescriptionModal onClose={() => setShowPrescriptionModal(false)} />}
       {showServicesModal && (<ServicesModal user={currentUser} onClose={() => setShowServicesModal(false)} onLoginRequest={() => { setShowServicesModal(false); setShowAuthModal(true); }} />)}

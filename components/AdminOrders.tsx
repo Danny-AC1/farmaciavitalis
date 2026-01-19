@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer } from 'lucide-react';
+import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer, Trash2 } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminOrdersProps {
   orders: Order[];
   onUpdateStatus: (id: string, status: 'DELIVERED', order: Order) => void;
+  onDeleteOrder?: (id: string) => void;
 }
 
-const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus }) => {
+const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDeleteOrder }) => {
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL');
   const [search, setSearch] = useState('');
 
@@ -175,6 +176,12 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus }) => 
                   <CheckCircle size={14}/> Marcar Entregado
                 </button>
               )}
+              <button 
+                onClick={() => onDeleteOrder?.(order.id)}
+                className="w-full bg-red-50 text-red-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition border border-red-100"
+              >
+                <Trash2 size={14}/> Eliminar Registro
+              </button>
             </div>
           </div>
         ))}

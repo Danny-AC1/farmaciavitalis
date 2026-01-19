@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product, Order, Category, User, Supplier, SearchLog, Banner, Expense, Subscription, Coupon, ServiceBooking, StockAlert, CartItem, BlogPost } from '../types';
-import { Menu, Bell, Layout, X, Calculator, Printer } from 'lucide-react';
+import { Menu, Bell, Layout, X, Calculator, Printer, AlertTriangle, ShoppingBag, ArrowRight } from 'lucide-react';
 import { 
     streamUsers, streamSuppliers, streamSearchLogs, streamBanners, 
     streamExpenses, streamCoupons, streamBookings, streamStockAlerts, streamSubscriptions,
-     addSupplierDB, deleteSupplierDB, addCouponDB, deleteCouponDB, addExpenseDB,
+    addSupplierDB, deleteSupplierDB, addCouponDB, deleteCouponDB, addExpenseDB,
     updateBookingStatusDB, saveUserDB, deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
-    addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB
+    addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB
 } from '../services/db';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -52,6 +52,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // ESTADO DEL FORMULARIO DE PRODUCTOS
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,6 +81,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Referencias para inputs
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   // ESTADO DEL POS
   const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -114,6 +116,84 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       ];
       return () => unsubs.forEach(unsub => unsub());
   }, []);
+
+  // Cerrar notificaciones al hacer clic fuera
+  useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+          if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+              setShowNotifications(false);
+          }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // --- LÓGICA DE CÁLCULO DASHBOARD ---
+  const { chartData, profitableProducts, topCategory } = useMemo(() => {
+    // Para rentabilidad y utilidad neta, seguimos usando solo DELIVERED
+    const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+    const profitsMap: Record<string, { name: string, profit: number, quantity: number }> = {};
+    const categorySales: Record<string, number> = {};
+    
+    deliveredOrders.forEach(order => {
+        order.items.forEach(item => {
+            const cost = item.costPrice || 0;
+            const profitPerUnit = item.price - cost;
+            const totalProfit = profitPerUnit * item.quantity;
+            
+            if (!profitsMap[item.id]) {
+                profitsMap[item.id] = { name: item.name, profit: 0, quantity: 0 };
+            }
+            profitsMap[item.id].profit += totalProfit;
+            profitsMap[item.id].quantity += item.quantity;
+
+            if (item.category) {
+                categorySales[item.category] = (categorySales[item.category] || 0) + item.quantity;
+            }
+        });
+    });
+
+    const sortedProfits = Object.values(profitsMap)
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 5);
+
+    const topCat = Object.entries(categorySales)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Variada';
+
+    // Chart Data logic: Ahora incluimos TODOS los pedidos para que el usuario vea actividad inmediata
+    const historyMap: Record<string, { total: number, timestamp: number }> = {};
+
+    orders.forEach(o => {
+        const d = new Date(o.date);
+        let key = '';
+        let sortKey = d.getTime();
+
+        if (reportPeriod === 'daily') {
+            key = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        } else if (reportPeriod === 'monthly') {
+            key = d.toLocaleDateString('es-ES', { month: 'long' });
+        } else {
+            key = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
+
+        if (!historyMap[key]) {
+            historyMap[key] = { total: 0, timestamp: sortKey };
+        }
+        historyMap[key].total += o.total;
+    });
+
+    // Convertimos a array y ordenamos por timestamp para que el gráfico sea cronológico
+    const cData = Object.entries(historyMap)
+        .map(([name, data]) => ({ name, ventas: data.total, timestamp: data.timestamp }))
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map(({ name, ventas }) => ({ name, ventas }));
+
+    return { 
+        chartData: cData.slice(-12), // Mostramos los últimos 12 periodos
+        profitableProducts: sortedProfits,
+        topCategory: topCat
+    };
+  }, [orders, reportPeriod]);
 
   // --- LÓGICA PRODUCTOS ---
   const resetProductForm = () => {
@@ -302,6 +382,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  // --- LÓGICA ÓRDENES ---
+  const handleDeleteOrder = async (id: string) => {
+    if (window.confirm('¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer.')) {
+        try {
+            await deleteOrderDB(id);
+            alert("Pedido eliminado correctamente.");
+        } catch (e) {
+            alert("Error al eliminar el pedido.");
+        }
+    }
+  };
+
   // --- LÓGICA POS ---
   const addToPosCart = (product: Product) => {
     if (product.stock <= 0) return alert("Producto sin stock");
@@ -420,14 +512,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalRevenue - totalExpenses;
 
-  const pendingOrdersCount = orders.filter(o => o.status === 'PENDING').length;
-  const lowStockCount = products.filter(p => p.stock <= 5).length;
+  const pendingOrders = orders.filter(o => o.status === 'PENDING');
+  const pendingOrdersCount = pendingOrders.length;
+  
+  const lowStockProducts = products.filter(p => p.stock <= 5);
+  const lowStockCount = lowStockProducts.length;
 
   const todayStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
-  const todayOrders = orders.filter(o => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString());
-  const todayCash = todayOrders.filter(o => o.paymentMethod === 'CASH').reduce((a,b)=>a+b.total, 0);
-  const todayTrans = todayOrders.filter(o => o.paymentMethod === 'TRANSFER').reduce((a,b)=>a+b.total, 0);
-  const todayTotal = todayCash + todayTrans;
+  const todayOrders_closure = orders.filter(o => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString());
+  const todayCash_closure = todayOrders_closure.filter(o => o.paymentMethod === 'CASH').reduce((a,b)=>a+b.total, 0);
+  const todayTrans_closure = todayOrders_closure.filter(o => o.paymentMethod === 'TRANSFER').reduce((a,b)=>a+b.total, 0);
+  const todayTotal_closure = todayCash_closure + todayTrans_closure;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -444,11 +539,83 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 </div>
              </div>
-             <div className="flex items-center gap-3 md:gap-5">
-                 <button className="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all group">
+             
+             <div className="flex items-center gap-3 md:gap-5 relative" ref={notificationRef}>
+                 <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className={`relative p-2 rounded-xl transition-all group ${showNotifications ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
+                 >
                     <Bell size={22} />
-                    {(pendingOrdersCount > 0 || lowStockCount > 0) && <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
+                    {(pendingOrdersCount > 0 || lowStockCount > 0) && (
+                        <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                    )}
                  </button>
+
+                 {/* DROPDOWN DE NOTIFICACIONES */}
+                 {showNotifications && (
+                     <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                         <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Notificaciones</h3>
+                             <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black">
+                                 {pendingOrdersCount + lowStockCount}
+                             </span>
+                         </div>
+                         <div className="max-h-[400px] overflow-y-auto no-scrollbar">
+                             {pendingOrdersCount === 0 && lowStockCount === 0 ? (
+                                 <div className="p-10 text-center text-slate-300">
+                                     <Bell size={32} className="mx-auto mb-2 opacity-20" />
+                                     <p className="text-[10px] font-bold uppercase">Sin alertas nuevas</p>
+                                 </div>
+                             ) : (
+                                 <div className="divide-y divide-slate-50">
+                                     {/* Sección Pedidos */}
+                                     {pendingOrders.map(order => (
+                                         <div 
+                                            key={order.id} 
+                                            onClick={() => { setActiveTab('orders'); setShowNotifications(false); }}
+                                            className="p-4 hover:bg-teal-50/30 cursor-pointer transition-colors flex gap-3"
+                                         >
+                                             <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600 shrink-0">
+                                                 <ShoppingBag size={16}/>
+                                             </div>
+                                             <div className="min-w-0">
+                                                 <p className="text-[11px] font-black text-slate-800 leading-tight">Nuevo pedido de {order.customerName}</p>
+                                                 <p className="text-[10px] text-slate-400 font-bold mt-0.5">Monto: ${order.total.toFixed(2)}</p>
+                                             </div>
+                                         </div>
+                                     ))}
+                                     {/* Sección Stock */}
+                                     {lowStockProducts.map(p => (
+                                         <div 
+                                            key={p.id} 
+                                            onClick={() => { setActiveTab('stock_quick'); setShowNotifications(false); }}
+                                            className="p-4 hover:bg-red-50/30 cursor-pointer transition-colors flex gap-3"
+                                         >
+                                             <div className="h-8 w-8 bg-red-100 rounded-lg flex items-center justify-center text-red-600 shrink-0">
+                                                 <AlertTriangle size={16}/>
+                                             </div>
+                                             <div className="min-w-0">
+                                                 <p className="text-[11px] font-black text-slate-800 leading-tight uppercase truncate">{p.name}</p>
+                                                 <p className="text-[10px] text-red-500 font-black mt-0.5">Stock crítico: {p.stock} unid.</p>
+                                             </div>
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
+                         {(pendingOrdersCount > 0 || lowStockCount > 0) && (
+                             <div className="p-2 border-t border-slate-50">
+                                 <button 
+                                    onClick={() => { setActiveTab('dashboard'); setShowNotifications(false); }}
+                                    className="w-full py-2 text-[10px] font-black text-teal-600 hover:bg-teal-50 rounded-lg transition flex items-center justify-center gap-1 uppercase"
+                                 >
+                                     Ver detalles en Dashboard <ArrowRight size={12}/>
+                                 </button>
+                             </div>
+                         )}
+                     </div>
+                 )}
+
                  <button onClick={() => { if(window.confirm('¿Deseas cerrar sesión administrativa?')) onLogout(); }} className="group relative">
                     <div className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white group-hover:bg-teal-600 transition-colors">{currentUserRole?.charAt(0) || 'A'}</div>
                  </button>
@@ -457,9 +624,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           <div className="flex-1 overflow-y-auto bg-[#F8FAFC]">
               <div className="max-w-[1500px] mx-auto p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full">
-                {activeTab === 'dashboard' && <AdminDashboard orders={orders} products={products} expenses={expenses} reportPeriod={reportPeriod} setReportPeriod={setReportPeriod} chartData={[]} netProfit={netProfit} totalRevenue={totalRevenue} profitableProducts={[]} />}
+                {activeTab === 'dashboard' && <AdminDashboard 
+                    orders={orders} 
+                    products={products} 
+                    expenses={expenses} 
+                    reportPeriod={reportPeriod} 
+                    setReportPeriod={setReportPeriod} 
+                    chartData={chartData} 
+                    netProfit={netProfit} 
+                    totalRevenue={totalRevenue} 
+                    profitableProducts={profitableProducts} 
+                    topCategory={topCategory}
+                />}
                 {activeTab === 'pos' && <AdminPOS products={products} posCart={posCart} posSearch={posSearch} setPosSearch={setPosSearch} posCashReceived={posCashReceived} setPosCashReceived={setPosCashReceived} posPaymentMethod={posPaymentMethod} setPosPaymentMethod={setPosPaymentMethod} addToPosCart={addToPosCart} removeFromPosCart={removeFromPosCart} handlePosCheckout={handlePosCheckout} setShowScanner={setShowPosScanner} setShowCashClosure={setShowCashClosure} />}
-                {activeTab === 'orders' && <AdminOrders orders={orders} onUpdateStatus={onUpdateOrderStatus} />}
+                {activeTab === 'orders' && <AdminOrders orders={orders} onUpdateStatus={onUpdateOrderStatus} onDeleteOrder={handleDeleteOrder} />}
                 {activeTab === 'products' && <AdminProductManagement products={products} categories={categories} suppliers={suppliers} editingId={editingId} prodName={prodName} setProdName={setProdName} prodPrice={prodPrice} setProdPrice={setProdPrice} prodCostPrice={prodCostPrice} setProdCostPrice={setProdCostPrice} prodUnitsPerBox={prodUnitsPerBox} setProdUnitsPerBox={setProdUnitsPerBox} prodBoxPrice={prodBoxPrice} setProdBoxPrice={setProdBoxPrice} prodDesc={prodDesc} setProdDesc={setProdDesc} prodCat={prodCat} setProdCat={setProdCat} prodImage={prodImage} setProdImage={setProdImage} prodBarcode={prodBarcode} setProdBarcode={setProdBarcode} prodExpiry={prodExpiry} setProdExpiry={setProdExpiry} prodSupplier={prodSupplier} setProdSupplier={setProdSupplier} handleProductSubmit={handleProductSubmit} handleGenerateDescription={handleGenerateDescription} handleImageUpload={(e) => handleImageUpload(e, setProdImage)} setShowProductScanner={setShowPosScanner} handleEditClick={handleEditClick} onDeleteProduct={onDeleteProduct} onUpdateStock={onUpdateStock} resetProductForm={resetProductForm} isGenerating={isGenerating} isSubmitting={isSubmitting} fileInputRef={productInputRef} />}
                 {activeTab === 'stock_quick' && <AdminStockQuick products={products} onUpdateStock={onUpdateStock} />}
                 {activeTab === 'marketing' && <AdminMarketing products={products} banners={banners} coupons={coupons} blogTopic={blogTopic} setBlogTopic={setBlogTopic} handleGenerateBlog={() => handleGenerateBlog(blogTopic)} isGenerating={isGenerating} marketingProduct={marketingProduct} setMarketingProduct={setMarketingProduct} postPlatform={postPlatform} setPostPlatform={setPostPlatform} generatedPost={generatedPost} handleGeneratePost={handleGeneratePost} bannerTitle={bannerTitle} setBannerTitle={setBannerTitle} bannerInputRef={bannerInputRef} handleAddBanner={handleAddBanner} onDeleteBanner={deleteBannerDB} isUploadingBanner={isUploadingBanner} onAddCoupon={handleAddCoupon} onDeleteCoupon={deleteCouponDB} />}
@@ -488,11 +666,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <p className="text-xl font-black text-slate-800">{todayStr}</p>
                       </div>
                       <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
-                          <div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Pedidos:</span><span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-lg text-xs font-black">{todayOrders.length}</span></div>
-                          <div className="flex justify-between items-center text-sm font-bold"><span className="text-green-600">Ventas Efectivo:</span><span className="text-green-600">+ ${todayCash.toFixed(2)}</span></div>
-                          <div className="flex justify-between items-center text-sm font-bold"><span className="text-blue-600">Ventas Transf.:</span><span className="text-blue-600">+ ${todayTrans.toFixed(2)}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Pedidos:</span><span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-lg text-xs font-black">{todayOrders_closure.length}</span></div>
+                          <div className="flex justify-between items-center text-sm font-bold"><span className="text-green-600">Ventas Efectivo:</span><span className="text-green-600">+ ${todayCash_closure.toFixed(2)}</span></div>
+                          <div className="flex justify-between items-center text-sm font-bold"><span className="text-blue-600">Ventas Transf.:</span><span className="text-blue-600">+ ${todayTrans_closure.toFixed(2)}</span></div>
                       </div>
-                      <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center"><span className="text-base font-black text-slate-900">TOTAL:</span><span className="text-xl font-black text-teal-600">${todayTotal.toFixed(2)}</span></div>
+                      <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center"><span className="text-base font-black text-slate-900">TOTAL:</span><span className="text-xl font-black text-teal-600">${todayTotal_closure.toFixed(2)}</span></div>
                       <button onClick={handlePrintClosure} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-black transition flex items-center justify-center gap-2 shadow-xl active:scale-95"><Printer size={18}/> Imprimir Reporte</button>
                   </div>
               </div>

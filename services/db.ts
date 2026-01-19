@@ -1,20 +1,7 @@
 
 import { db, storage } from './firebase';
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs,
-  query,
-  orderBy,
-  setDoc,
-  getDoc,
-  where,
-  increment
-} from 'firebase/firestore';
+// @ts-ignore
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, setDoc, getDoc, where, increment, limit } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert } from '../types';
@@ -134,6 +121,31 @@ export const addOrderDB = async (order: Order) => {
   if (order.userId && order.pointsRedeemed && order.pointsRedeemed > 0) {
       const userRef = doc(db, USERS_COLLECTION, order.userId);
       await updateDoc(userRef, { points: increment(-order.pointsRedeemed) });
+  }
+};
+
+export const deleteOrderDB = async (id: string) => {
+  try {
+    // Primero intentamos borrar por el ID del documento (Firestore ID)
+    let orderRef = doc(db, ORDERS_COLLECTION, id);
+    
+    // Si el ID parece ser un ID personalizado (ORD- o POS-), buscamos el documento real
+    if (id.startsWith('ORD-') || id.startsWith('POS-')) {
+        const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            orderRef = snapshot.docs[0].ref;
+        } else {
+            console.warn("No se encontró documento con el ID personalizado:", id);
+            // Si no se encuentra, salimos para no dar falso positivo
+            return;
+        }
+    }
+    
+    await deleteDoc(orderRef);
+  } catch (error) {
+    console.error("Error al borrar el pedido:", error);
+    throw error;
   }
 };
 
@@ -266,14 +278,14 @@ export const streamBookings = (callback: (bookings: ServiceBooking[]) => void) =
 };
 
 export const updateBookingStatusDB = async (id: string, status: ServiceBooking['status']) => {
-    // Busca por ID si es booking
-    let ref = doc(db, BOOKINGS_COLLECTION, id);
+    // Busca por ID si es booking. Reemplazamos 'ref' por 'bookingDocRef' para evitar conflicto con el import 'ref' de storage.
+    let bookingDocRef = doc(db, BOOKINGS_COLLECTION, id);
     if(id.startsWith('bk_')) {
         const q = query(collection(db, BOOKINGS_COLLECTION), where('id', '==', id));
         const snap = await getDocs(q);
-        if(!snap.empty) ref = snap.docs[0].ref;
+        if(!snap.empty) bookingDocRef = snap.docs[0].ref;
     }
-    await updateDoc(ref, { status });
+    await updateDoc(bookingDocRef, { status });
 };
 
 
@@ -398,5 +410,40 @@ export const deleteExpenseDB = async (id: string) => { await deleteDoc(doc(db, E
 
 // --- SEEDING ---
 export const seedInitialData = async () => {
-  console.log("Sistema inicializado.");
+    try {
+        const categoriesSnap = await getDocs(query(collection(db, CATEGORIES_COLLECTION), limit(1)));
+        if (categoriesSnap.empty) {
+            console.log("Poblando categorías iniciales...");
+            const defaultCats = [
+                { name: 'Medicamentos', image: '' },
+                { name: 'Vitaminas', image: '' },
+                { name: 'Primeros Auxilios', image: '' },
+                { name: 'Cuidado Personal', image: '' }
+            ];
+            for (const cat of defaultCats) await addDoc(collection(db, CATEGORIES_COLLECTION), cat);
+        }
+
+        const productsSnap = await getDocs(query(collection(db, PRODUCTS_COLLECTION), limit(1)));
+        if (productsSnap.empty) {
+            console.log("Poblando productos iniciales...");
+            const defaultProds = [
+                { name: 'Paracetamol 500mg', description: 'Alivio para dolor y fiebre.', price: 2.50, category: 'Medicamentos', stock: 100, image: 'https://via.placeholder.com/300' },
+                { name: 'Vitamina C', description: 'Refuerza defensas.', price: 5.00, category: 'Vitaminas', stock: 50, image: 'https://via.placeholder.com/300' }
+            ];
+            for (const prod of defaultProds) await addDoc(collection(db, PRODUCTS_COLLECTION), prod);
+        }
+
+        const blogSnap = await getDocs(query(collection(db, BLOG_COLLECTION), limit(1)));
+        if (blogSnap.empty) {
+            console.log("Poblando blog inicial...");
+            await addDoc(collection(db, BLOG_COLLECTION), {
+                title: "¡BIENVENIDOS A VITALIS!",
+                content: "<p>Estamos felices de servir a la comunidad de Machalilla. En nuestro blog encontrarás consejos de salud, guías de bienestar y mucho más. <strong>¡Tu salud es nuestra prioridad!</strong></p>",
+                date: new Date().toISOString(),
+                author: "Equipo Vitalis"
+            });
+        }
+    } catch (e) {
+        console.error("Error en seeding:", e);
+    }
 };

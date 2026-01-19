@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem, Subscription } from '../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles } from 'lucide-react';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB } from '../services/db';
 import { getCrossSellSuggestion } from '../services/gemini';
 
@@ -17,6 +18,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const [emailAlert, setEmailAlert] = useState(currentUserEmail || '');
   const [alertSent, setAlertSent] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Cross-Sell Logic (Option 5)
   const [suggestion, setSuggestion] = useState<{product: Product | undefined, reason: string} | null>(null);
@@ -67,15 +69,33 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
       setSubscribing(true);
   };
 
+  const handleShare = () => {
+    const url = new URL(window.location.origin);
+    url.searchParams.set('product', product.id);
+    navigator.clipboard.writeText(url.toString());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="bg-white w-full max-w-4xl md:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto md:max-h-[90vh] relative animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={onClose} className="absolute top-4 right-4 z-10 bg-white/80 p-2 rounded-full hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm backdrop-blur-sm">
-          <X className="h-6 w-6" />
-        </button>
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <button 
+            onClick={handleShare} 
+            className={`p-2 rounded-full transition-all shadow-sm backdrop-blur-sm flex items-center gap-1 ${copied ? 'bg-green-500 text-white' : 'bg-white/80 hover:bg-white text-gray-500 hover:text-teal-600'}`}
+            title="Copiar enlace"
+          >
+            {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
+            {copied && <span className="text-[10px] font-bold pr-1">Copiado</span>}
+          </button>
+          <button onClick={onClose} className="bg-white/80 p-2 rounded-full hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm backdrop-blur-sm">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
         <div className="w-full md:w-1/2 bg-gray-100 relative h-64 md:h-auto shrink-0 flex items-center justify-center p-6">
           <img src={product.image} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform hover:scale-105 duration-500" />

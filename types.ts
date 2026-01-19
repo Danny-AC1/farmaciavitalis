@@ -188,9 +188,8 @@ export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;
 
 export const AVAILABLE_SERVICES: Service[] = [
-  { id: 'srv_1', name: 'Inyectología', price: 3.00, durationMin: 15, description: 'Aplicación de inyecciones IM/IV con insumos incluidos.' },
-  { id: 'srv_2', name: 'Toma de Presión', price: 1.00, durationMin: 10, description: 'Control de presión arterial y registro.' },
-  { id: 'srv_3', name: 'Prueba de Glucosa', price: 2.50, durationMin: 10, description: 'Medición rápida de glucosa en sangre.' },
-  { id: 'srv_4', name: 'Nebulización', price: 5.00, durationMin: 30, description: 'Sesión de nebulización (incluye solución salina).' },
-  { id: 'srv_5', name: 'Curación de Heridas', price: 8.00, durationMin: 30, description: 'Limpieza y vendaje de heridas menores.' },
+  { id: 'srv_1', name: 'Inyectología', price: 3.50, durationMin: 15, description: 'Aplicación de inyecciones IM/IV Escartable incluido.' },
+  { id: 'srv_2', name: 'Toma de Presión', price: 3.00, durationMin: 10, description: 'Control de presión arterial y registro.' },
+  { id: 'srv_3', name: 'Prueba de Glucosa', price: 4.50, durationMin: 10, description: 'Medición rápida de glucosa en sangre.' },
+  { id: 'srv_4', name: 'Suero', price: 10.00, durationMin: 30, description: 'Sesión de nebulización (incluye solución salina).' },
 ];
