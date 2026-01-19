@@ -38,13 +38,19 @@ export const uploadImageToStorage = async (file: File, path: string): Promise<st
 // --- PRODUCTS ---
 export const streamProducts = (callback: (products: Product[]) => void) => {
   const q = query(collection(db, PRODUCTS_COLLECTION));
-  return onSnapshot(q, (snapshot) => {
-    const products = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Product[];
-    callback(products);
-  });
+  return onSnapshot(q, 
+    (snapshot) => {
+        const products = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Product[];
+        callback(products);
+    },
+    (error) => {
+        console.error("Error en streamProducts (Revisa las reglas de seguridad de Firestore):", error);
+        callback([]);
+    }
+  );
 };
 
 export const addProductDB = async (product: Product) => {
@@ -71,13 +77,19 @@ export const updateStockDB = async (id: string, newStock: number) => {
 // --- CATEGORIES ---
 export const streamCategories = (callback: (categories: Category[]) => void) => {
   const q = query(collection(db, CATEGORIES_COLLECTION));
-  return onSnapshot(q, (snapshot) => {
-    const categories = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Category[];
-    callback(categories);
-  });
+  return onSnapshot(q, 
+    (snapshot) => {
+        const categories = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Category[];
+        callback(categories);
+    },
+    (error) => {
+        console.error("Error en streamCategories (Revisa las reglas de seguridad de Firestore):", error);
+        callback([]);
+    }
+  );
 };
 
 export const addCategoryDB = async (category: Category) => {
@@ -92,15 +104,12 @@ export const deleteCategoryDB = async (id: string) => {
 
 // --- ORDERS ---
 export const streamOrders = (callback: (orders: Order[]) => void) => {
-  // Nota: Eliminamos orderBy de la consulta para evitar errores de índice faltante en Firebase.
-  // El ordenamiento se hace en el cliente.
   const q = query(collection(db, ORDERS_COLLECTION));
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map(doc => ({
       id: doc.id, 
       ...doc.data()
     })) as Order[];
-    // Ordenamos por fecha descendente (más nuevos primero)
     orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(orders);
   });
@@ -119,12 +128,10 @@ export const getOrdersByUserDB = (userId: string, callback: (orders: Order[]) =>
 };
 
 export const addOrderDB = async (order: Order) => {
-  // Usamos setDoc con el ID del pedido para asegurar consistencia
   const { ...data } = order; 
   const orderRef = doc(db, ORDERS_COLLECTION, order.id);
   await setDoc(orderRef, data);
   
-  // Si el usuario usó puntos, descontarlos
   if (order.userId && order.pointsRedeemed && order.pointsRedeemed > 0) {
       const userRef = doc(db, USERS_COLLECTION, order.userId);
       await updateDoc(userRef, { points: increment(-order.pointsRedeemed) });
@@ -268,10 +275,16 @@ export const deleteCouponDB = async (id: string) => { await deleteDoc(doc(db, CO
 
 export const streamBanners = (callback: (banners: Banner[]) => void) => {
     const q = query(collection(db, BANNERS_COLLECTION));
-    return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, 
+    (snapshot) => {
         const banners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Banner[];
         callback(banners);
-    });
+    },
+    (error) => {
+        console.error("Error en streamBanners (Revisa reglas Firestore):", error);
+        callback([]);
+    }
+  );
 };
 export const addBannerDB = async (banner: Banner) => { const { id, ...data } = banner; await addDoc(collection(db, BANNERS_COLLECTION), data); };
 export const deleteBannerDB = async (id: string) => { await deleteDoc(doc(db, BANNERS_COLLECTION, id)); };
@@ -310,11 +323,17 @@ export const streamSearchLogs = (callback: (logs: SearchLog[]) => void) => {
 
 export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {
     const q = query(collection(db, BLOG_COLLECTION));
-    return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, 
+    (snapshot) => {
         const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as BlogPost[];
         posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(posts);
-    });
+    },
+    (error) => {
+        console.error("Error en streamBlogPosts (Revisa reglas Firestore):", error);
+        callback([]);
+    }
+  );
 };
 export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } = post; await addDoc(collection(db, BLOG_COLLECTION), data); };
 export const deleteBlogPostDB = async (id: string) => { await deleteDoc(doc(db, BLOG_COLLECTION, id)); };

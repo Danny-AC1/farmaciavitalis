@@ -192,12 +192,20 @@ const App: React.FC = () => {
   const isSuperAdmin = currentUser && AUTHORIZED_ADMIN_EMAILS.includes(currentUser.email);
 
   useEffect(() => {
-    seedInitialData().catch(console.error);
-    const unsubProducts = streamProducts((data) => setProducts(data));
-    const unsubCategories = streamCategories((data) => setCategories(data));
+    // Sincronizar datos independientemente del login
+    const unsubProducts = streamProducts((data) => {
+        setProducts(data);
+        if (data.length >= 0) setIsLoadingData(false); // Quitamos loading al recibir respuesta
+    });
+    
+    const unsubCategories = streamCategories((data) => {
+        setCategories(data);
+    });
+
     const unsubOrders = streamOrders((data) => setOrders(data));
     const unsubBanners = streamBanners((data) => setBanners(data));
     
+    // Sincronizar Auth
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
             const userProfile = await getUserDB(firebaseUser.uid);
@@ -207,11 +215,23 @@ const App: React.FC = () => {
         }
     });
 
-    setTimeout(() => setIsLoadingData(false), 1000);
-    return () => { unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubAuth(); };
+    // Sembrar datos iniciales si la DB está vacía
+    seedInitialData().catch(console.error);
+
+    // Fallback de seguridad para quitar loading después de 3s incluso si algo falla
+    const timer = setTimeout(() => setIsLoadingData(false), 3000);
+
+    return () => { 
+        unsubProducts(); 
+        unsubCategories(); 
+        unsubOrders(); 
+        unsubBanners(); 
+        unsubAuth(); 
+        clearTimeout(timer);
+    };
   }, []);
 
-  // --- LÓGICA DE DEEP LINKING (ENLACES DE PRODUCTO) ---
+  // --- LÓGICA DE DEEP LINKING ---
   useEffect(() => {
     if (products.length > 0) {
       const params = new URLSearchParams(window.location.search);
