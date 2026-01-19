@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Order } from '../types';
 import { updateOrderStatusDB } from '../services/db';
@@ -9,12 +10,18 @@ interface DriverDashboardProps {
 }
 
 const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) => {
-    // Filter active orders
-    const activeOrders = orders.filter(o => o.status !== 'DELIVERED').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const deliveredToday = orders.filter(o => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString());
+    // Los pedidos ya vienen ordenados por fecha descendente desde el stream.
+    // Aquí filtramos solo los que NO están entregados.
+    const activeOrders = orders.filter(o => o.status !== 'DELIVERED');
+    
+    const deliveredToday = orders.filter(o => 
+        o.status === 'DELIVERED' && 
+        new Date(o.date).toDateString() === new Date().toDateString()
+    );
 
     const handleStatusChange = async (order: Order, status: 'IN_TRANSIT' | 'DELIVERED') => {
         if (window.confirm(`¿Cambiar estado a ${status === 'IN_TRANSIT' ? 'En Camino' : 'Entregado'}?`)) {
+            // Usamos el ID del documento (Firestore ID) que ahora es el mismo que ORD-XXX
             await updateOrderStatusDB(order.id, status, order);
         }
     };
@@ -30,14 +37,11 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
     const generateOptimizedRoute = () => {
         if (activeOrders.length === 0) return;
         const origin = encodeURIComponent("Farmacia Vitalis, Machalilla, Ecuador");
-        // Google Maps URL allows active route construction
-        // Format: origin=X&destination=Y&waypoints=A|B|C
-        // Limiting to first 9 orders to fit URL limits (usually fine for motorcycle delivery runs)
         const stops = activeOrders.slice(0, 9).map(o => encodeURIComponent(o.customerAddress + ", Machalilla, Ecuador"));
         
         if (stops.length === 0) return;
 
-        const destination = stops.pop(); // Last stop is destination
+        const destination = stops.pop(); 
         const waypoints = stops.join('|');
 
         const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
@@ -55,23 +59,22 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
             </div>
 
             <div className="p-4 space-y-6 max-w-lg mx-auto">
-                {/* Stats */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
-                        <span className="text-xs text-gray-500 uppercase font-bold">Pendientes</span>
+                        <span className="text-xs text-gray-500 uppercase font-bold">Por Entregar</span>
                         <p className="text-2xl font-black text-gray-800">{activeOrders.length}</p>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <span className="text-xs text-gray-500 uppercase font-bold">Entregados Hoy</span>
+                        <span className="text-xs text-gray-500 uppercase font-bold">Listos Hoy</span>
                         <p className="text-2xl font-black text-gray-800">{deliveredToday.length}</p>
                     </div>
                 </div>
 
                 <div className="flex items-center justify-between border-b border-gray-300 pb-2">
-                    <h2 className="font-bold text-gray-700 text-lg">Cola de Entregas</h2>
+                    <h2 className="font-bold text-gray-700 text-lg">Lista de Entregas</h2>
                     {activeOrders.length > 0 && (
                         <button onClick={generateOptimizedRoute} className="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md">
-                            <Navigation size={14} /> Optimizar Ruta GPS
+                            <Navigation size={14} /> Ruta GPS
                         </button>
                     )}
                 </div>
@@ -79,14 +82,15 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
                 {activeOrders.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">
                         <CheckCircle className="h-16 w-16 mx-auto mb-2 opacity-20" />
-                        <p>¡Todo entregado! Buen trabajo.</p>
+                        <p className="font-bold">No hay pedidos pendientes.</p>
+                        <p className="text-xs">Los pedidos nuevos aparecerán aquí automáticamente.</p>
                     </div>
                 ) : (
                     activeOrders.map(order => (
-                        <div key={order.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                        <div key={order.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 animate-in slide-in-from-bottom-2">
                             <div className={`p-3 text-white font-bold flex justify-between items-center ${order.status === 'IN_TRANSIT' ? 'bg-blue-600' : 'bg-orange-500'}`}>
-                                <span>{order.status === 'IN_TRANSIT' ? 'En Camino 🛵' : 'Pendiente ⏳'}</span>
-                                <span className="text-xs opacity-80">#{order.id.slice(-4)}</span>
+                                <span className="text-xs uppercase tracking-widest">{order.status === 'IN_TRANSIT' ? 'En Camino 🛵' : 'Nuevo Pedido ⏳'}</span>
+                                <span className="text-xs opacity-80 font-mono">{order.id}</span>
                             </div>
                             <div className="p-5 space-y-4">
                                 <div>
@@ -105,31 +109,36 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
                                     <p className="text-xs font-bold text-gray-400 uppercase mb-1">Dirección</p>
                                     <p className="flex items-start gap-2 text-gray-800 font-medium cursor-pointer hover:text-blue-600">
                                         <MapPin className="shrink-0 mt-0.5 text-red-500" size={18} />
-                                        {order.customerAddress} (Clic para Mapa)
+                                        {order.customerAddress}
                                     </p>
                                 </div>
 
-                                <div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">Cobrar</p>
-                                    <p className="text-2xl font-black text-teal-700">
-                                        ${order.total.toFixed(2)}
-                                        <span className="text-sm font-normal text-gray-500 ml-2">
-                                            ({order.paymentMethod === 'CASH' ? 'Efectivo' : 'Transferencia'})
+                                <div className="flex justify-between items-end border-t border-gray-100 pt-4">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase mb-1">Total a Cobrar</p>
+                                        <p className="text-2xl font-black text-teal-700">
+                                            ${order.total.toFixed(2)}
+                                        </p>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase">
+                                            Metodo: {order.paymentMethod === 'CASH' ? 'Efectivo 💵' : 'Transferencia 🏦'}
                                         </span>
-                                    </p>
+                                    </div>
                                     {order.paymentMethod === 'CASH' && order.cashGiven && (
-                                        <p className="text-sm text-red-500 font-bold">Vuelto: ${(order.cashGiven - order.total).toFixed(2)}</p>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Dar Vuelto</p>
+                                            <p className="text-lg font-black text-red-500">${(order.cashGiven - order.total).toFixed(2)}</p>
+                                        </div>
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className="grid grid-cols-1 gap-2">
                                     {order.status === 'PENDING' ? (
-                                        <button onClick={() => handleStatusChange(order, 'IN_TRANSIT')} className="col-span-2 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">
-                                            Iniciar Ruta
+                                        <button onClick={() => handleStatusChange(order, 'IN_TRANSIT')} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 active:scale-95">
+                                            ACEPTAR Y SALIR 🛵
                                         </button>
                                     ) : (
-                                        <button onClick={() => handleStatusChange(order, 'DELIVERED')} className="col-span-2 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition flex justify-center items-center gap-2">
-                                            <CheckCircle size={20}/> Confirmar Entrega
+                                        <button onClick={() => handleStatusChange(order, 'DELIVERED')} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold hover:bg-green-700 transition flex justify-center items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95">
+                                            <CheckCircle size={20}/> CONFIRMAR ENTREGA ✅
                                         </button>
                                     )}
                                 </div>

@@ -92,30 +92,37 @@ export const deleteCategoryDB = async (id: string) => {
 
 // --- ORDERS ---
 export const streamOrders = (callback: (orders: Order[]) => void) => {
-  const q = query(collection(db, ORDERS_COLLECTION), orderBy('date', 'desc'));
+  // Nota: Eliminamos orderBy de la consulta para evitar errores de índice faltante en Firebase.
+  // El ordenamiento se hace en el cliente.
+  const q = query(collection(db, ORDERS_COLLECTION));
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map(doc => ({
       id: doc.id, 
       ...doc.data()
     })) as Order[];
+    // Ordenamos por fecha descendente (más nuevos primero)
+    orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(orders);
   });
 };
 
 export const getOrdersByUserDB = (userId: string, callback: (orders: Order[]) => void) => {
-    const q = query(collection(db, ORDERS_COLLECTION), where('userId', '==', userId), orderBy('date', 'desc'));
+    const q = query(collection(db, ORDERS_COLLECTION), where('userId', '==', userId));
     return onSnapshot(q, (snapshot) => {
         const orders = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         })) as Order[];
+        orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(orders);
     });
 };
 
 export const addOrderDB = async (order: Order) => {
+  // Usamos setDoc con el ID del pedido para asegurar consistencia
   const { ...data } = order; 
-  await addDoc(collection(db, ORDERS_COLLECTION), data);
+  const orderRef = doc(db, ORDERS_COLLECTION, order.id);
+  await setDoc(orderRef, data);
   
   // Si el usuario usó puntos, descontarlos
   if (order.userId && order.pointsRedeemed && order.pointsRedeemed > 0) {
@@ -126,22 +133,7 @@ export const addOrderDB = async (order: Order) => {
 
 export const deleteOrderDB = async (id: string) => {
   try {
-    // Primero intentamos borrar por el ID del documento (Firestore ID)
-    let orderRef = doc(db, ORDERS_COLLECTION, id);
-    
-    // Si el ID parece ser un ID personalizado (ORD- o POS-), buscamos el documento real
-    if (id.startsWith('ORD-') || id.startsWith('POS-')) {
-        const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-            orderRef = snapshot.docs[0].ref;
-        } else {
-            console.warn("No se encontró documento con el ID personalizado:", id);
-            // Si no se encuentra, salimos para no dar falso positivo
-            return;
-        }
-    }
-    
+    const orderRef = doc(db, ORDERS_COLLECTION, id);
     await deleteDoc(orderRef);
   } catch (error) {
     console.error("Error al borrar el pedido:", error);
@@ -151,16 +143,7 @@ export const deleteOrderDB = async (id: string) => {
 
 export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order?: Order) => {
   try {
-      let orderRef = doc(db, ORDERS_COLLECTION, id);
-      
-      if(id.startsWith('ORD-') || id.startsWith('POS-')) {
-          const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-              orderRef = snapshot.docs[0].ref;
-          }
-      }
-
+      const orderRef = doc(db, ORDERS_COLLECTION, id);
       await updateDoc(orderRef, { status });
 
       if (status === 'DELIVERED' && order && order.userId) {
@@ -170,7 +153,6 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
             await updateDoc(userRef, { points: increment(pointsEarned) });
           }
       }
-
   } catch (e) {
       console.error("Error updating order status", e);
   }
@@ -178,14 +160,7 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
 
 export const updateOrderLocationDB = async (id: string, lat: number, lng: number) => {
     try {
-        let orderRef = doc(db, ORDERS_COLLECTION, id);
-        // Handle custom ID query if needed (similar to status update logic)
-        if(id.startsWith('ORD-')) {
-            const q = query(collection(db, ORDERS_COLLECTION), where('id', '==', id));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) orderRef = snapshot.docs[0].ref;
-        }
-
+        const orderRef = doc(db, ORDERS_COLLECTION, id);
         await updateDoc(orderRef, {
             driverLocation: {
                 lat,
@@ -198,7 +173,7 @@ export const updateOrderLocationDB = async (id: string, lat: number, lng: number
     }
 };
 
-// --- USERS ---
+// --- RESTO DEL ARCHIVO (Usuarios, Familia, Blog, etc.) ---
 export const saveUserDB = async (user: User) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
     const dataToSave = { ...user, points: user.points || 0 };
@@ -216,14 +191,14 @@ export const getUserDB = async (uid: string): Promise<User | null> => {
 };
 
 export const streamUsers = (callback: (users: User[]) => void) => {
-    const q = query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, USERS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const users = snapshot.docs.map(doc => ({ ...doc.data(), points: doc.data().points || 0 } as User));
+        users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         callback(users);
     });
 };
 
-// --- FAMILY CARE & MEDICATIONS ---
 export const streamFamilyMembers = (userId: string, callback: (members: FamilyMember[]) => void) => {
     const q = query(collection(db, FAMILY_COLLECTION), where('userId', '==', userId));
     return onSnapshot(q, (snapshot) => {
@@ -262,34 +237,25 @@ export const deleteMedicationDB = async (medId: string) => {
     await deleteDoc(doc(db, MEDICATIONS_COLLECTION, medId));
 };
 
-// --- BOOKINGS (SERVICES) ---
 export const addBookingDB = async (booking: ServiceBooking) => {
     const { id, ...data } = booking;
     await addDoc(collection(db, BOOKINGS_COLLECTION), data);
 };
 
 export const streamBookings = (callback: (bookings: ServiceBooking[]) => void) => {
-    // Default: mostrar todas. En prod filtrarías por fecha reciente.
-    const q = query(collection(db, BOOKINGS_COLLECTION), orderBy('date', 'desc'));
+    const q = query(collection(db, BOOKINGS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ServiceBooking[];
+        bookings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(bookings);
     });
 };
 
 export const updateBookingStatusDB = async (id: string, status: ServiceBooking['status']) => {
-    // Busca por ID si es booking. Reemplazamos 'ref' por 'bookingDocRef' para evitar conflicto con el import 'ref' de storage.
-    let bookingDocRef = doc(db, BOOKINGS_COLLECTION, id);
-    if(id.startsWith('bk_')) {
-        const q = query(collection(db, BOOKINGS_COLLECTION), where('id', '==', id));
-        const snap = await getDocs(q);
-        if(!snap.empty) bookingDocRef = snap.docs[0].ref;
-    }
+    const bookingDocRef = doc(db, BOOKINGS_COLLECTION, id);
     await updateDoc(bookingDocRef, { status });
 };
 
-
-// --- COUPONS & BANNERS ---
 export const streamCoupons = (callback: (coupons: Coupon[]) => void) => {
     const q = query(collection(db, COUPONS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
@@ -310,7 +276,6 @@ export const streamBanners = (callback: (banners: Banner[]) => void) => {
 export const addBannerDB = async (banner: Banner) => { const { id, ...data } = banner; await addDoc(collection(db, BANNERS_COLLECTION), data); };
 export const deleteBannerDB = async (id: string) => { await deleteDoc(doc(db, BANNERS_COLLECTION, id)); };
 
-// --- SUPPLIERS ---
 export const streamSuppliers = (callback: (suppliers: Supplier[]) => void) => {
     const q = query(collection(db, SUPPLIERS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
@@ -321,7 +286,6 @@ export const streamSuppliers = (callback: (suppliers: Supplier[]) => void) => {
 export const addSupplierDB = async (supplier: Supplier) => { const { id, ...data } = supplier; await addDoc(collection(db, SUPPLIERS_COLLECTION), data); };
 export const deleteSupplierDB = async (id: string) => { await deleteDoc(doc(db, SUPPLIERS_COLLECTION, id)); };
 
-// --- UNSATISFIED DEMAND ---
 export const logSearch = async (term: string) => {
     const today = new Date().toISOString().split('T')[0];
     const q = query(collection(db, SEARCH_LOGS_COLLECTION), where('term', '==', term), where('date', '==', today));
@@ -336,37 +300,34 @@ export const logSearch = async (term: string) => {
 };
 
 export const streamSearchLogs = (callback: (logs: SearchLog[]) => void) => {
-    const q = query(collection(db, SEARCH_LOGS_COLLECTION), orderBy('count', 'desc'));
+    const q = query(collection(db, SEARCH_LOGS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SearchLog[];
+        logs.sort((a, b) => b.count - a.count);
         callback(logs);
     });
 };
 
-// --- BLOG ---
 export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {
-    const q = query(collection(db, BLOG_COLLECTION), orderBy('date', 'desc'));
+    const q = query(collection(db, BLOG_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as BlogPost[];
+        posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(posts);
     });
 };
 export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } = post; await addDoc(collection(db, BLOG_COLLECTION), data); };
+export const deleteBlogPostDB = async (id: string) => { await deleteDoc(doc(db, BLOG_COLLECTION, id)); };
 
-// Fix: Add deleteBlogPostDB to avoid exposing firestore internals to components
-export const deleteBlogPostDB = async (id: string) => {
-  await deleteDoc(doc(db, BLOG_COLLECTION, id));
-};
-
-// --- ALERTS & SUBSCRIPTIONS ---
 export const addStockAlertDB = async (email: string, productId: string) => {
     await addDoc(collection(db, STOCK_ALERTS_COLLECTION), { email, productId, createdAt: new Date().toISOString() });
 };
 
 export const streamStockAlerts = (callback: (alerts: StockAlert[]) => void) => {
-    const q = query(collection(db, STOCK_ALERTS_COLLECTION), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, STOCK_ALERTS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockAlert[];
+        alerts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         callback(alerts);
     });
 };
@@ -392,28 +353,26 @@ export const deleteSubscriptionDB = async (id: string) => {
     await deleteDoc(doc(db, SUBSCRIPTIONS_COLLECTION, id));
 };
 
-// --- EXPENSES ---
 export const addExpenseDB = async (expense: Expense) => {
     const { id, ...data } = expense;
     await addDoc(collection(db, EXPENSES_COLLECTION), data);
 };
 
 export const streamExpenses = (callback: (expenses: Expense[]) => void) => {
-    const q = query(collection(db, EXPENSES_COLLECTION), orderBy('date', 'desc'));
+    const q = query(collection(db, EXPENSES_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Expense[];
+        expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(expenses);
     });
 };
 export const deleteExpenseDB = async (id: string) => { await deleteDoc(doc(db, EXPENSES_COLLECTION, id)); };
 
 
-// --- SEEDING ---
 export const seedInitialData = async () => {
     try {
         const categoriesSnap = await getDocs(query(collection(db, CATEGORIES_COLLECTION), limit(1)));
         if (categoriesSnap.empty) {
-            console.log("Poblando categorías iniciales...");
             const defaultCats = [
                 { name: 'Medicamentos', image: '' },
                 { name: 'Vitaminas', image: '' },
@@ -425,23 +384,11 @@ export const seedInitialData = async () => {
 
         const productsSnap = await getDocs(query(collection(db, PRODUCTS_COLLECTION), limit(1)));
         if (productsSnap.empty) {
-            console.log("Poblando productos iniciales...");
             const defaultProds = [
                 { name: 'Paracetamol 500mg', description: 'Alivio para dolor y fiebre.', price: 2.50, category: 'Medicamentos', stock: 100, image: 'https://via.placeholder.com/300' },
                 { name: 'Vitamina C', description: 'Refuerza defensas.', price: 5.00, category: 'Vitaminas', stock: 50, image: 'https://via.placeholder.com/300' }
             ];
             for (const prod of defaultProds) await addDoc(collection(db, PRODUCTS_COLLECTION), prod);
-        }
-
-        const blogSnap = await getDocs(query(collection(db, BLOG_COLLECTION), limit(1)));
-        if (blogSnap.empty) {
-            console.log("Poblando blog inicial...");
-            await addDoc(collection(db, BLOG_COLLECTION), {
-                title: "¡BIENVENIDOS A VITALIS!",
-                content: "<p>Estamos felices de servir a la comunidad de Machalilla. En nuestro blog encontrarás consejos de salud, guías de bienestar y mucho más. <strong>¡Tu salud es nuestra prioridad!</strong></p>",
-                date: new Date().toISOString(),
-                author: "Equipo Vitalis"
-            });
         }
     } catch (e) {
         console.error("Error en seeding:", e);
