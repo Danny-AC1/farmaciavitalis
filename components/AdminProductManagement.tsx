@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus } from 'lucide-react';
 import { Product, Category, Supplier } from '../types';
+import { generateProductDescription } from '../services/gemini';
 
 interface AdminProductManagementProps {
   products: Product[];
@@ -20,7 +21,7 @@ interface AdminProductManagementProps {
   prodExpiry: string; setProdExpiry: (s: string) => void;
   prodSupplier: string; setProdSupplier: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void;
-  handleGenerateDescription: () => void;
+  handleGenerateDescription: () => void; // Esta se ignora en favor de la interna
   handleImageUpload: (e: any, setter: any) => void;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
@@ -37,12 +38,28 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox, prodBoxPrice, setProdBoxPrice,
   prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, prodBarcode, setProdBarcode,
   prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, handleProductSubmit, 
-  handleGenerateDescription, handleImageUpload, setShowProductScanner, handleEditClick, 
-  onDeleteProduct, onUpdateStock, resetProductForm, isGenerating, isSubmitting, fileInputRef
+  handleImageUpload, setShowProductScanner, handleEditClick, 
+  onDeleteProduct, onUpdateStock, resetProductForm, isSubmitting, fileInputRef
 }) => {
+  
+  const [descriptionTone, setDescriptionTone] = useState<'CLINICO' | 'PERSUASIVO' | 'CERCANO'>('PERSUASIVO');
+  const [isLocalGenerating, setIsLocalGenerating] = useState(false);
+
+  const onMagicGenerate = async () => {
+    if (!prodName) return alert("Por favor, escribe el nombre del producto primero.");
+    setIsLocalGenerating(true);
+    try {
+        const result = await generateProductDescription(prodName, prodCat, descriptionTone);
+        setProdDesc(result);
+    } catch (error) {
+        alert("Error al conectar con la IA.");
+    } finally {
+        setIsLocalGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in">
-        {/* Formulario de Producto */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Package className="text-teal-600"/> {editingId ? 'Editar Producto' : 'Nuevo Producto'}
@@ -51,15 +68,44 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                 <div className="md:col-span-2 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Nombre</label>
-                            <input required className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" value={prodName} onChange={e => setProdName(e.target.value)} placeholder="Ej: Amoxicilina 500mg" />
+                            <label className="text-xs font-bold text-gray-500 uppercase">Nombre del Producto</label>
+                            <input required className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" value={prodName} onChange={e => setProdName(e.target.value)} placeholder="Ej: Apronax 550mg" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Categoría</label>
                             <select className="w-full border p-2.5 rounded-lg bg-gray-50" value={prodCat} onChange={e => setProdCat(e.target.value)}>
+                                <option value="">Seleccionar...</option>
                                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    <div className="bg-teal-50/50 p-4 rounded-xl border border-teal-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <label className="text-xs font-black text-teal-800 uppercase flex items-center gap-2">
+                                <Sparkles size={14}/> Redacción Inteligente (IA Gemini)
+                            </label>
+                            <div className="flex gap-1 bg-white p-1 rounded-lg border border-teal-100">
+                                <button type="button" onClick={() => setDescriptionTone('CLINICO')} className={`p-1.5 rounded-md transition-all ${descriptionTone === 'CLINICO' ? 'bg-teal-600 text-white' : 'text-teal-400 hover:bg-teal-50'}`} title="Tono Clínico"><ShieldCheck size={14}/></button>
+                                <button type="button" onClick={() => setDescriptionTone('PERSUASIVO')} className={`p-1.5 rounded-md transition-all ${descriptionTone === 'PERSUASIVO' ? 'bg-orange-500 text-white' : 'text-orange-300 hover:bg-orange-50'}`} title="Tono Persuasivo"><Zap size={14}/></button>
+                                <button type="button" onClick={() => setDescriptionTone('CERCANO')} className={`p-1.5 rounded-md transition-all ${descriptionTone === 'CERCANO' ? 'bg-pink-500 text-white' : 'text-pink-300 hover:bg-pink-50'}`} title="Tono Cercano"><Heart size={14}/></button>
+                            </div>
+                        </div>
+                        <textarea 
+                            className="w-full border border-teal-200 p-3 rounded-lg h-28 resize-none focus:ring-2 focus:ring-teal-500 outline-none text-sm leading-relaxed" 
+                            value={prodDesc} 
+                            onChange={e => setProdDesc(e.target.value)}
+                            placeholder="La descripción aparecerá aquí..."
+                        ></textarea>
+                        <button 
+                            type="button" 
+                            onClick={onMagicGenerate} 
+                            disabled={isLocalGenerating}
+                            className="mt-2 w-full bg-white border border-teal-200 text-teal-700 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-2 hover:bg-teal-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                        >
+                            {isLocalGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                            {isLocalGenerating ? 'GENERANDO MÁGIA...' : `GENERAR DESCRIPCIÓN ${descriptionTone}`}
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -68,7 +114,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             <input type="number" step="0.01" required className="w-full border p-2 rounded-lg" value={prodPrice} onChange={e => setProdPrice(e.target.value)} />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Costo Unitario</label>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Costo</label>
                             <input type="number" step="0.01" className="w-full border p-2 rounded-lg" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
                         </div>
                         <div>
@@ -81,16 +127,6 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                         </div>
                     </div>
 
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Descripción</label>
-                            <button type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="text-[10px] font-bold text-teal-600 flex items-center gap-1 hover:text-teal-700">
-                                {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} IA: Sugerir
-                            </button>
-                        </div>
-                        <textarea className="w-full border p-2 rounded-lg h-24 resize-none" value={prodDesc} onChange={e => setProdDesc(e.target.value)}></textarea>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="relative">
                             <label className="text-xs font-bold text-gray-500 uppercase">Código de Barras</label>
@@ -100,8 +136,10 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             </div>
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Expiración</label>
-                            <input type="date" className="w-full border p-2 rounded-lg text-sm" value={prodExpiry} onChange={e => setProdExpiry(e.target.value)} />
+                            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                                <Calendar size={12} className="text-teal-600"/> Fecha de Caducidad
+                            </label>
+                            <input type="date" className="w-full border p-2 rounded-lg text-sm bg-gray-50" value={prodExpiry} onChange={e => setProdExpiry(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Proveedor</label>
@@ -115,7 +153,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
 
                 <div className="space-y-4">
                     <label className="text-xs font-bold text-gray-500 uppercase block">Imagen del Producto</label>
-                    <div className="w-full h-48 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 relative group">
+                    <div className="w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 relative group">
                         {prodImage ? (
                             <>
                                 <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" />
@@ -140,16 +178,16 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
             </form>
         </div>
 
-        {/* Tabla de Productos */}
+        {/* Tabla de Productos Simplificada para esta vista */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Cat / Prov</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Categoría</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase">Stock</th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Stock</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                         </tr>
                     </thead>
@@ -159,30 +197,33 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                         <img src={p.image} className="h-10 w-10 object-contain mix-blend-multiply" />
-                                        <div>
-                                            <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
-                                            {p.barcode && <p className="text-[10px] text-gray-400 font-mono">{p.barcode}</p>}
-                                        </div>
+                                        <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
                                     </div>
                                 </td>
+                                <td className="px-6 py-4"><span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded">{p.category}</span></td>
                                 <td className="px-6 py-4">
-                                    <p className="text-xs font-bold text-teal-600">{p.category}</p>
-                                    <p className="text-[10px] text-gray-400">{suppliers.find(s => s.id === p.supplierId)?.name || 'Sin Prov.'}</p>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button 
+                                            onClick={() => onUpdateStock(p.id, Math.max(0, p.stock - 1))}
+                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        <span className={`text-xs font-black px-2 py-1 rounded min-w-[30px] text-center ${p.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                                            {p.stock}
+                                        </span>
+                                        <button 
+                                            onClick={() => onUpdateStock(p.id, p.stock + 1)}
+                                            className="p-1 text-emerald-500 hover:bg-emerald-50 rounded"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 text-sm font-black text-gray-800">${p.price.toFixed(2)}</td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                          type="number" 
-                                          className={`w-16 border rounded p-1 text-center font-bold text-sm ${p.stock < 10 ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'}`} 
-                                          value={p.stock} 
-                                          onChange={e => onUpdateStock(p.id, parseInt(e.target.value))} 
-                                        />
-                                    </div>
-                                </td>
                                 <td className="px-6 py-4 text-right space-x-2">
-                                    <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit2 size={16}/></button>
-                                    <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                                    <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={16}/></button>
+                                    <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Eliminar"><Trash2 size={16}/></button>
                                 </td>
                             </tr>
                         ))}

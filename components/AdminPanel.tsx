@@ -260,10 +260,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  // Fixed error: Added missing category argument to generateProductDescription
   const handleGenerateDescription = async () => {
     if (!prodName) return alert("Ingresa el nombre del producto primero.");
     setIsGenerating(true);
-    const desc = await generateProductDescription(prodName);
+    const desc = await generateProductDescription(prodName, prodCat || categories[0]?.name || 'Medicamentos');
     setProdDesc(desc);
     setIsGenerating(false);
   };
