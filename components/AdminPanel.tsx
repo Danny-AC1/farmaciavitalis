@@ -230,6 +230,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // Lógica mejorada: Si es un producto nuevo, el stock inicial es igual a las unidades por caja ingresadas
+    const initialStock = editingId 
+        ? (products.find(p => p.id === editingId)?.stock || 0) 
+        : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0);
+
     const productData: Product = {
         id: editingId || `prod_${Date.now()}`,
         name: prodName,
@@ -239,7 +245,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         unitsPerBox: prodUnitsPerBox ? parseInt(prodUnitsPerBox) : undefined,
         boxPrice: prodBoxPrice ? parseFloat(prodBoxPrice) : undefined,
         category: prodCat || categories[0]?.name || 'Medicamentos',
-        stock: editingId ? products.find(p => p.id === editingId)?.stock || 0 : 0,
+        stock: initialStock,
         image: prodImage || "https://via.placeholder.com/300",
         barcode: prodBarcode,
         expiryDate: prodExpiry,
@@ -656,7 +662,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {showPosScanner && <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowPosScanner(false)} />}
       {showCashClosure && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl w-full max-sm shadow-2xl overflow-hidden animate-in zoom-in duration-300">
                   <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
                       <h3 className="text-sm font-bold flex items-center gap-2"><Calculator size={18}/> Corte de Caja</h3>
                       <button onClick={() => setShowCashClosure(false)} className="hover:bg-white/10 p-1.5 rounded-full"><X size={20}/></button>

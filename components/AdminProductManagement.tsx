@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus, Search } from 'lucide-react';
 import { Product, Category, Supplier } from '../types';
 import { generateProductDescription } from '../services/gemini';
 
@@ -44,6 +44,21 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   
   const [descriptionTone, setDescriptionTone] = useState<'CLINICO' | 'PERSUASIVO' | 'CERCANO'>('PERSUASIVO');
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
+  const [listSearch, setListSearch] = useState('');
+
+  // Lógica de cálculo automático de costo por unidad
+  useEffect(() => {
+    const boxPrice = parseFloat(prodBoxPrice);
+    const units = parseInt(prodUnitsPerBox);
+    
+    if (!isNaN(boxPrice) && !isNaN(units) && units > 0) {
+      const calculatedCost = (boxPrice / units).toFixed(2);
+      // Evitar actualizaciones infinitas si el valor ya es el mismo
+      if (calculatedCost !== prodCostPrice) {
+        setProdCostPrice(calculatedCost);
+      }
+    }
+  }, [prodBoxPrice, prodUnitsPerBox, setProdCostPrice, prodCostPrice]);
 
   const onMagicGenerate = async () => {
     if (!prodName) return alert("Por favor, escribe el nombre del producto primero.");
@@ -57,6 +72,13 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
         setIsLocalGenerating(false);
     }
   };
+
+  // Filtrar productos para la tabla
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(listSearch.toLowerCase()) || 
+    p.category.toLowerCase().includes(listSearch.toLowerCase()) ||
+    (p.barcode && p.barcode.includes(listSearch))
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in">
@@ -83,7 +105,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                     <div className="bg-teal-50/50 p-4 rounded-xl border border-teal-100">
                         <div className="flex justify-between items-center mb-3">
                             <label className="text-xs font-black text-teal-800 uppercase flex items-center gap-2">
-                                <Sparkles size={14}/> Redacción Inteligente (IA Gemini)
+                                <span className="bg-white p-1 rounded shadow-sm">✨</span> Redacción Inteligente (IA Gemini)
                             </label>
                             <div className="flex gap-1 bg-white p-1 rounded-lg border border-teal-100">
                                 <button type="button" onClick={() => setDescriptionTone('CLINICO')} className={`p-1.5 rounded-md transition-all ${descriptionTone === 'CLINICO' ? 'bg-teal-600 text-white' : 'text-teal-400 hover:bg-teal-50'}`} title="Tono Clínico"><ShieldCheck size={14}/></button>
@@ -114,16 +136,18 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             <input type="number" step="0.01" required className="w-full border p-2 rounded-lg" value={prodPrice} onChange={e => setProdPrice(e.target.value)} />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Costo</label>
-                            <input type="number" step="0.01" className="w-full border p-2 rounded-lg" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
-                        </div>
-                        <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Unid/Caja</label>
                             <input type="number" className="w-full border p-2 rounded-lg" value={prodUnitsPerBox} onChange={e => setProdUnitsPerBox(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Precio Caja</label>
                             <input type="number" step="0.01" className="w-full border p-2 rounded-lg" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
+                        </div>
+                        <div className="relative">
+                            <label className="text-xs font-bold text-teal-600 uppercase flex items-center gap-1">
+                                Costo <span className="text-[8px] bg-teal-100 px-1 rounded">Auto</span>
+                            </label>
+                            <input type="number" step="0.01" className="w-full border border-teal-200 bg-teal-50/30 p-2 rounded-lg font-bold text-teal-800" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
                         </div>
                     </div>
 
@@ -178,8 +202,21 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
             </form>
         </div>
 
-        {/* Tabla de Productos Simplificada para esta vista */}
+        {/* Tabla de Productos con Barra de Búsqueda */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+             <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h4 className="text-lg font-bold text-gray-800">Catálogo de Productos</h4>
+                <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar producto, categoría o código..." 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+                        value={listSearch}
+                        onChange={e => setListSearch(e.target.value)}
+                    />
+                </div>
+             </div>
              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -192,12 +229,15 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
-                        {products.map(p => (
+                        {filteredProducts.map(p => (
                             <tr key={p.id} className="hover:bg-gray-50 transition">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                         <img src={p.image} className="h-10 w-10 object-contain mix-blend-multiply" />
-                                        <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
+                                        <div>
+                                            <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
+                                            {p.barcode && <p className="text-[10px] text-gray-400 font-mono mt-0.5">{p.barcode}</p>}
+                                        </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4"><span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded">{p.category}</span></td>
@@ -227,6 +267,14 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                                 </td>
                             </tr>
                         ))}
+                        {filteredProducts.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                    <Package size={32} className="mx-auto mb-2 opacity-20" />
+                                    <p className="text-sm font-bold uppercase tracking-widest">No se encontraron productos</p>
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
              </div>
