@@ -91,16 +91,6 @@ const App: React.FC = () => {
     return () => { unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubAuth(); };
   }, []);
 
-  useEffect(() => {
-    if (products.length > 0) {
-      const productId = new URLSearchParams(window.location.search).get('product');
-      if (productId && (!selectedProduct || selectedProduct.id !== productId)) {
-        const product = products.find(p => p.id === productId);
-        if (product) setSelectedProduct(product);
-      }
-    }
-  }, [products]);
-
   const handleSelectProduct = (product: Product | null) => {
     setSelectedProduct(product);
     const url = new URL(window.location.href);
@@ -182,22 +172,60 @@ const App: React.FC = () => {
 
   const handleConfirmOrder = (details: CheckoutFormData, discount: number, pointsRedeemed: number) => {
     const finalTotal = cartTotal - discount;
+    const orderId = `ORD-${Date.now()}`;
+    
+    // 1. REGISTRO INMEDIATO EN DB
     const newOrder: Order = {
-      id: `ORD-${Date.now()}`, customerName: details.name, customerPhone: details.phone, 
+      id: orderId, customerName: details.name, customerPhone: details.phone, 
       customerAddress: `${details.address}, ${DELIVERY_CITY}`, items: cart, subtotal: cartSubtotal, 
       deliveryFee: DELIVERY_FEE, discount, pointsRedeemed, total: finalTotal, paymentMethod: details.paymentMethod, 
       cashGiven: details.cashGiven ? parseFloat(details.cashGiven) : undefined, status: 'PENDING', source: 'ONLINE', 
       date: new Date().toISOString(), userId: currentUser?.uid
     };
-    const message = `*NUEVO PEDIDO WEB - VITALIS* 💊\n\n*Cliente:* ${details.name}\n*Total:* $${finalTotal.toFixed(2)}\n\n_Detalle enviado a farmacia._`;
+
+    // 2. CONSTRUCCIÓN DE MENSAJE DETALLADO DE WHATSAPP
+    const itemsList = cart.map(item => {
+        const unitLabel = item.selectedUnit === 'BOX' ? `Caja x${item.unitsPerBox}` : 'Unid.';
+        const price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+        return `• ${item.quantity}x ${item.name} (${unitLabel}) - $${(price * item.quantity).toFixed(2)}`;
+    }).join('\n');
+
+    const paymentInfo = details.paymentMethod === 'CASH' 
+        ? `*Pago:* Efectivo 💵\n*Paga con:* $${parseFloat(details.cashGiven || '0').toFixed(2)}\n*Cambio:* $${(parseFloat(details.cashGiven || '0') - finalTotal).toFixed(2)}`
+        : `*Pago:* Transferencia Bancaria 🏦\n_(Enviaré comprobante por este medio)_`;
+
+    const message = `*NUEVO PEDIDO VITALIS* 💊\n` +
+                    `--------------------------\n` +
+                    `*Orden:* #${orderId.slice(-6)}\n` +
+                    `*Cliente:* ${details.name.toUpperCase()}\n` +
+                    `*Teléfono:* ${details.phone}\n` +
+                    `*Dirección:* ${details.address}, Machalilla\n` +
+                    `--------------------------\n` +
+                    `*PRODUCTOS:*\n${itemsList}\n` +
+                    `--------------------------\n` +
+                    `*Subtotal:* $${cartSubtotal.toFixed(2)}\n` +
+                    `*Envío:* $${DELIVERY_FEE.toFixed(2)}\n` +
+                    (discount > 0 ? `*Descuento:* -$${discount.toFixed(2)}\n` : '') +
+                    `*TOTAL A PAGAR: $${finalTotal.toFixed(2)}*\n` +
+                    `--------------------------\n` +
+                    `${paymentInfo}\n\n` +
+                    `_Pedido realizado desde la web de Vitalis_`;
+
     const link = `https://wa.me/593998506160?text=${encodeURIComponent(message)}`;
-    setLastOrderLink(link); window.open(link, '_blank');
+    setLastOrderLink(link); 
+    
+    // 3. EJECUCIÓN DE PROCESO
     addOrderDB(newOrder).then(() => {
         cart.forEach(item => {
             const current = products.find(p => p.id === item.id);
             if (current) updateStockDB(item.id, Math.max(0, current.stock - (item.quantity * (item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1))));
         });
-        setCart([]); setView('SUCCESS');
+        setCart([]); 
+        setView('SUCCESS');
+        window.open(link, '_blank');
+    }).catch(err => {
+        alert("Error al registrar el pedido. Intenta de nuevo.");
+        console.error(err);
     });
   };
 
@@ -258,7 +286,7 @@ const App: React.FC = () => {
                         <CheckCircle2 size={48} className="text-green-600" />
                     </div>
                     <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4 uppercase tracking-tighter">¡Pedido Recibido!</h2>
-                    <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">Gracias por confiar en <strong>Farmacia Vitalis</strong>. Tu pedido está siendo procesado y llegará pronto a tu puerta.</p>
+                    <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">Gracias por confiar en <strong>Farmacia Vitalis</strong>. Tu pedido ha sido registrado correctamente.</p>
                     
                     <div className="space-y-4">
                         {lastOrderLink && (

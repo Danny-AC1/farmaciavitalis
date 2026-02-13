@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { CartItem, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData, User, Coupon, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../types';
-import { Truck, X, Banknote, Gift, Landmark, Copy } from 'lucide-react';
+import { Truck, X, Banknote, Gift, Landmark, Copy, AlertCircle } from 'lucide-react';
 import { streamCoupons } from '../services/db';
 
 interface CheckoutProps {
@@ -62,6 +63,19 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
   const handleNextStep = (e: React.FormEvent) => { e.preventDefault(); if (!formData.address.trim()) return alert("Dirección requerida"); setStep(2); };
 
   const handleSubmitOrder = () => {
+    // VALIDACIÓN OBLIGATORIA PARA EFECTIVO
+    if (formData.paymentMethod === 'CASH') {
+        const cashValue = parseFloat(cashGiven);
+        if (!cashGiven || isNaN(cashValue)) {
+            alert("Por favor, ingresa con cuánto vas a pagar. Es obligatorio para pagos en efectivo.");
+            return;
+        }
+        if (cashValue < finalTotal) {
+            alert(`El monto ($${cashValue.toFixed(2)}) es menor al total del pedido ($${finalTotal.toFixed(2)}).`);
+            return;
+        }
+    }
+
     onConfirmOrder(
         { ...formData, cashGiven: cashGiven }, 
         discountAmount, 
@@ -82,7 +96,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
         <div className="p-6 overflow-y-auto flex-grow">
               {step === 1 && (
                 <form onSubmit={handleNextStep} className="space-y-5">
-                   {/* ... Same inputs as before ... */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">Nombre</label><input required name="name" value={formData.name} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-500" /></div>
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">Teléfono</label><input required name="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-500" /></div>
@@ -105,7 +118,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
                     <div className="border-t pt-2 mt-2 flex justify-between items-center"><span className="font-bold text-gray-800">Total</span><span className="font-bold text-xl text-teal-700">${finalTotal.toFixed(2)}</span></div>
                   </div>
 
-                  {/* LOYALTY POINTS OPTION */}
                   {currentUser && (
                       <div className={`p-4 rounded-lg border flex items-center justify-between ${canUsePoints ? 'bg-purple-50 border-purple-200' : 'bg-gray-100 border-gray-200 opacity-60'}`}>
                           <div className="flex items-center gap-2">
@@ -125,22 +137,38 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
                       </div>
                   )}
 
-                   {/* Coupon Input */}
                   <div className="flex gap-2">
                       <input type="text" placeholder="Código Cupón" className="flex-grow pl-4 pr-4 py-2 border rounded-lg text-sm uppercase" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={!!appliedCoupon} />
                       {appliedCoupon ? <button onClick={() => { setAppliedCoupon(null); setCouponCode(''); }} className="bg-gray-200 px-3 rounded-lg text-sm font-bold">Quitar</button> : <button onClick={handleApplyCoupon} className="bg-teal-100 text-teal-700 px-4 rounded-lg text-sm font-bold">Aplicar</button>}
                   </div>
 
-                  {/* Payment Methods */}
                   <div className="grid grid-cols-2 gap-4">
                       <button onClick={() => setFormData({...formData, paymentMethod: 'CASH'})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${formData.paymentMethod === 'CASH' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200'}`}><Banknote/><span className="font-bold">Efectivo</span></button>
                       <button onClick={() => setFormData({...formData, paymentMethod: 'TRANSFER'})} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${formData.paymentMethod === 'TRANSFER' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200'}`}><Landmark/><span className="font-bold">Transferencia</span></button>
                   </div>
 
                   {formData.paymentMethod === 'CASH' && (
-                     <div className="bg-white p-3 rounded-lg border border-teal-100 mt-3 animate-in fade-in">
-                         <input type="number" placeholder="¿Con cuánto pagas?" className="w-full border-b pb-1 outline-none text-lg font-bold" value={cashGiven} onChange={(e) => setCashGiven(e.target.value)} />
-                         {cashGiven && !isNaN(parseFloat(cashGiven)) && <p className={`mt-2 font-bold text-sm ${changeDue >= 0 ? 'text-green-600' : 'text-red-500'}`}>Cambio: ${changeDue >= 0 ? changeDue.toFixed(2) : 'Insuficiente'}</p>}
+                     <div className="bg-white p-4 rounded-xl border-2 border-teal-500 mt-3 animate-in fade-in shadow-inner">
+                         <label className="flex items-center gap-2 text-[10px] font-black text-teal-700 uppercase mb-3 tracking-widest">
+                            <AlertCircle size={14}/> ¿Con cuánto vas a pagar? (Obligatorio)
+                         </label>
+                         <div className="relative">
+                             <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-black text-teal-600">$</span>
+                             <input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="0.00" 
+                                className="w-full border-b-2 border-teal-100 pl-6 pb-2 outline-none text-3xl font-black text-slate-800 focus:border-teal-500 transition-colors" 
+                                value={cashGiven} 
+                                onChange={(e) => setCashGiven(e.target.value)} 
+                                required
+                             />
+                         </div>
+                         {cashGiven && !isNaN(parseFloat(cashGiven)) && (
+                             <div className={`mt-3 p-2 rounded-lg text-center font-bold text-sm ${changeDue >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                 {changeDue >= 0 ? `Tu cambio será: $${changeDue.toFixed(2)}` : 'Monto insuficiente'}
+                             </div>
+                         )}
                      </div>
                   )}
 
@@ -150,29 +178,17 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
                              <Landmark size={16}/> Datos Bancarios
                          </h4>
                          <div className="space-y-2 text-sm text-gray-700">
-                             <div className="flex justify-between border-b border-blue-100 pb-1">
-                                 <span className="font-semibold text-gray-500">Banco:</span> 
-                                 <span className="font-bold">Pichincha</span>
-                             </div>
-                             <div className="flex justify-between border-b border-blue-100 pb-1">
-                                 <span className="font-semibold text-gray-500">Tipo:</span> 
-                                 <span className="font-bold">Cta. Ahorros</span>
-                             </div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1"><span className="font-semibold text-gray-500">Banco:</span><span className="font-bold">Pichincha</span></div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1"><span className="font-semibold text-gray-500">Tipo:</span><span className="font-bold">Cta. Ahorros</span></div>
                              <div className="flex justify-between border-b border-blue-100 pb-1 items-center">
                                  <span className="font-semibold text-gray-500">Número:</span> 
                                  <div className="flex items-center gap-2">
                                     <span className="font-bold select-all">2204665481</span>
-                                    <button onClick={() => navigator.clipboard.writeText('220XXXXXXX')} className="text-blue-500 hover:text-blue-700"><Copy size={12}/></button>
+                                    <button onClick={() => navigator.clipboard.writeText('2204665481')} className="text-blue-500 hover:text-blue-700"><Copy size={12}/></button>
                                  </div>
                              </div>
-                             <div className="flex justify-between border-b border-blue-100 pb-1">
-                                 <span className="font-semibold text-gray-500">Nombre:</span> 
-                                 <span className="font-bold">Ascencio Carvajal Danny</span>
-                             </div>
-                             <div className="flex justify-between">
-                                 <span className="font-semibold text-gray-500">RUC/CI:</span> 
-                                 <span className="font-bold select-all">1314237148</span>
-                             </div>
+                             <div className="flex justify-between border-b border-blue-100 pb-1"><span className="font-semibold text-gray-500">Nombre:</span><span className="font-bold">Ascencio Carvajal Danny</span></div>
+                             <div className="flex justify-between"><span className="font-semibold text-gray-500">RUC/CI:</span><span className="font-bold select-all">1314237148</span></div>
                          </div>
                          <p className="text-xs text-blue-600 mt-3 italic bg-white p-2 rounded border border-blue-100">
                              * Por favor realiza la transferencia y envía el comprobante al finalizar el pedido.
@@ -182,7 +198,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotal, onConfir
 
                   <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
                         <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold">Atrás</button>
-                        <button onClick={handleSubmitOrder} className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg">Confirmar Pedido</button>
+                        <button onClick={handleSubmitOrder} className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all active:scale-95">Confirmar Pedido</button>
                     </div>
                 </div>
               )}
