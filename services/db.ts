@@ -329,9 +329,14 @@ export const streamSearchLogs = (callback: (logs: SearchLog[]) => void) => {
     const q = query(collection(db, SEARCH_LOGS_COLLECTION));
     return onSnapshot(q, (snapshot) => {
         const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SearchLog[];
-        logs.sort((a, b) => b.count - a.count);
+        // Ordenamos por fecha descendente (lo más nuevo arriba)
+        logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(logs);
     });
+};
+
+export const deleteSearchLogDB = async (id: string) => {
+    await deleteDoc(doc(db, SEARCH_LOGS_COLLECTION, id));
 };
 
 export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {

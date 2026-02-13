@@ -12,7 +12,7 @@ import {
     deleteCouponDB, addExpenseDB, updateBookingStatusDB, saveUserDB, 
     deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
     addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB,
-    deleteBlogPostDB, deleteUserDB
+    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB
 } from '../services/db';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -171,6 +171,7 @@ export const useAdminPanelState = (
     const handleDeleteStockAlert = async (id: string) => { if(confirm("¿Borrar alerta?")) await deleteStockAlertDB(id); };
     const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar este consejo de salud?")) await deleteBlogPostDB(id); };
     const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar definitivamente a este cliente?")) await deleteUserDB(uid); };
+    const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
     
     const handleAddBanner = async (file: File) => {
         setIsUploadingBanner(true);
@@ -327,7 +328,7 @@ export const useAdminPanelState = (
         banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
         chartData, profitableProducts, topCategory, totalRevenue, netProfit, todayCash, todayTrans,
         handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, handleDeleteSubscription,
-        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
+        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleDeleteSearchLog, handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
         handleUpdateUserRole, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
         handleGenerateBlog, handleGeneratePost, handlePosCheckout, addToPosCart,
         handleProductDelete, handleStockUpdate, handleCategoryAdd, handleOrderStatusUpdate,

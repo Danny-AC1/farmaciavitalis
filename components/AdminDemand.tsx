@@ -1,38 +1,135 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SearchLog } from '../types';
-import { TrendingUp, Clock, BarChart3 } from 'lucide-react';
+// Fixed typo in lucide-react import: change mousePointer2 to MousePointer2
+import { TrendingUp, BarChart3, Trash2, Calendar, Search, AlertCircle} from 'lucide-react';
 
-const AdminDemand: React.FC<{logs: SearchLog[]}> = ({ logs }) => {
+interface AdminDemandProps {
+  logs: SearchLog[];
+  onDeleteLog: (id: string) => Promise<void>;
+}
+
+const AdminDemand: React.FC<AdminDemandProps> = ({ logs, onDeleteLog }) => {
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [logs]);
+
+  const totalSearches = useMemo(() => logs.reduce((acc, l) => acc + l.count, 0), [logs]);
+
+  const getDemandColor = (count: number) => {
+    if (count >= 10) return 'bg-red-50 text-red-600 border-red-100';
+    if (count >= 5) return 'bg-orange-50 text-orange-600 border-orange-100';
+    return 'bg-blue-50 text-blue-600 border-blue-100';
+  };
+
+  const getDemandBadge = (count: number) => {
+    if (count >= 10) return 'ALTA DEMANDA';
+    if (count >= 5) return 'FRECUENTE';
+    return 'OCASIONAL';
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in">
-      <div className="flex items-center gap-3 mb-6">
-          <div className="bg-teal-100 p-3 rounded-2xl text-teal-600"><TrendingUp/></div>
-          <div>
-              <h2 className="text-2xl font-bold text-gray-800">Demanda Insatisfecha</h2>
-              <p className="text-sm text-gray-500">Productos buscados que no dieron resultados.</p>
+    <div className="space-y-6 animate-in fade-in pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+          <div className="flex items-center gap-3">
+              <div className="bg-teal-600 p-2.5 rounded-2xl shadow-lg shadow-teal-600/20 text-white">
+                  <TrendingUp size={24} />
+              </div>
+              <div>
+                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Demandas Insatisfechas</h2>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Lo que tus clientes buscan y no encuentran</p>
+              </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+              <div className="bg-white px-5 py-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-r pr-3">Términos Únicos</span>
+                  <span className="text-lg font-black text-teal-700 leading-none">{logs.length}</span>
+              </div>
+              <div className="bg-white px-5 py-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-r pr-3">Volumen Total</span>
+                  <span className="text-lg font-black text-blue-700 leading-none">{totalSearches} <span className="text-[10px] text-slate-400 font-bold uppercase">BÚSQUEDAS</span></span>
+              </div>
           </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {logs.map(log => (
-            <div key={log.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:border-teal-200 transition">
-                <div>
-                    <h4 className="text-lg font-black text-gray-800 uppercase group-hover:text-teal-600 transition">{log.term}</h4>
-                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1"><Clock size={12}/> Último: {new Date(log.date).toLocaleDateString()}</p>
-                </div>
-                <div className="text-right">
-                    <span className="text-3xl font-black text-teal-700">{log.count}</span>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Búsquedas</p>
-                </div>
-            </div>
-          ))}
-          {logs.length === 0 && (
-              <div className="col-span-full py-20 bg-white rounded-3xl border border-dashed border-gray-200 text-center text-gray-400 font-bold">
-                  <BarChart3 size={48} className="mx-auto mb-4 opacity-10" />
-                  No se han registrado búsquedas fallidas todavía.
+
+      {/* Tarjeta de Resumen IA */}
+      <div className="bg-slate-900 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl">
+          <div className="relative z-10 max-w-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                  <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-400">Inteligencia de Inventario</h4>
               </div>
-          )}
+              <p className="text-sm font-medium leading-relaxed text-slate-300">
+                  Has tenido un total de <strong>{totalSearches}</strong> búsquedas que no devolvieron resultados. 
+                  Representan oportunidades de venta perdidas que puedes recuperar agregando estos productos a tu catálogo.
+              </p>
+          </div>
+          <BarChart3 size={150} className="absolute -right-8 -bottom-8 opacity-5 rotate-12" />
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Término Buscado</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Intensidad</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Última Petición</th>
+                <th className="px-6 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-50">
+              {sortedLogs.map(log => (
+                <tr key={log.id} className="hover:bg-teal-50/20 transition group">
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-black shadow-inner">
+                        <Search size={18}/>
+                      </div>
+                      <span className="font-black text-slate-800 text-base uppercase tracking-tight">{log.term}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border ${getDemandColor(log.count)}`}>
+                      <span className="font-black text-sm">{log.count}</span>
+                      <span className="text-[9px] font-black uppercase tracking-tighter opacity-70">{getDemandBadge(log.count)}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase">
+                      <Calendar size={14} className="text-teal-500"/> {new Date(log.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <button 
+                      onClick={() => { if(confirm('¿Deseas eliminar este registro de demanda?')) onDeleteLog(log.id); }}
+                      className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      title="Eliminar de la lista"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-24 text-center">
+                    <div className="max-w-xs mx-auto space-y-4">
+                        <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                            <AlertCircle size={40} className="text-slate-200" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Sin registros pendientes</p>
+                            <p className="text-xs text-slate-300 font-bold mt-1">Tus clientes han encontrado todo lo que buscan por ahora.</p>
+                        </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

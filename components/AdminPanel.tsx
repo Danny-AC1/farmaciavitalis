@@ -232,7 +232,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
                 {state.activeTab === 'categories' && <AdminSimpleTable title="Categorías" data={props.categories} onAdd={state.handleCategoryAdd} onDelete={props.onDeleteCategory} />}
                 {state.activeTab === 'suppliers' && <AdminSuppliers suppliers={state.suppliers} onAdd={state.handleAddSupplier} onDelete={state.handleDeleteSupplier} />}
-                {state.activeTab === 'demand' && <AdminDemand logs={state.searchLogs} />}
+                {state.activeTab === 'demand' && <AdminDemand logs={state.searchLogs} onDeleteLog={state.handleDeleteSearchLog} />}
                 {state.activeTab === 'geostats' && <AdminGeoStats orders={props.orders} />}
                 {state.activeTab === 'users' && <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} />}
                 {state.activeTab === 'expenses' && <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} />}
