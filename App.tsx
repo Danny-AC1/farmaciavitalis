@@ -12,6 +12,7 @@ import AuthModal from './components/AuthModal';
 import UserOrdersModal from './components/UserOrdersModal';
 import FamilyHealthModal from './components/FamilyHealthModal';
 import ServicesModal from './components/ServicesModal';
+import ProfileModal from './components/ProfileModal';
 import HomeView from './components/HomeView';
 import SearchBar from './components/SearchBar';
 import CartDrawer from './components/CartDrawer';
@@ -26,7 +27,7 @@ import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
-import { Loader2, MessageCircle, X } from 'lucide-react';
+import { Loader2, CheckCircle2, MessageCircle, ArrowRight, Home } from 'lucide-react';
 
 const AUTHORIZED_ADMIN_EMAILS = ['danny.asc25@gmail.com', 'd.e.a.c@outlook.com'];
 
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showUserOrdersModal, setShowUserOrdersModal] = useState(false);
   const [showFamilyHealthModal, setShowFamilyHealthModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
@@ -80,7 +82,10 @@ const App: React.FC = () => {
         if (firebaseUser) {
             const userProfile = await getUserDB(firebaseUser.uid);
             if (userProfile) setCurrentUser(userProfile);
-        } else { setCurrentUser(null); }
+        } else { 
+            setCurrentUser(null);
+            setShowProfileModal(false); 
+        }
     });
     seedInitialData().catch(console.error);
     return () => { unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubAuth(); };
@@ -212,8 +217,16 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-50">
-      {view !== 'ADMIN_DASHBOARD' && view !== 'DRIVER_DASHBOARD' && (
-        <Navbar cartCount={cart.length} onCartClick={() => setIsCartOpen(true)} onAdminClick={() => setView('ADMIN_LOGIN')} onLogoClick={() => { setView('HOME'); setActiveCategory(null); }} onUserClick={() => !currentUser ? setShowAuthModal(true) : auth.signOut()} currentUser={currentUser} onTabChange={handleTabChange} />
+      {view !== 'ADMIN_DASHBOARD' && view !== 'DRIVER_DASHBOARD' && view !== 'SUCCESS' && (
+        <Navbar 
+          cartCount={cart.length} 
+          onCartClick={() => setIsCartOpen(true)} 
+          onAdminClick={() => setView('ADMIN_LOGIN')} 
+          onLogoClick={() => { setView('HOME'); setActiveCategory(null); }} 
+          onUserClick={() => !currentUser ? setShowAuthModal(true) : setShowProfileModal(true)} 
+          currentUser={currentUser} 
+          onTabChange={handleTabChange} 
+        />
       )}
 
       <main className="flex-grow">
@@ -238,15 +251,51 @@ const App: React.FC = () => {
         {view === 'ADMIN_DASHBOARD' && <AdminPanel products={products} categories={categories} orders={orders} onAddProduct={addProductDB} onEditProduct={updateProductDB} onDeleteProduct={deleteProductDB} onUpdateStock={updateStockDB} onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB} onLogout={() => setView('HOME')} currentUserRole={currentRole} />}
         {view === 'DRIVER_DASHBOARD' && <DriverDashboard orders={orders} onLogout={() => setView('HOME')} />}
         {view === 'CHECKOUT' && <Checkout cart={cart} subtotal={cartSubtotal} total={cartTotal} onConfirmOrder={handleConfirmOrder} onCancel={() => setView('HOME')} currentUser={currentUser} />}
-        {view === 'SUCCESS' && <div className="min-h-[80vh] flex flex-col items-center justify-center p-4"><h2>¡Éxito!</h2><button onClick={() => setView('HOME')}>Volver</button></div>}
+        {view === 'SUCCESS' && (
+            <div className="min-h-screen flex items-center justify-center bg-teal-50 p-4 animate-in fade-in zoom-in duration-500">
+                <div className="bg-white rounded-[3rem] p-8 md:p-12 max-w-lg w-full text-center shadow-2xl border border-teal-100">
+                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner animate-bounce">
+                        <CheckCircle2 size={48} className="text-green-600" />
+                    </div>
+                    <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4 uppercase tracking-tighter">¡Pedido Recibido!</h2>
+                    <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">Gracias por confiar en <strong>Farmacia Vitalis</strong>. Tu pedido está siendo procesado y llegará pronto a tu puerta.</p>
+                    
+                    <div className="space-y-4">
+                        {lastOrderLink && (
+                            <a 
+                                href={lastOrderLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-teal-700 transition-all shadow-xl shadow-teal-100 flex items-center justify-center gap-3 active:scale-95"
+                            >
+                                <MessageCircle size={20}/> Abrir WhatsApp de nuevo
+                            </a>
+                        )}
+                        <button 
+                            onClick={() => setView('HOME')} 
+                            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
+                        >
+                            <Home size={20}/> Volver al Inicio <ArrowRight size={18}/>
+                        </button>
+                    </div>
+                    
+                    <p className="mt-8 text-[10px] text-slate-300 font-bold uppercase tracking-[0.2em]">Vitalis Machalilla - Tu Salud Al Día</p>
+                </div>
+            </div>
+        )}
       </main>
 
       <Assistant products={products} isOpen={isAssistantOpen} onClose={() => setIsAssistantOpen(false)} />
-      <BottomNav activeTab={isAssistantOpen ? 'assistant' : 'home'} cartCount={cart.length} onTabChange={handleTabChange} onCartClick={() => setIsCartOpen(true)} />
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cart={cart} updateQuantity={updateQuantity} removeFromCart={(idx) => setCart(prev => prev.filter((_, i) => i !== idx))} subtotal={cartSubtotal} total={cartTotal} onCheckout={() => { setIsCartOpen(false); setView('CHECKOUT'); }} checkingInteractions={checkingInteractions} interactionWarning={interactionWarning} />
+      {view !== 'SUCCESS' && (
+        <>
+          <BottomNav activeTab={isAssistantOpen ? 'assistant' : 'home'} cartCount={cart.length} onTabChange={handleTabChange} onCartClick={() => setIsCartOpen(true)} />
+          <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cart={cart} updateQuantity={updateQuantity} removeFromCart={(idx) => setCart(prev => prev.filter((_, i) => i !== idx))} subtotal={cartSubtotal} total={cartTotal} onCheckout={() => { setIsCartOpen(false); setView('CHECKOUT'); }} checkingInteractions={checkingInteractions} interactionWarning={interactionWarning} />
+        </>
+      )}
       
       {selectedProduct && <ProductDetail product={selectedProduct} products={products} cart={cart} onClose={() => handleSelectProduct(null)} onAddToCart={addToCart} currentUserEmail={currentUser?.email} />}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => setShowAuthModal(false)} />}
+      {showProfileModal && currentUser && <ProfileModal user={currentUser} onClose={() => setShowProfileModal(false)} />}
       {showPrescriptionModal && <PrescriptionModal onClose={() => setShowPrescriptionModal(false)} />}
       {showServicesModal && <ServicesModal user={currentUser} onClose={() => setShowServicesModal(false)} onLoginRequest={() => setShowAuthModal(true)} />}
       {showUserOrdersModal && currentUser && <UserOrdersModal user={currentUser} products={products} onClose={() => setShowUserOrdersModal(false)} onReorder={(o) => { o.items.forEach(i => addToCart(i)); setIsCartOpen(true); }} />}
