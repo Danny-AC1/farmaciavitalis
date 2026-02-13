@@ -27,12 +27,10 @@ interface AdminPanelProps {
   products: Product[];
   categories: Category[];
   orders: Order[];
-  // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
   onAddProduct: (p: Product) => Promise<any>;
   onEditProduct: (p: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   onUpdateStock: (id: string, newStock: number) => Promise<void>;
-  // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
   onAddCategory: (c: Category) => Promise<any>;
   onDeleteCategory: (id: string) => Promise<void>;
   onAddOrder: (o: Order) => Promise<void>;
@@ -83,6 +81,8 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         <ChevronRight size={14} className="text-slate-200 group-hover:text-teal-500 transition-colors self-center" />
     </button>
   );
+
+  const isPosActive = state.activeTab === 'pos';
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -167,7 +167,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </header>
 
           <div className="flex-1 overflow-y-auto bg-[#F8FAFC]">
-              <div className="max-w-[1500px] mx-auto p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full">
+              <div className={`max-w-[1500px] mx-auto ${isPosActive ? 'p-0 h-full' : 'p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full'}`}>
                 {state.activeTab === 'dashboard' && <AdminDashboard orders={props.orders} products={props.products} expenses={state.expenses} reportPeriod={state.reportPeriod} setReportPeriod={state.setReportPeriod} chartData={state.chartData} netProfit={state.netProfit} totalRevenue={state.totalRevenue} profitableProducts={state.profitableProducts} topCategory={state.topCategory} currentUserRole={props.currentUserRole} />}
                 
                 {state.activeTab === 'pos' && <AdminPOS products={props.products} users={state.users} posCart={state.posCart} posSearch={state.posSearch} setPosSearch={state.setPosSearch} posCashReceived={state.posCashReceived} setPosCashReceived={state.setPosCashReceived} posPaymentMethod={state.posPaymentMethod} setPosPaymentMethod={state.setPosPaymentMethod} addToPosCart={state.addToPosCart} removeFromPosCart={(id)=>state.setPosCart(prev=>prev.filter(i=>i.id!==id))} handlePosCheckout={state.handlePosCheckout} setShowScanner={state.setShowPosScanner} setShowCashClosure={state.setShowCashClosure} onDeleteUser={state.handleDeleteUser} />}

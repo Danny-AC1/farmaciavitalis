@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Product, CartItem } from '../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check } from 'lucide-react';
-import { addStockAlertDB, addSubscriptionDB } from '../services/db';
+import { Product, CartItem, Subscription } from '../types';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check, ExternalLink } from 'lucide-react';
+import { addStockAlertDB, addSubscriptionDB, streamSubscriptions } from '../services/db';
 import { getCrossSellSuggestion } from '../services/gemini';
 
 interface ProductDetailProps {
@@ -17,12 +17,25 @@ interface ProductDetailProps {
 const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products = [], currentUserEmail, onClose, onAddToCart }) => {
   const [emailAlert, setEmailAlert] = useState(currentUserEmail || '');
   const [alertSent, setAlertSent] = useState(false);
-  const [subscribing, setSubscribing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  // Cross-Sell Logic (Option 5)
+  // Cross-Sell Logic
   const [suggestion, setSuggestion] = useState<{product: Product | undefined, reason: string} | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+
+  // Verificar si ya está suscrito a este producto
+  useEffect(() => {
+    if (!currentUserEmail) return;
+    
+    const unsub = streamSubscriptions((subs) => {
+      const exists = subs.find(s => s.userId === currentUserEmail && s.productId === product.id && s.active);
+      setIsSubscribed(!!exists);
+    });
+    
+    return () => unsub();
+  }, [currentUserEmail, product.id]);
 
   useEffect(() => {
       if (products.length > 0) {
@@ -47,7 +60,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const hasBox = (product.unitsPerBox ?? 0) > 1;
   const unitsPerBox = product.unitsPerBox ?? 1;
 
-  // Priorizamos el publicBoxPrice, si no existe usamos boxPrice como fallback (compatibilidad)
   const displayBoxPrice = product.publicBoxPrice || product.boxPrice || 0;
 
   const handleStockAlert = async () => {
@@ -57,10 +69,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   };
 
   const handleSubscribe = async () => {
-      if (!currentUserEmail) return alert("Debes iniciar sesión para suscribirte.");
-      // CORRECCIÓN: Se pasan los 4 argumentos requeridos por la función en services/db.ts
-      await addSubscriptionDB(currentUserEmail, product.id, product.name, 30);
-      setSubscribing(true);
+      if (!currentUserEmail) {
+          alert("Debes iniciar sesión para suscribirte a planes de salud recurrentes.");
+          return;
+      }
+      
+      if (isSubscribed) {
+          alert("Ya tienes una suscripción activa para este producto. Puedes gestionarla desde tu perfil o contactando a soporte.");
+          return;
+      }
+
+      setIsProcessing(true);
+      try {
+          // Suscripción estándar de 30 días
+          await addSubscriptionDB(currentUserEmail, product.id, product.name, 30);
+          alert(`¡Suscripción exitosa! Te enviaremos ${product.name} cada 30 días automáticamente.`);
+      } catch (error) {
+          console.error("Error al suscribir:", error);
+          alert("Hubo un problema al procesar tu suscripción.");
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const handleShare = () => {
@@ -169,12 +198,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
                   <button 
                     onClick={handleSubscribe} 
-                    disabled={subscribing}
-                    className="w-full py-2 border-2 border-teal-600 text-teal-700 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-teal-50"
+                    disabled={isProcessing}
+                    className={`w-full py-3 border-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                      isSubscribed 
+                      ? 'border-emerald-500 text-emerald-600 bg-emerald-50' 
+                      : 'border-teal-600 text-teal-700 hover:bg-teal-50'
+                    }`}
                   >
-                     {subscribing ? <CheckCircle size={18}/> : <RefreshCw size={18}/>} 
-                     {subscribing ? "Suscrito Mensualmente" : "Suscribirse (Envío cada 30 días)"}
+                     {isProcessing ? (
+                       <RefreshCw size={18} className="animate-spin"/>
+                     ) : isSubscribed ? (
+                       <><CheckCircle size={18}/> Suscripción Activa</>
+                     ) : (
+                       <><RefreshCw size={18}/> Suscribirse (Envío cada 30 días)</>
+                     )} 
                   </button>
+                  
+                  {isSubscribed && (
+                    <p className="text-[10px] text-center text-emerald-600 font-bold uppercase tracking-tight">
+                      Recibirás este producto mensualmente de forma automática.
+                    </p>
+                  )}
                 </div>
             ) : (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">

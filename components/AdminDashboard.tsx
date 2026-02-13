@@ -19,7 +19,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  orders, products, expenses, reportPeriod, setReportPeriod, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
+  orders, products, reportPeriod, setReportPeriod, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
 }) => {
   const totalOrdersCount = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;

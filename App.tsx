@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Product, Category, Order, User, CartItem, ViewState, 
-  DELIVERY_FEE, CheckoutFormData,
+  DELIVERY_FEE, CheckoutFormData, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD
 } from './types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
@@ -238,6 +238,11 @@ const App: React.FC = () => {
     setActiveTab(tab);
   };
 
+  const handleProceedToCheckout = () => {
+    setIsCartOpen(false);
+    setView('CHECKOUT');
+  };
+
   if (view === 'DRIVER_DASHBOARD') return <DriverDashboard orders={orders} onLogout={() => { setView('HOME'); setTempStaffRole(null); }} />;
   if (view === 'ADMIN_DASHBOARD') return (
     <AdminPanel 
@@ -282,7 +287,7 @@ const App: React.FC = () => {
 
       <CartDrawer 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cart={cart} updateQuantity={updateQuantity} 
-        removeFromCart={removeFromCart} subtotal={subtotal} total={total} onCheckout={() => setView('CHECKOUT')}
+        removeFromCart={removeFromCart} subtotal={subtotal} total={total} onCheckout={handleProceedToCheckout}
         checkingInteractions={checkingInteractions} interactionWarning={interactionWarning}
       />
 
@@ -292,7 +297,7 @@ const App: React.FC = () => {
 
       {view === 'SUCCESS' && (
         <div className="fixed inset-0 z-[100] bg-teal-600 flex items-center justify-center p-6 text-white text-center">
-          <div className="max-w-sm animate-in zoom-in duration-300">
+          <div className="max-sm animate-in zoom-in duration-300">
             <CheckCircle className="h-24 w-24 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">¡Pedido Recibido!</h2>
             <p className="mb-8 opacity-90">Tu pedido ha sido registrado con éxito. Te avisaremos cuando esté en camino.</p>

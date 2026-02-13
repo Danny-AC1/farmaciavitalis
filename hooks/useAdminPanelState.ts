@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Product, Order, Category, User, Supplier, SearchLog, Banner, 
     Expense, Subscription, Coupon, ServiceBooking, StockAlert, 
@@ -243,6 +242,7 @@ export const useAdminPanelState = (
         await updateBookingStatusDB(id, status);
     };
 
+    // Added missing React namespace reference by importing React
     const handleProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
