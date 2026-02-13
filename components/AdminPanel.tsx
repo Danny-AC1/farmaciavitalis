@@ -86,7 +86,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
-      <AdminSidebar activeTab={state.activeTab} setActiveTab={state.setActiveTab} onLogout={props.onLogout} isAdmin={props.currentUserRole === 'ADMIN'} isMobileOpen={state.isSidebarOpen} setIsMobileOpen={state.setIsSidebarOpen} />
+      <AdminSidebar activeTab={state.activeTab} setActiveTab={state.setActiveTab} onLogout={props.onLogout} isAdmin={props.currentUserRole === 'ADMIN'} currentUserRole={props.currentUserRole} isMobileOpen={state.isSidebarOpen} setIsMobileOpen={state.setIsSidebarOpen} />
       
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
           <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-10 shrink-0 z-30 shadow-sm">
@@ -168,7 +168,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
           <div className="flex-1 overflow-y-auto bg-[#F8FAFC]">
               <div className="max-w-[1500px] mx-auto p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full">
-                {state.activeTab === 'dashboard' && <AdminDashboard orders={props.orders} products={props.products} expenses={state.expenses} reportPeriod={state.reportPeriod} setReportPeriod={state.setReportPeriod} chartData={state.chartData} netProfit={state.netProfit} totalRevenue={state.totalRevenue} profitableProducts={state.profitableProducts} topCategory={state.topCategory} />}
+                {state.activeTab === 'dashboard' && <AdminDashboard orders={props.orders} products={props.products} expenses={state.expenses} reportPeriod={state.reportPeriod} setReportPeriod={state.setReportPeriod} chartData={state.chartData} netProfit={state.netProfit} totalRevenue={state.totalRevenue} profitableProducts={state.profitableProducts} topCategory={state.topCategory} currentUserRole={props.currentUserRole} />}
                 
                 {state.activeTab === 'pos' && <AdminPOS products={props.products} users={state.users} posCart={state.posCart} posSearch={state.posSearch} setPosSearch={state.setPosSearch} posCashReceived={state.posCashReceived} setPosCashReceived={state.setPosCashReceived} posPaymentMethod={state.posPaymentMethod} setPosPaymentMethod={state.setPosPaymentMethod} addToPosCart={state.addToPosCart} removeFromPosCart={(id)=>state.setPosCart(prev=>prev.filter(i=>i.id!==id))} handlePosCheckout={state.handlePosCheckout} setShowScanner={state.setShowPosScanner} setShowCashClosure={state.setShowCashClosure} onDeleteUser={state.handleDeleteUser} />}
                 

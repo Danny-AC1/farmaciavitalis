@@ -56,7 +56,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               <p className="text-gray-500 text-lg">No hay productos aquí.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               {displayedProducts.map(product => (
                 <ProductCard key={product.id} product={product} cart={cart} onAddToCart={onAddToCart} onSelect={onSelectProduct} />
               ))}
@@ -126,7 +126,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             <div className="animate-in slide-in-from-bottom-5 duration-500">
               <h3 className="text-2xl font-bold mb-6 border-l-4 pl-4 text-gray-800 border-teal-500">Resultados</h3>
               {displayedProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-12">
                   {displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={onAddToCart} onSelect={onSelectProduct} />))}
                 </div>
               ) : (

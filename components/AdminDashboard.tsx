@@ -2,7 +2,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { LayoutDashboard, DollarSign, Wallet, ShoppingCart, TrendingUp, Package, Sparkles, Clock } from 'lucide-react';
-import { Order, Product, Expense } from '../types';
+import { Order, Product, Expense, User } from '../types';
 
 interface AdminDashboardProps {
   orders: Order[];
@@ -15,14 +15,16 @@ interface AdminDashboardProps {
   totalRevenue: number;
   profitableProducts: { name: string, profit: number, quantity: number }[];
   topCategory?: string;
+  currentUserRole?: User['role'];
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  orders, products, reportPeriod, setReportPeriod, chartData, netProfit, totalRevenue, profitableProducts, topCategory 
+  orders, products, expenses, reportPeriod, setReportPeriod, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
 }) => {
   const totalOrdersCount = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
   const potentialRevenue = orders.filter(o => o.status !== 'DELIVERED').reduce((acc, curr) => acc + curr.total, 0);
+  const isActuallyAdmin = currentUserRole === 'ADMIN';
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -67,24 +69,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
           </div>
 
-          <div className="bg-emerald-600 p-6 rounded-[2rem] shadow-lg shadow-emerald-600/20 text-white relative overflow-hidden">
-              <div className="relative z-10">
-                  <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-4 backdrop-blur-md">
-                      <TrendingUp size={24} />
-                  </div>
-                  <span className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">Utilidad Neta Real</span>
-                  <p className="text-2xl font-black mt-1">${netProfit.toFixed(2)}</p>
-                  <p className="text-[10px] text-emerald-100/60 mt-2">Deducidos gastos y costos de compra</p>
-              </div>
-              <Wallet size={120} className="absolute -right-8 -bottom-8 opacity-10 rotate-12" />
-          </div>
+          {isActuallyAdmin && (
+            <div className="bg-emerald-600 p-6 rounded-[2rem] shadow-lg shadow-emerald-600/20 text-white relative overflow-hidden">
+                <div className="relative z-10">
+                    <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-4 backdrop-blur-md">
+                        <TrendingUp size={24} />
+                    </div>
+                    <span className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">Utilidad Neta Real</span>
+                    <p className="text-2xl font-black mt-1">${netProfit.toFixed(2)}</p>
+                    <p className="text-[10px] text-emerald-100/60 mt-2">Deducidos gastos y costos de compra</p>
+                </div>
+                <Wallet size={120} className="absolute -right-8 -bottom-8 opacity-10 rotate-12" />
+            </div>
+          )}
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="h-12 w-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-4">
                   <Package size={24} />
               </div>
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ítems Registrados</span>
-              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} Productos</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} SKU</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
