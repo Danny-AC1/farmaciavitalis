@@ -30,10 +30,16 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
   const [selectedProductLink, setSelectedProductLink] = useState('');
 
   useEffect(() => {
+    if (!user.uid) return;
+    
     const unsubMembers = streamFamilyMembers(user.uid, (data) => {
-        setMembers(data);
-        // Autoselect first member or self if empty
-        if (!selectedMemberId && data.length > 0) setSelectedMemberId(data[0].id);
+        // Ordenamos localmente para no fallar si falta el índice en Firebase
+        const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name));
+        setMembers(sorted);
+        // Autoseleccionar si hay miembros
+        if (sorted.length > 0 && !selectedMemberId) {
+            setSelectedMemberId(sorted[0].id);
+        }
     });
     const unsubMeds = streamMedications(user.uid, (data) => setMedications(data));
     return () => { unsubMembers(); unsubMeds(); };
@@ -128,7 +134,7 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
                      </button>
                  ))}
                  
-                 {members.length === 0 && (
+                 {members.length === 0 && !showAddMember && (
                      <p className="text-xs text-gray-400 flex items-center">Agrega a tu familia para empezar &rarr;</p>
                  )}
              </div>
@@ -160,7 +166,7 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {/* Header Pastillero */}
+                    {/* Pastillero */}
                     <div className="flex justify-between items-center">
                         <h4 className="font-bold text-gray-700 text-lg flex items-center gap-2">
                             <Pill className="text-teal-500"/> Pastillero de {activeMember.name}
@@ -184,9 +190,7 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
                                     <option value="">-- Vincular Producto (Opcional) --</option>
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
-                                <p className="text-[10px] text-gray-500">Vincular permite recargar stock con un clic.</p>
-
-                                <button className="w-full bg-teal-600 text-white py-2 rounded-lg font-bold text-sm">Guardar Tratamiento</button>
+                                <button className="w-full bg-teal-600 text-white py-2 rounded-lg font-bold text-sm mt-2">Guardar Tratamiento</button>
                             </form>
                         </div>
                     )}
@@ -216,36 +220,16 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
                                             <span className="text-[10px] uppercase font-bold text-gray-400 block">Restantes</span>
                                         </div>
                                     </div>
-
-                                    {/* Stock Bar */}
                                     <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
-                                        <div 
-                                            className={`h-2 rounded-full transition-all duration-500 ${isLow ? 'bg-red-500' : 'bg-teal-500'}`} 
-                                            style={{ width: `${percent}%` }}
-                                        ></div>
+                                        <div className={`h-2 rounded-full transition-all duration-500 ${isLow ? 'bg-red-500' : 'bg-teal-500'}`} style={{ width: `${percent}%` }}></div>
                                     </div>
-
                                     <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => handleTakeDose(med)}
-                                            className="flex-1 bg-blue-50 text-blue-700 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition flex items-center justify-center gap-1"
-                                        >
-                                            <Check size={16}/> Tomar Dosis
-                                        </button>
-                                        
+                                        <button onClick={() => handleTakeDose(med)} className="flex-1 bg-blue-50 text-blue-700 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition flex items-center justify-center gap-1"><Check size={16}/> Tomar Dosis</button>
                                         {isLow && productLinked && (
-                                            <button 
-                                                onClick={() => { onClose(); onAddToCart(productLinked); }}
-                                                className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition flex items-center justify-center gap-1 animate-pulse"
-                                            >
-                                                <RefreshCw size={16}/> Reabastecer
-                                            </button>
+                                            <button onClick={() => { onClose(); onAddToCart(productLinked); }} className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition flex items-center justify-center gap-1 animate-pulse"><RefreshCw size={16}/> Reabastecer</button>
                                         )}
                                     </div>
-
-                                    <button onClick={() => handleDeleteMed(med.id)} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
-                                        <Trash2 size={16}/>
-                                    </button>
+                                    <button onClick={() => handleDeleteMed(med.id)} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16}/></button>
                                 </div>
                             );
                         })
@@ -253,7 +237,6 @@ const FamilyHealthModal: React.FC<FamilyHealthModalProps> = ({ user, products, o
                 </div>
             )}
         </div>
-
       </div>
     </div>
   );

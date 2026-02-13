@@ -1,13 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
-import { User, Order, Product, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../types';
+import { User, Order, POINTS_THRESHOLD } from '../types';
 import { getOrdersByUserDB } from '../services/db';
-// Added Loader2 to the imports from lucide-react
 import { X, RefreshCw, ShoppingBag, Gift, Star, Trophy, Navigation, Radio, MapPin, Clock, Loader2 } from 'lucide-react';
 
 interface UserOrdersModalProps {
   user: User;
-  products: Product[];
   onClose: () => void;
   onReorder: (order: Order) => void;
 }
@@ -17,19 +15,28 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackingOrder, setSelectedTrackingOrder] = useState<Order | null>(null);
 
+  // Mantenemos una referencia de la ID de rastreo para actualizarla sin reiniciar el efecto
+  const trackingId = selectedTrackingOrder?.id;
+
   useEffect(() => {
+    if (!user.uid) return;
+
+    setIsLoading(true);
     const unsub = getOrdersByUserDB(user.uid, (data) => {
-        setOrders(data);
+        // ORDENAMIENTO LOCAL: Para evitar errores de índices en Firebase que hacen desaparecer los datos
+        const sortedData = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        setOrders(sortedData);
         setIsLoading(false);
         
-        // Si el cliente está viendo un rastreo y el pedido se actualiza, actualizar la referencia local
-        if (selectedTrackingOrder) {
-            const updated = data.find(o => o.id === selectedTrackingOrder.id);
+        if (trackingId) {
+            const updated = sortedData.find(o => o.id === trackingId);
             if (updated) setSelectedTrackingOrder(updated);
         }
     });
+
     return () => unsub();
-  }, [user.uid, selectedTrackingOrder?.id]);
+  }, [user.uid, trackingId]); 
 
   const points = user.points || 0;
   const progressPercentage = Math.min(100, (points / POINTS_THRESHOLD) * 100);
@@ -69,7 +76,6 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                             </div>
                         </div>
 
-                        {/* MAPA DE RASTREO DINÁMICO */}
                         <div className="w-full h-72 bg-slate-100 rounded-3xl overflow-hidden border border-slate-200 relative shadow-inner">
                             {/* @ts-ignore */}
                             {selectedTrackingOrder.driverLocation ? (
@@ -122,7 +128,6 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                 </div>
             ) : (
                 <>
-                {/* PROGRAMA DE PUNTOS */}
                 <div className="p-4">
                     <div className="bg-gradient-to-br from-indigo-700 to-purple-800 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
                         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
@@ -158,7 +163,7 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                             <div className="bg-white/10 rounded-2xl p-3 flex items-center justify-between backdrop-blur-md border border-white/10">
                                 {points >= POINTS_THRESHOLD ? (
                                     <div className="flex items-center gap-2 text-yellow-300 font-black text-xs animate-pulse">
-                                        <Gift className="h-4 w-4" /> ¡TIENES UN VALE DE ${POINTS_DISCOUNT_VALUE}!
+                                        <Gift className="h-4 w-4" /> ¡TIENES UN VALE DE $5!
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-100">
@@ -166,17 +171,11 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                                         <span>TE FALTAN <strong className="text-white">{pointsNeeded} PTS</strong> PARA TU RECOMPENSA.</span>
                                     </div>
                                 )}
-                                {points >= POINTS_THRESHOLD && (
-                                    <span className="bg-white text-indigo-800 text-[9px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest">
-                                        Canjear
-                                    </span>
-                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* HISTORIAL DE PEDIDOS */}
                 <div className="px-4 pb-6 space-y-4">
                     <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-2">Historial Reciente</h4>
                     

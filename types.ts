@@ -175,7 +175,7 @@ export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DAS
 
 export const ADMIN_PASSWORD = "1996";
 export const CASHIER_PASSWORD = "1234";
-export const DRIVER_PASSWORD = "moto";
+export const DRIVER_PASSWORD = "2468";
 export const DELIVERY_FEE = 1.00;
 export const DELIVERY_CITY = "Machalilla";
 export const POINTS_THRESHOLD = 500;
