@@ -27,11 +27,13 @@ interface AdminPanelProps {
   products: Product[];
   categories: Category[];
   orders: Order[];
-  onAddProduct: (p: Product) => Promise<void>;
+  // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
+  onAddProduct: (p: Product) => Promise<any>;
   onEditProduct: (p: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   onUpdateStock: (id: string, newStock: number) => Promise<void>;
-  onAddCategory: (c: Category) => Promise<void>;
+  // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
+  onAddCategory: (c: Category) => Promise<any>;
   onDeleteCategory: (id: string) => Promise<void>;
   onAddOrder: (o: Order) => Promise<void>;
   onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>;

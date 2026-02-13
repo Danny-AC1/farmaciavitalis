@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Product, CartItem, Subscription } from '../types';
+import { Product, CartItem } from '../types';
 import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB } from '../services/db';
 import { getCrossSellSuggestion } from '../services/gemini';
@@ -58,16 +58,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
   const handleSubscribe = async () => {
       if (!currentUserEmail) return alert("Debes iniciar sesión para suscribirte.");
-      const sub: Subscription = {
-          id: `sub_${Date.now()}`,
-          userId: currentUserEmail,
-          productId: product.id,
-          productName: product.name,
-          frequencyDays: 30,
-          nextDelivery: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-          active: true
-      };
-      await addSubscriptionDB(sub);
+      // CORRECCIÓN: Se pasan los 4 argumentos requeridos por la función en services/db.ts
+      await addSubscriptionDB(currentUserEmail, product.id, product.name, 30);
       setSubscribing(true);
   };
 

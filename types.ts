@@ -41,7 +41,6 @@ export interface Order {
   total: number;
   paymentMethod: 'TRANSFER' | 'CASH';
   cashGiven?: number; 
-  receiptUrl?: string; // Nuevo: URL del comprobante de transferencia
   status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   source?: 'ONLINE' | 'POS';
   date: string;
@@ -67,7 +66,6 @@ export interface CheckoutFormData {
   city: string;
   paymentMethod: 'TRANSFER' | 'CASH';
   cashGiven?: string; 
-  receiptUrl?: string; // Nuevo
 }
 
 export interface Coupon {

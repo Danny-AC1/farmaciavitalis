@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
     Product, Order, Category, User, Supplier, SearchLog, Banner, 
     Expense, Subscription, Coupon, ServiceBooking, StockAlert, 
-    CartItem
+    CartItem, BlogPost 
 } from '../types';
 import { 
     streamUsers, streamSuppliers, streamSearchLogs, streamBanners, 
@@ -21,11 +21,13 @@ export const useAdminPanelState = (
     products: Product[], 
     categories: Category[], 
     orders: Order[],
-    onAddProduct: (p: Product) => Promise<void>,
+    // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
+    onAddProduct: (p: Product) => Promise<any>,
     onEditProduct: (p: Product) => Promise<void>,
     onDeleteProduct: (id: string) => Promise<void>,
     onUpdateStock: (id: string, newStock: number) => Promise<void>,
-    onAddCategory: (c: Category) => Promise<void>,
+    // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
+    onAddCategory: (c: Category) => Promise<any>,
     onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>
 ) => {
     // ESTADOS DE NAVEGACIÓN Y UI
@@ -67,7 +69,7 @@ export const useAdminPanelState = (
     const [showPosScanner, setShowPosScanner] = useState(false);
     const [showCashClosure, setShowCashClosure] = useState(false);
 
-    // ESTADOS DE DATOS EN TIEMPO REAL (FIREBASE)
+    // ESTADOS DE DATOS EN TIEMRE REAL (FIREBASE)
     const [banners, setBanners] = useState<Banner[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
