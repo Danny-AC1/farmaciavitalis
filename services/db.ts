@@ -189,11 +189,15 @@ export const updateOrderLocationDB = async (id: string, lat: number, lng: number
     }
 };
 
-// --- RESTO DEL ARCHIVO (Usuarios, Familia, Blog, etc.) ---
+// --- USERS ---
 export const saveUserDB = async (user: User) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
     const dataToSave = { ...user, points: user.points || 0 };
     await setDoc(userRef, dataToSave, { merge: true }); 
+};
+
+export const deleteUserDB = async (uid: string) => {
+    await deleteDoc(doc(db, USERS_COLLECTION, uid));
 };
 
 export const getUserDB = async (uid: string): Promise<User | null> => {

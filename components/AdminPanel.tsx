@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { Product, Order, Category } from '../types';
-import { Menu, Bell, Layout, X, Calculator, Printer } from 'lucide-react';
+import { Menu, Bell, Layout, X, Calculator, Printer, Package, ClipboardList, CalendarCheck, ChevronRight } from 'lucide-react';
 import { useAdminPanelState } from '../hooks/useAdminPanelState';
 import { uploadImageToStorage } from '../services/db';
 
@@ -60,7 +60,27 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [state]);
 
-  const pendingCount = props.orders.filter(o => o.status === 'PENDING').length;
+  const pendingOrders = props.orders.filter(o => o.status === 'PENDING');
+  const lowStockItems = props.products.filter(p => p.stock <= 5);
+  const pendingBookings = state.bookings.filter(b => b.status === 'PENDING');
+  
+  const totalNotifications = pendingOrders.length + lowStockItems.length + pendingBookings.length;
+
+  const NotificationItem = ({ icon: Icon, title, desc, color, onClick }: any) => (
+    <button 
+        onClick={onClick}
+        className="w-full flex items-start gap-3 p-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 text-left group"
+    >
+        <div className={`p-2 rounded-xl shrink-0 ${color}`}>
+            <Icon size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{title}</p>
+            <p className="text-[10px] text-slate-400 font-bold leading-tight line-clamp-1">{desc}</p>
+        </div>
+        <ChevronRight size={14} className="text-slate-200 group-hover:text-teal-500 transition-colors self-center" />
+    </button>
+  );
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -80,10 +100,79 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
              </div>
              
              <div className="flex items-center gap-3 md:gap-5 relative" ref={notificationRef}>
-                 <button onClick={() => state.setShowNotifications(!state.showNotifications)} className={`relative p-2 rounded-xl transition-all group ${state.showNotifications ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}>
+                 <button 
+                    onClick={() => state.setShowNotifications(!state.showNotifications)} 
+                    className={`relative p-2 rounded-xl transition-all group ${state.showNotifications ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
+                 >
                     <Bell size={22} />
-                    {pendingCount > 0 && <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
+                    {totalNotifications > 0 && (
+                        <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                    )}
                  </button>
+
+                 {/* DROPDOWN DE NOTIFICACIONES */}
+                 {state.showNotifications && (
+                    <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
+                        <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest">Centro de Alertas</h4>
+                            <span className="bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">{totalNotifications} Nuevas</span>
+                        </div>
+                        
+                        <div className="max-h-[400px] overflow-y-auto no-scrollbar">
+                            {totalNotifications === 0 ? (
+                                <div className="p-10 text-center flex flex-col items-center">
+                                    <Bell className="text-slate-100 mb-3" size={40}/>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase">Sin novedades por ahora</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {pendingOrders.map(order => (
+                                        <NotificationItem 
+                                            key={order.id}
+                                            icon={ClipboardList}
+                                            title={`Nuevo Pedido Web`}
+                                            desc={`${order.customerName} - $${order.total.toFixed(2)}`}
+                                            color="bg-orange-50 text-orange-600"
+                                            onClick={() => { state.setActiveTab('orders'); state.setShowNotifications(false); }}
+                                        />
+                                    ))}
+                                    {lowStockItems.map(item => (
+                                        <NotificationItem 
+                                            key={item.id}
+                                            icon={Package}
+                                            title={`Stock Crítico`}
+                                            desc={`${item.name} (${item.stock} disponibles)`}
+                                            color="bg-red-50 text-red-600"
+                                            onClick={() => { state.setActiveTab('stock_quick'); state.setShowNotifications(false); }}
+                                        />
+                                    ))}
+                                    {pendingBookings.map(booking => (
+                                        <NotificationItem 
+                                            key={booking.id}
+                                            icon={CalendarCheck}
+                                            title={`Cita Médica`}
+                                            desc={`${booking.patientName} - ${booking.serviceName}`}
+                                            color="bg-blue-50 text-blue-600"
+                                            onClick={() => { state.setActiveTab('bookings'); state.setShowNotifications(false); }}
+                                        />
+                                    ))}
+                                </>
+                            )}
+                        </div>
+                        
+                        {totalNotifications > 0 && (
+                            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                                <button 
+                                    onClick={() => state.setShowNotifications(false)}
+                                    className="text-[9px] font-black text-teal-600 uppercase tracking-widest hover:underline"
+                                >
+                                    Cerrar Ventana
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                 )}
+
                  <button onClick={props.onLogout} className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white">{props.currentUserRole?.charAt(0) || 'A'}</button>
              </div>
           </header>
@@ -92,7 +181,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               <div className="max-w-[1500px] mx-auto p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full">
                 {state.activeTab === 'dashboard' && <AdminDashboard orders={props.orders} products={props.products} expenses={state.expenses} reportPeriod={state.reportPeriod} setReportPeriod={state.setReportPeriod} chartData={state.chartData} netProfit={state.netProfit} totalRevenue={state.totalRevenue} profitableProducts={state.profitableProducts} topCategory={state.topCategory} />}
                 
-                {state.activeTab === 'pos' && <AdminPOS products={props.products} users={state.users} posCart={state.posCart} posSearch={state.posSearch} setPosSearch={state.setPosSearch} posCashReceived={state.posCashReceived} setPosCashReceived={state.setPosCashReceived} posPaymentMethod={state.posPaymentMethod} setPosPaymentMethod={state.setPosPaymentMethod} addToPosCart={state.addToPosCart} removeFromPosCart={(id)=>state.setPosCart(prev=>prev.filter(i=>i.id!==id))} handlePosCheckout={state.handlePosCheckout} setShowScanner={state.setShowPosScanner} setShowCashClosure={state.setShowCashClosure} />}
+                {state.activeTab === 'pos' && <AdminPOS products={props.products} users={state.users} posCart={state.posCart} posSearch={state.posSearch} setPosSearch={state.setPosSearch} posCashReceived={state.posCashReceived} setPosCashReceived={state.setPosCashReceived} posPaymentMethod={state.posPaymentMethod} setPosPaymentMethod={state.setPosPaymentMethod} addToPosCart={state.addToPosCart} removeFromPosCart={(id)=>state.setPosCart(prev=>prev.filter(i=>i.id!==id))} handlePosCheckout={state.handlePosCheckout} setShowScanner={state.setShowPosScanner} setShowCashClosure={state.setShowCashClosure} onDeleteUser={state.handleDeleteUser} />}
                 
                 {state.activeTab === 'orders' && <AdminOrders orders={props.orders} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} />}
                 

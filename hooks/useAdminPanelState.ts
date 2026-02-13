@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
     Product, Order, Category, User, Supplier, SearchLog, Banner, 
     Expense, Subscription, Coupon, ServiceBooking, StockAlert, 
-    CartItem 
+    CartItem
 } from '../types';
 import { 
     streamUsers, streamSuppliers, streamSearchLogs, streamBanners, 
@@ -12,7 +12,7 @@ import {
     deleteCouponDB, addExpenseDB, updateBookingStatusDB, saveUserDB, 
     deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
     addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB,
-    deleteBlogPostDB
+    deleteBlogPostDB, deleteUserDB
 } from '../services/db';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -170,6 +170,7 @@ export const useAdminPanelState = (
     const handleDeleteSubscription = async (id: string) => { if(confirm("¿Cancelar suscripción?")) await deleteSubscriptionDB(id); };
     const handleDeleteStockAlert = async (id: string) => { if(confirm("¿Borrar alerta?")) await deleteStockAlertDB(id); };
     const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar este consejo de salud?")) await deleteBlogPostDB(id); };
+    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar definitivamente a este cliente?")) await deleteUserDB(uid); };
     
     const handleAddBanner = async (file: File) => {
         setIsUploadingBanner(true);
@@ -252,21 +253,56 @@ export const useAdminPanelState = (
 
     const handlePosCheckout = async (customer?: User) => {
         if (posCart.length === 0) return;
-        const total = posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const order: Order = {
-            id: `POS-${Date.now()}`, customerName: customer?.displayName || 'Venta Local',
-            customerPhone: customer?.phone || 'N/A', customerAddress: customer?.cedula || 'Mostrador',
-            items: posCart, subtotal: total, deliveryFee: 0, total, paymentMethod: posPaymentMethod,
-            status: 'DELIVERED', source: 'POS', date: new Date().toISOString(), userId: customer?.uid
+
+        // Calculamos el total exacto basándonos en la unidad seleccionada
+        const total = posCart.reduce((sum, item) => {
+            const isBox = item.selectedUnit === 'BOX';
+            const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+            return sum + (price * item.quantity);
+        }, 0);
+
+        // Creamos el objeto de la orden limpiando valores undefined para evitar errores de Firebase
+        const orderData: any = {
+            id: `POS-${Date.now()}`,
+            customerName: customer?.displayName || 'Venta Local',
+            customerPhone: customer?.phone || 'N/A',
+            customerAddress: customer?.cedula || 'Mostrador',
+            items: posCart,
+            subtotal: total,
+            deliveryFee: 0,
+            total: total,
+            paymentMethod: posPaymentMethod,
+            status: 'DELIVERED',
+            source: 'POS',
+            date: new Date().toISOString()
         };
+
+        // Solo añadimos campos opcionales si existen
+        if (customer?.uid) orderData.userId = customer.uid;
+        if (posCashReceived && !isNaN(parseFloat(posCashReceived))) {
+            orderData.cashGiven = parseFloat(posCashReceived);
+        }
+
         try {
-            await addOrderDB(order);
+            await addOrderDB(orderData as Order);
+            
+            // Descontamos stock de forma precisa
             for (const item of posCart) {
                 const orig = products.find(p => p.id === item.id);
-                if (orig) await updateStockDB(item.id, orig.stock - item.quantity);
+                if (orig) {
+                    const isBox = item.selectedUnit === 'BOX';
+                    const unitsToSubtract = isBox ? (orig.unitsPerBox || 1) * item.quantity : item.quantity;
+                    await updateStockDB(item.id, Math.max(0, orig.stock - unitsToSubtract));
+                }
             }
-            setPosCart([]); setPosCashReceived(''); alert("Venta exitosa");
-        } catch (e) { alert("Error"); }
+            
+            setPosCart([]);
+            setPosCashReceived('');
+            alert("¡Venta exitosa!");
+        } catch (error: any) {
+            console.error("Error en Checkout POS:", error);
+            alert(`Error al procesar la venta: ${error.message || 'Error desconocido'}`);
+        }
     };
 
     const addToPosCart = (product: Product) => {
@@ -291,7 +327,7 @@ export const useAdminPanelState = (
         banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
         chartData, profitableProducts, topCategory, totalRevenue, netProfit, todayCash, todayTrans,
         handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, handleDeleteSubscription,
-        handleDeleteStockAlert, handleDeleteBlogPost, handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
+        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
         handleUpdateUserRole, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
         handleGenerateBlog, handleGeneratePost, handlePosCheckout, addToPosCart,
         handleProductDelete, handleStockUpdate, handleCategoryAdd, handleOrderStatusUpdate,

@@ -23,66 +23,121 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsHtml = order.items.map(item => `
-      <div class="row">
-        <span>${item.quantity}x ${item.name.substring(0, 18)}</span>
-        <span>$${(item.price * item.quantity).toFixed(2)}</span>
-      </div>
-    `).join('');
+    const itemsHtml = order.items.map(item => {
+      const isBox = item.selectedUnit === 'BOX';
+      const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+      const unitLabel = isBox ? `[CJ x${item.unitsPerBox}]` : '[UN]';
+      
+      return `
+        <div class="item-row">
+          <div class="item-name bold">${item.name.toUpperCase()}</div>
+          <div class="item-details">
+            <span>${item.quantity} x $${priceToUse.toFixed(2)} ${unitLabel}</span>
+            <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Ticket de Venta - ${order.id}</title>
+          <title>VITALIS TICKET - ${order.id.slice(-6)}</title>
           <style>
             @page { margin: 0; }
             body { 
               font-family: 'Courier New', Courier, monospace; 
               width: 58mm; 
-              padding: 4mm; 
+              padding: 2mm; 
               margin: 0; 
-              font-size: 11px;
+              font-size: 10px;
               color: #000;
+              line-height: 1.2;
             }
             .text-center { text-align: center; }
+            .text-right { text-align: right; }
             .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 5px 0; }
-            .row { display: flex; justify-content: space-between; margin: 2px 0; }
-            .header { font-size: 14px; margin-bottom: 2px; }
-            .footer { margin-top: 15px; font-size: 10px; }
+            .divider { border-top: 1px dashed #000; margin: 4px 0; }
+            .header-main { font-size: 14px; margin-bottom: 2px; }
+            .item-row { margin-bottom: 5px; }
+            .item-details { display: flex; justify-content: space-between; font-size: 9px; }
+            .totals-row { display: flex; justify-content: space-between; margin: 1px 0; }
+            .total-final { font-size: 13px; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px; }
+            .mt-1 { margin-top: 4px; }
             .mt-2 { margin-top: 8px; }
+            .footer { margin-top: 15px; font-size: 8px; font-style: italic; }
           </style>
         </head>
         <body onload="window.print(); window.close();">
-          <div class="text-center header bold">FARMACIA VITALIS</div>
+          <div class="text-center bold header-main">FARMACIA VITALIS</div>
+          <div class="text-center uppercase">Tu Salud Al Día</div>
           <div class="text-center">Machalilla, Ecuador</div>
+          <div class="text-center">TEL: 0998506160</div>
+          
           <div class="divider"></div>
-          <div class="bold mt-2">ORDEN: #${order.id.slice(-6)}</div>
+          
+          <div class="bold">ORDEN: #${order.id.slice(-8)}</div>
           <div>FECHA: ${new Date(order.date).toLocaleString()}</div>
+          <div>MODO: ${order.source || 'VENTA'}</div>
+          
           <div class="divider"></div>
+          
           <div class="bold">CLIENTE:</div>
-          <div>${order.customerName}</div>
-          <div>TEL: ${order.customerPhone}</div>
+          <div class="uppercase">${order.customerName}</div>
+          <div>DIR: ${order.customerAddress.substring(0, 30)}</div>
+          
           <div class="divider"></div>
-          <div class="bold">PRODUCTOS:</div>
-          ${itemsHtml}
+          
+          <div class="bold">DETALLE PRODUCTOS:</div>
+          <div class="mt-1">${itemsHtml}</div>
+          
           <div class="divider"></div>
-          <div class="row"><span>SUBTOTAL:</span><span>$${order.subtotal.toFixed(2)}</span></div>
-          <div class="row"><span>ENVIO:</span><span>$${(order.deliveryFee || 0).toFixed(2)}</span></div>
-          ${order.discount ? `<div class="row"><span>DESC:</span><span>-$${order.discount.toFixed(2)}</span></div>` : ''}
-          <div class="row bold" style="font-size: 13px; margin-top: 4px;">
-            <span>TOTAL:</span><span>$${order.total.toFixed(2)}</span>
+          
+          <div class="totals-row">
+            <span>SUBTOTAL:</span>
+            <span>$${order.subtotal.toFixed(2)}</span>
           </div>
+          <div class="totals-row">
+            <span>ENVIO:</span>
+            <span>$${(order.deliveryFee || 0).toFixed(2)}</span>
+          </div>
+          ${order.discount ? `
+          <div class="totals-row">
+            <span>DESCUENTO:</span>
+            <span>-$${order.discount.toFixed(2)}</span>
+          </div>` : ''}
+          
+          <div class="totals-row bold total-final">
+            <span>TOTAL:</span>
+            <span>$${order.total.toFixed(2)}</span>
+          </div>
+          
           <div class="divider"></div>
-          <div class="bold">PAGO: ${order.paymentMethod === 'CASH' ? 'EFECTIVO' : 'TRANSFERENCIA'}</div>
+          
+          <div class="bold">METODO PAGO: ${order.paymentMethod === 'CASH' ? 'EFECTIVO' : 'TRANSFERENCIA'}</div>
           ${order.paymentMethod === 'CASH' && order.cashGiven ? `
-            <div class="row"><span>RECIBIDO:</span><span>$${order.cashGiven.toFixed(2)}</span></div>
-            <div class="row"><span>CAMBIO:</span><span>$${(order.cashGiven - order.total).toFixed(2)}</span></div>
+            <div class="totals-row">
+              <span>RECIBIDO:</span>
+              <span>$${order.cashGiven.toFixed(2)}</span>
+            </div>
+            <div class="totals-row bold">
+              <span>CAMBIO:</span>
+              <span>$${(order.cashGiven - order.total).toFixed(2)}</span>
+            </div>
           ` : ''}
+
+          ${order.userId ? `
+            <div class="mt-2 text-center bold" style="font-size: 8px;">
+              ¡PUNTOS VITALIS SUMADOS!
+            </div>
+          ` : ''}
+          
           <div class="divider"></div>
+          
           <div class="text-center footer">
-            ¡GRACIAS POR SU COMPRA!<br>
-            Tu Salud Al Día
+            DOCUMENTO NO VALIDO COMO FACTURA.<br>
+            ¡GRACIAS POR SU PREFERENCIA!<br>
+            vitalis.ec
           </div>
         </body>
       </html>
@@ -151,12 +206,16 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Detalles del Carrito</p>
                 <div className="space-y-2">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-xs font-medium text-gray-700">
-                      <span>{item.quantity}x {item.name} {item.selectedUnit === 'BOX' ? '(Caja)' : ''}</span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
+                  {order.items.map((item, idx) => {
+                    const isBox = item.selectedUnit === 'BOX';
+                    const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+                    return (
+                      <div key={idx} className="flex justify-between text-xs font-medium text-gray-700">
+                        <span>{item.quantity}x {item.name} {isBox ? `(Caja x${item.unitsPerBox})` : '(Unid)'}</span>
+                        <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -164,14 +223,14 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
             <div className="md:w-48 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
               <button 
                 onClick={() => handlePrintOrder(order)}
-                className="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition"
+                className="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-teal-600 transition-colors shadow-sm"
               >
                 <Printer size={14}/> Imprimir Ticket
               </button>
               {order.status === 'PENDING' && (
                 <button 
                   onClick={() => onUpdateStatus(order.id, 'DELIVERED', order)}
-                  className="w-full bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition"
+                  className="w-full bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition shadow-sm"
                 >
                   <CheckCircle size={14}/> Marcar Entregado
                 </button>
