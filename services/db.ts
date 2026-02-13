@@ -265,6 +265,10 @@ export const updateBookingStatusDB = async (id: string, status: ServiceBooking['
     await updateDoc(doc(db, BOOKINGS_COLLECTION, id), { status });
 };
 
+export const deleteBookingDB = async (id: string) => {
+    await deleteDoc(doc(db, BOOKINGS_COLLECTION, id));
+};
+
 export const streamCoupons = (callback: (coupons: Coupon[]) => void) => {
     return onSnapshot(query(collection(db, COUPONS_COLLECTION), orderBy('code')), (snapshot) => {
         const coupons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coupon[];

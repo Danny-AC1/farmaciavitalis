@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Product, Order, Category, User, Supplier, SearchLog, Banner, 
@@ -11,7 +12,7 @@ import {
     deleteCouponDB, addExpenseDB, updateBookingStatusDB, saveUserDB, 
     deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
     addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB,
-    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, updateSubscriptionDB
+    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, updateSubscriptionDB, deleteBookingDB
 } from '../services/db';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -161,7 +162,7 @@ export const useAdminPanelState = (
         await onUpdateOrderStatus(id, status, order);
     };
 
-    // --- MANEJADORES DE SUSCRIPCIONES (NUEVO) ---
+    // --- MANEJADORES DE SUSCRIPCIONES ---
     const handleProcessSubscription = async (sub: Subscription) => {
         const product = products.find(p => p.id === sub.productId);
         if (!product) return alert("Producto ya no disponible.");
@@ -216,8 +217,9 @@ export const useAdminPanelState = (
     const handleDeleteSubscription = async (id: string) => { if(confirm("¿Cancelar suscripción?")) await deleteSubscriptionDB(id); };
     const handleDeleteStockAlert = async (id: string) => { if(confirm("¿Borrar alerta?")) await deleteStockAlertDB(id); };
     const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar consejo?")) await deleteBlogPostDB(id); };
-    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar cliente?")) await deleteUserDB(uid); };
+    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar permanentemente este usuario y su historial?")) await deleteUserDB(uid); };
     const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
+    const handleDeleteBooking = async (id: string) => { if(confirm("¿Estás seguro de eliminar permanentemente esta cita?")) await deleteBookingDB(id); };
     
     const handleAddBanner = async (file: File) => {
         setIsUploadingBanner(true);
@@ -234,15 +236,20 @@ export const useAdminPanelState = (
 
     const handleAddSupplier = async (s: Supplier) => { await addSupplierDB(s); };
     const handleAddExpense = async (e: Expense) => { await addExpenseDB(e); };
+    
     const handleUpdateUserRole = async (uid: string, role: User['role']) => {
         const u = users.find(x => x.uid === uid);
         if (u) await saveUserDB({ ...u, role });
     };
+
+    const handleUpdateUser = async (user: User) => {
+        await saveUserDB(user);
+    };
+
     const handleUpdateBookingStatus = async (id: string, status: ServiceBooking['status']) => {
         await updateBookingStatusDB(id, status);
     };
 
-    // Added missing React namespace reference by importing React
     const handleProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -361,8 +368,9 @@ export const useAdminPanelState = (
         banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
         chartData, profitableProducts, topCategory, totalRevenue, netProfit, todayCash, todayTrans,
         handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, handleDeleteSubscription,
-        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleDeleteSearchLog, handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
-        handleUpdateUserRole, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
+        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking,
+        handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
+        handleUpdateUserRole, handleUpdateUser, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
         handleGenerateBlog, handleGeneratePost, handlePosCheckout, addToPosCart,
         handleProductDelete, handleStockUpdate, handleCategoryAdd, handleOrderStatusUpdate,
         handleProcessSubscription,

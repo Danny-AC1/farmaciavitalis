@@ -225,10 +225,10 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                 {state.activeTab === 'ciudadelas' && <AdminCiudadelas />}
                 {state.activeTab === 'demand' && <AdminDemand logs={state.searchLogs} onDeleteLog={state.handleDeleteSearchLog} />}
                 {state.activeTab === 'geostats' && <AdminGeoStats orders={props.orders} />}
-                {state.activeTab === 'users' && <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} />}
+                {state.activeTab === 'users' && <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} onUpdateUser={state.handleUpdateUser} onDeleteUser={state.handleDeleteUser} />}
                 {state.activeTab === 'expenses' && <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} />}
                 {state.activeTab === 'subscriptions' && <AdminSubscriptions subscriptions={state.subscriptions} onProcess={state.handleProcessSubscription} onDelete={state.handleDeleteSubscription} />}
-                {state.activeTab === 'bookings' && <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} />}
+                {state.activeTab === 'bookings' && <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} onDelete={state.handleDeleteBooking} />}
                 {state.activeTab === 'stock_alerts' && <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />}
               </div>
           </div>

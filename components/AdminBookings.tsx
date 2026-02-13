@@ -1,14 +1,15 @@
 
 import React from 'react';
 import { ServiceBooking } from '../types';
-import { CalendarCheck, CheckCircle, Clock, XCircle, Phone, MessageCircle, ClipboardCheck } from 'lucide-react';
+import { CalendarCheck, CheckCircle, Clock, XCircle, Phone, MessageCircle, ClipboardCheck, Trash2 } from 'lucide-react';
 
 interface AdminBookingsProps {
   bookings: ServiceBooking[];
   onUpdateStatus: (id: string, status: ServiceBooking['status']) => void;
+  onDelete: (id: string) => void;
 }
 
-const AdminBookings: React.FC<AdminBookingsProps> = ({ bookings, onUpdateStatus }) => {
+const AdminBookings: React.FC<AdminBookingsProps> = ({ bookings, onUpdateStatus, onDelete }) => {
   
   const handleNotifyWhatsApp = (booking: ServiceBooking) => {
     const message = `*CONFIRMACIÓN DE CITA - VITALIS* 💊\n\n` +
@@ -62,7 +63,16 @@ const AdminBookings: React.FC<AdminBookingsProps> = ({ bookings, onUpdateStatus 
                     booking.status === 'CANCELLED' ? 'bg-red-500' : 'bg-orange-400'
                 }`}></div>
 
-                <div className="flex justify-between items-start mb-4">
+                {/* Botón Eliminar */}
+                <button 
+                    onClick={() => onDelete(booking.id)}
+                    className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 z-10"
+                    title="Eliminar registro permanentemente"
+                >
+                    <Trash2 size={18}/>
+                </button>
+
+                <div className="flex justify-between items-start mb-4 pr-8">
                     <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-black text-teal-600 uppercase bg-teal-50 px-2.5 py-1 rounded-lg mb-2 inline-block tracking-widest border border-teal-100">
                             {booking.serviceName}
@@ -77,6 +87,9 @@ const AdminBookings: React.FC<AdminBookingsProps> = ({ bookings, onUpdateStatus 
                              </p>
                         </div>
                     </div>
+                </div>
+                
+                <div className="flex items-center mb-4">
                     <span className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
                         booking.status === 'CONFIRMED' ? 'bg-green-50 text-green-700 border-green-100' : 
                         booking.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 border-blue-100' :
