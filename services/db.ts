@@ -136,6 +136,15 @@ export const addOrderDB = async (order: Order) => {
       const userRef = doc(db, USERS_COLLECTION, order.userId);
       await updateDoc(userRef, { points: increment(-order.pointsRedeemed) });
   }
+
+  // Si es venta POS o ya está entregada, sumar puntos inmediatamente
+  if (order.userId && order.status === 'DELIVERED') {
+      const pointsEarned = Math.floor(order.total);
+      if (pointsEarned > 0) {
+          const userRef = doc(db, USERS_COLLECTION, order.userId);
+          await updateDoc(userRef, { points: increment(pointsEarned) });
+      }
+  }
 };
 
 export const deleteOrderDB = async (id: string) => {
@@ -355,9 +364,15 @@ export const deleteStockAlertDB = async (id: string) => {
     await deleteDoc(doc(db, STOCK_ALERTS_COLLECTION, id));
 };
 
-export const addSubscriptionDB = async (sub: Subscription) => {
-    const { id, ...data } = sub;
-    await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), data);
+export const addSubscriptionDB = async (email: string, productId: string, productName: string, freq: number) => {
+    await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), { 
+        userId: email, 
+        productId, 
+        productName, 
+        frequencyDays: freq, 
+        nextDelivery: new Date(Date.now() + freq * 86400000).toISOString(),
+        active: true 
+    });
 };
 
 export const streamSubscriptions = (callback: (subs: Subscription[]) => void) => {

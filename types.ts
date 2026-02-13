@@ -52,6 +52,7 @@ export interface User {
   email: string;
   displayName: string;
   phone?: string;
+  cedula?: string; // Nuevo: Para identificación en POS
   address?: string;
   role: 'USER' | 'ADMIN' | 'CASHIER' | 'DRIVER';
   points: number;

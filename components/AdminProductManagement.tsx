@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus, Search, } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus, Search } from 'lucide-react';
 import { Product, Category, Supplier } from '../types';
-import { generateProductDescription } from '../services/gemini';
 
 interface AdminProductManagementProps {
   products: Product[];
@@ -21,13 +20,13 @@ interface AdminProductManagementProps {
   prodBarcode: string; setProdBarcode: (s: string) => void;
   prodExpiry: string; setProdExpiry: (s: string) => void;
   prodSupplier: string; setProdSupplier: (s: string) => void;
-  handleProductSubmit: (e: React.FormEvent) => void;
-  handleGenerateDescription: () => void;
-  handleImageUpload: (e: any, setter: any) => void;
+  handleProductSubmit: (e: React.FormEvent) => void | Promise<void>;
+  handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
+  handleImageUpload: (e: any, setter: any) => void | Promise<void>;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
-  onDeleteProduct: (id: string) => void;
-  onUpdateStock: (id: string, s: number) => void;
+  onDeleteProduct: (id: string) => void | Promise<void>;
+  onUpdateStock: (id: string, s: number) => void | Promise<void>;
   resetProductForm: () => void;
   isGenerating: boolean;
   isSubmitting: boolean;
@@ -40,15 +39,14 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   prodPublicBoxPrice, setProdPublicBoxPrice,
   prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, prodBarcode, setProdBarcode,
   prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, handleProductSubmit, 
+  handleGenerateDescription,
   handleImageUpload, setShowProductScanner, handleEditClick, 
-  onDeleteProduct, onUpdateStock, resetProductForm, isSubmitting, fileInputRef
+  onDeleteProduct, onUpdateStock, resetProductForm, isGenerating, isSubmitting, fileInputRef
 }) => {
   
   const [descriptionTone, setDescriptionTone] = useState<'CLINICO' | 'PERSUASIVO' | 'CERCANO'>('PERSUASIVO');
-  const [isLocalGenerating, setIsLocalGenerating] = useState(false);
   const [listSearch, setListSearch] = useState('');
 
-  // Lógica de cálculo automático de costo por unidad basado en el Precio Caja (Costo)
   useEffect(() => {
     const boxPrice = parseFloat(prodBoxPrice);
     const units = parseInt(prodUnitsPerBox);
@@ -63,15 +61,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
 
   const onMagicGenerate = async () => {
     if (!prodName) return alert("Por favor, escribe el nombre del producto primero.");
-    setIsLocalGenerating(true);
-    try {
-        const result = await generateProductDescription(prodName, prodCat, descriptionTone);
-        setProdDesc(result);
-    } catch (error) {
-        alert("Error al conectar con la IA.");
-    } finally {
-        setIsLocalGenerating(false);
-    }
+    await handleGenerateDescription(descriptionTone);
   };
 
   const filteredProducts = products.filter(p => 
@@ -84,7 +74,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
     <div className="space-y-8 animate-in fade-in">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Package className="text-teal-600"/> {editingId ? 'Editar Producto' : 'Nuevo Producto'}
+                <Package className="text-teal-600" /> {editingId ? 'Editar Producto' : 'Nuevo Producto'}
             </h3>
             <form onSubmit={handleProductSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-4">
@@ -122,11 +112,11 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                         <button 
                             type="button" 
                             onClick={onMagicGenerate} 
-                            disabled={isLocalGenerating}
+                            disabled={isGenerating}
                             className="mt-2 w-full bg-white border border-teal-200 text-teal-700 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-2 hover:bg-teal-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
                         >
-                            {isLocalGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
-                            {isLocalGenerating ? 'GENERANDO MÁGIA...' : `GENERAR DESCRIPCIÓN ${descriptionTone}`}
+                            {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                            {isGenerating ? 'GENERANDO MÁGIA...' : `GENERAR DESCRIPCIÓN ${descriptionTone}`}
                         </button>
                     </div>
 
@@ -187,7 +177,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                     <div className="w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 relative group">
                         {prodImage ? (
                             <>
-                                <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" />
+                                <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" alt="Vista previa del producto" />
                                 <button type="button" onClick={() => setProdImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"><X size={14}/></button>
                             </>
                         ) : (
@@ -240,7 +230,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             <tr key={p.id} className="hover:bg-gray-50 transition">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <img src={p.image} className="h-10 w-10 object-contain mix-blend-multiply" />
+                                        <img src={p.image} className="h-10 w-10 object-contain mix-blend-multiply" alt={p.name} />
                                         <div>
                                             <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
                                             {p.barcode && <p className="text-[10px] text-gray-400 font-mono mt-0.5">{p.barcode}</p>}

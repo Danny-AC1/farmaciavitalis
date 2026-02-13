@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 // @ts-ignore
@@ -15,12 +16,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [cedula, setCedula] = useState(''); // Nuevo
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Manejo de Login/Registro con Email
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -28,18 +29,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
 
     try {
       if (isRegister) {
-        // Validaciones básicas antes de enviar a Firebase
         if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
         if (!name.trim()) throw new Error("El nombre es obligatorio.");
+        if (!cedula.trim()) throw new Error("La cédula es obligatoria para el programa de puntos.");
 
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
         
-        // Guardar datos extra en Firestore inmediatamente
         await saveUserDB({
             uid: userCred.user.uid,
             email: email,
             displayName: name,
+            cedula: cedula, // Guardar cedula
             phone: phone || '',
             address: address || '',
             role: 'USER',
@@ -52,20 +53,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error(err);
       let msg = "Ocurrió un error. Intenta de nuevo.";
-      
-      if (err.code === 'auth/operation-not-allowed') {
-          msg = "Error de configuración: Habilita 'Email/Password' en la consola de Firebase > Authentication.";
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-          msg = "Credenciales incorrectas.";
-      } else if (err.code === 'auth/email-already-in-use') {
-          msg = "Este correo ya está registrado.";
-      } else if (err.code === 'auth/weak-password') {
-          msg = "La contraseña es muy débil (mínimo 6 caracteres).";
-      } else if (err.message) {
-          msg = err.message;
-      }
+      if (err.code === 'auth/invalid-credential') msg = "Credenciales incorrectas.";
+      else if (err.code === 'auth/email-already-in-use') msg = "Este correo ya está registrado.";
+      else if (err.message) msg = err.message;
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -76,7 +67,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
         <div className="bg-teal-600 p-4 flex justify-between items-center text-white">
-          <h3 className="font-bold text-lg">{isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}</h3>
+          <h3 className="font-bold text-lg">{isRegister ? 'Crear Cuenta Vitalis' : 'Iniciar Sesión'}</h3>
           <button onClick={onClose}><X /></button>
         </div>
         
@@ -85,16 +76,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             {isRegister && (
                 <div className="space-y-4 animate-in slide-in-from-top-2">
                     <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label>
-                    <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={name} onChange={e => setName(e.target.value)} />
+                        <label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label>
+                        <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors uppercase" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                     <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label>
-                    <input required type="tel" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={phone} onChange={e => setPhone(e.target.value)} />
+                        <label className="text-xs font-bold text-gray-500 uppercase">Cédula de Identidad</label>
+                        <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={cedula} onChange={e => setCedula(e.target.value)} placeholder="Necesaria para sumar puntos" />
                     </div>
-                    <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase">Dirección (Machalilla)</label>
-                    <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={address} onChange={e => setAddress(e.target.value)} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label>
+                            <input required type="tel" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={phone} onChange={e => setPhone(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Dirección</label>
+                            <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={address} onChange={e => setAddress(e.target.value)} />
+                        </div>
                     </div>
                 </div>
             )}
@@ -110,19 +107,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
 
             {error && <p className="text-red-500 text-sm text-center bg-red-50 p-2 rounded border border-red-100">{error}</p>}
 
-            <button 
-                type="submit" 
-                disabled={isLoading}
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 disabled:opacity-70"
-            >
+            <button type="submit" disabled={isLoading} className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-70">
                 {isLoading ? <Loader2 className="animate-spin" /> : (isRegister ? <UserPlus className="h-5 w-5"/> : <LogIn className="h-5 w-5"/>)}
-                {isRegister ? 'Registrarme' : 'Entrar con Email'}
+                {isRegister ? 'Registrarme ahora' : 'Ingresar'}
             </button>
             </form>
 
             <div className="text-center mt-6 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => { setIsRegister(!isRegister); setError(''); }} className="text-teal-600 text-sm font-semibold hover:underline">
-                {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+                    {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate gratis'}
                 </button>
             </div>
         </div>
