@@ -25,7 +25,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
   useEffect(() => {
-      // Fetch AI suggestion on mount if products available
       if (products.length > 0) {
           setLoadingSuggestion(true);
           getCrossSellSuggestion(product, products).then(res => {
@@ -47,6 +46,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const available = Math.max(0, product.stock - reserved);
   const hasBox = (product.unitsPerBox ?? 0) > 1;
   const unitsPerBox = product.unitsPerBox ?? 1;
+
+  // Priorizamos el publicBoxPrice, si no existe usamos boxPrice como fallback (compatibilidad)
+  const displayBoxPrice = product.publicBoxPrice || product.boxPrice || 0;
 
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");
@@ -120,7 +122,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
             <p className="text-gray-600 text-base leading-relaxed mb-6 md:mb-8">{product.description}</p>
 
-            {/* AI Recommendation (Cross-Selling) */}
             {loadingSuggestion ? (
                 <div className="mb-6 bg-purple-50 border border-purple-100 rounded-lg p-3 flex items-center gap-2 text-purple-700 text-xs animate-pulse">
                     <Sparkles className="h-4 w-4"/> Buscando recomendación farmacéutica...
@@ -147,10 +148,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                 </div>
             )}
 
-            {/* ACTIONS */}
             {available > 0 ? (
                 <div className="space-y-4 pb-20 md:pb-0">
-                  {/* Unit Option */}
                   <div className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 transition-colors bg-gray-50/50">
                     <div className="flex justify-between items-center mb-3">
                       <div><span className="block text-xs font-bold text-gray-400 uppercase">Precio Unitario</span><span className="text-2xl font-black text-teal-700">${product.price.toFixed(2)}</span></div>
@@ -158,13 +157,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                     <button onClick={() => onAddToCart(product, 'UNIT')} className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-600/20"><ShoppingCart className="h-5 w-5" /> Agregar Unidad</button>
                   </div>
 
-                  {/* Box Option */}
-                  {hasBox && product.boxPrice && (
+                  {hasBox && displayBoxPrice > 0 && (
                       <div className="p-4 border border-blue-200 rounded-xl hover:border-blue-400 transition-colors bg-blue-50/50">
                           <div className="flex justify-between items-center mb-3">
                               <div>
-                                  <span className="block text-xs font-bold text-blue-400 uppercase flex items-center gap-1"><Package className="h-3 w-3"/> Caja x{unitsPerBox}</span>
-                                  <span className="text-2xl font-black text-blue-700">${product.boxPrice.toFixed(2)}</span>
+                                  <span className="block text-xs font-bold text-blue-400 uppercase flex items-center gap-1"><Package className="h-3 w-3"/> Caja x{unitsPerBox} (Ahorro)</span>
+                                  <span className="text-2xl font-black text-blue-700">${displayBoxPrice.toFixed(2)}</span>
                               </div>
                           </div>
                           <button 
@@ -177,7 +175,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                       </div>
                   )}
 
-                  {/* Subscription Button */}
                   <button 
                     onClick={handleSubscribe} 
                     disabled={subscribing}

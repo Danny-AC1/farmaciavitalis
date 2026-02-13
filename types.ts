@@ -9,10 +9,12 @@ export interface Product {
   category: string;
   stock: number; 
   unitsPerBox?: number; 
-  boxPrice?: number;
+  boxPrice?: number; // Este se usará como costo de caja para cálculos internos
+  publicBoxPrice?: number; // Nuevo: Precio de venta al público por caja
   barcode?: string;
   expiryDate?: string;
-  supplierId?: string; // Nuevo: Relación con proveedor
+  supplierId?: string;
+  requiresPrescription?: boolean;
 }
 
 export interface Category {
@@ -35,16 +37,14 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   discount?: number;
-  pointsRedeemed?: number; // Nuevo: Puntos usados
+  pointsRedeemed?: number;
   total: number;
   paymentMethod: 'TRANSFER' | 'CASH';
   cashGiven?: number; 
-  status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED'; // Nuevo estado
+  status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   source?: 'ONLINE' | 'POS';
   date: string;
   userId?: string;
-  driverId?: string; // Nuevo: Asignación a repartidor
-  driverLocation?: { lat: number, lng: number, lastUpdate: string }; // Nuevo: GPS
 }
 
 export interface User {
@@ -53,8 +53,8 @@ export interface User {
   displayName: string;
   phone?: string;
   address?: string;
-  role: 'USER' | 'ADMIN' | 'CASHIER' | 'DRIVER'; // Roles actualizados
-  points: number; // Nuevo: Programa de lealtad
+  role: 'USER' | 'ADMIN' | 'CASHIER' | 'DRIVER';
+  points: number;
   createdAt: string;
 }
 
@@ -97,25 +97,6 @@ export interface SearchLog {
   count: number;
 }
 
-export interface BlogPost {
-  id: string;
-  title: string;
-  content: string; // HTML or Markdown
-  image?: string;
-  date: string;
-  author: string;
-}
-
-export interface Subscription {
-  id: string;
-  userId: string;
-  productId: string;
-  productName: string;
-  frequencyDays: number; // 30 dias usualmente
-  nextDelivery: string;
-  active: boolean;
-}
-
 export interface Expense {
   id: string;
   description: string;
@@ -124,47 +105,23 @@ export interface Expense {
   date: string;
 }
 
-// --- NUEVAS INTERFACES PARA FAMILY CARE & PASTILLERO ---
-
-export interface FamilyMember {
-  id: string;
-  userId: string; // Dueño de la cuenta principal
-  name: string;
-  relationship: 'ME' | 'PARENT' | 'CHILD' | 'PARTNER' | 'OTHER';
-  color: string; // Código de color para UI
-  avatar?: string;
-}
-
-export interface MedicationSchedule {
+export interface Subscription {
   id: string;
   userId: string;
-  familyMemberId: string;
-  name: string;
-  productId?: string; // Link opcional al catálogo para reabastecer
-  totalStock: number; // Cuántas pastillas hay en la caja
-  currentStock: number; // Cuántas quedan
-  dose: string; // Ej: "1 tableta"
-  frequencyLabel: string; // Ej: "Cada 8 horas"
-  lastTaken?: string;
+  productId: string;
+  productName: string;
+  frequencyDays: number;
+  nextDelivery: string;
   active: boolean;
-}
-
-// --- NUEVAS INTERFACES PARA SERVICIOS (OPCION 1) ---
-export interface Service {
-  id: string;
-  name: string;
-  price: number;
-  durationMin: number;
-  description: string;
 }
 
 export interface ServiceBooking {
   id: string;
-  userId?: string;
+  userId: string;
   patientName: string;
   serviceName: string;
-  date: string; // ISO Date for day
-  time: string; // "10:00"
+  date: string;
+  time: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   phone: string;
   notes?: string;
@@ -177,19 +134,48 @@ export interface StockAlert {
   createdAt: string;
 }
 
+export interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  author: string;
+}
+
+export interface FamilyMember {
+  id: string;
+  userId: string;
+  name: string;
+  relationship: 'PARENT' | 'CHILD' | 'PARTNER' | 'OTHER';
+  color: string;
+}
+
+export interface MedicationSchedule {
+  id: string;
+  userId: string;
+  familyMemberId: string;
+  name: string;
+  totalStock: number;
+  currentStock: number;
+  dose: string;
+  frequencyLabel: string;
+  productId?: string;
+  lastTaken?: string;
+  active: boolean;
+}
+
+export const AVAILABLE_SERVICES = [
+  { id: 's1', name: 'Inyectología', price: 2.00, durationMin: 10, description: 'Aplicación de inyecciones con receta.' },
+  { id: 's2', name: 'Control Presión', price: 1.00, durationMin: 5, description: 'Toma de presión arterial.' },
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' }
+];
+
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
 
 export const ADMIN_PASSWORD = "1996";
-export const CASHIER_PASSWORD = "1234"; // Simple password for cashier
-export const DRIVER_PASSWORD = "moto"; // Simple password for driver
+export const CASHIER_PASSWORD = "1234";
+export const DRIVER_PASSWORD = "moto";
 export const DELIVERY_FEE = 1.00;
 export const DELIVERY_CITY = "Machalilla";
 export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;
-
-export const AVAILABLE_SERVICES: Service[] = [
-  { id: 'srv_1', name: 'Inyectología', price: 3.50, durationMin: 15, description: 'Aplicación de inyecciones IM/IV Escartable incluido.' },
-  { id: 'srv_2', name: 'Toma de Presión', price: 3.00, durationMin: 10, description: 'Control de presión arterial y registro.' },
-  { id: 'srv_3', name: 'Prueba de Glucosa', price: 4.50, durationMin: 10, description: 'Medición rápida de glucosa en sangre.' },
-  { id: 'srv_4', name: 'Suero', price: 10.00, durationMin: 30, description: 'Sesión de nebulización (incluye solución salina).' },
-];

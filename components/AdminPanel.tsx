@@ -61,6 +61,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [prodCostPrice, setProdCostPrice] = useState('');
   const [prodUnitsPerBox, setProdUnitsPerBox] = useState('');
   const [prodBoxPrice, setProdBoxPrice] = useState('');
+  const [prodPublicBoxPrice, setProdPublicBoxPrice] = useState(''); // NUEVO
   const [prodDesc, setProdDesc] = useState('');
   const [prodCat, setProdCat] = useState('');
   const [prodImage, setProdImage] = useState('');
@@ -203,6 +204,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setProdCostPrice('');
     setProdUnitsPerBox('');
     setProdBoxPrice('');
+    setProdPublicBoxPrice(''); // NUEVO
     setProdDesc('');
     setProdCat(categories[0]?.name || '');
     setProdImage('');
@@ -218,6 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setProdCostPrice(p.costPrice?.toString() || '');
     setProdUnitsPerBox(p.unitsPerBox?.toString() || '');
     setProdBoxPrice(p.boxPrice?.toString() || '');
+    setProdPublicBoxPrice(p.publicBoxPrice?.toString() || ''); // NUEVO
     setProdDesc(p.description);
     setProdCat(p.category);
     setProdImage(p.image);
@@ -231,7 +234,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Lógica mejorada: Si es un producto nuevo, el stock inicial es igual a las unidades por caja ingresadas
     const initialStock = editingId 
         ? (products.find(p => p.id === editingId)?.stock || 0) 
         : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0);
@@ -244,6 +246,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         costPrice: prodCostPrice ? parseFloat(prodCostPrice) : undefined,
         unitsPerBox: prodUnitsPerBox ? parseInt(prodUnitsPerBox) : undefined,
         boxPrice: prodBoxPrice ? parseFloat(prodBoxPrice) : undefined,
+        publicBoxPrice: prodPublicBoxPrice ? parseFloat(prodPublicBoxPrice) : undefined, // NUEVO
         category: prodCat || categories[0]?.name || 'Medicamentos',
         stock: initialStock,
         image: prodImage || "https://via.placeholder.com/300",
@@ -266,7 +269,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Fixed error: Added missing category argument to generateProductDescription
   const handleGenerateDescription = async () => {
     if (!prodName) return alert("Ingresa el nombre del producto primero.");
     setIsGenerating(true);
@@ -558,7 +560,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     )}
                  </button>
 
-                 {/* DROPDOWN DE NOTIFICACIONES */}
                  {showNotifications && (
                      <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                          <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
@@ -575,7 +576,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                  </div>
                              ) : (
                                  <div className="divide-y divide-slate-50">
-                                     {/* Sección Pedidos */}
                                      {pendingOrders.map(order => (
                                          <div 
                                             key={order.id} 
@@ -591,7 +591,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                              </div>
                                          </div>
                                      ))}
-                                     {/* Sección Stock */}
                                      {lowStockProducts.map(p => (
                                          <div 
                                             key={p.id} 
@@ -645,7 +644,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 />}
                 {activeTab === 'pos' && <AdminPOS products={products} posCart={posCart} posSearch={posSearch} setPosSearch={setPosSearch} posCashReceived={posCashReceived} setPosCashReceived={setPosCashReceived} posPaymentMethod={posPaymentMethod} setPosPaymentMethod={setPosPaymentMethod} addToPosCart={addToPosCart} removeFromPosCart={removeFromPosCart} handlePosCheckout={handlePosCheckout} setShowScanner={setShowPosScanner} setShowCashClosure={setShowCashClosure} />}
                 {activeTab === 'orders' && <AdminOrders orders={orders} onUpdateStatus={onUpdateOrderStatus} onDeleteOrder={handleDeleteOrder} />}
-                {activeTab === 'products' && <AdminProductManagement products={products} categories={categories} suppliers={suppliers} editingId={editingId} prodName={prodName} setProdName={setProdName} prodPrice={prodPrice} setProdPrice={setProdPrice} prodCostPrice={prodCostPrice} setProdCostPrice={setProdCostPrice} prodUnitsPerBox={prodUnitsPerBox} setProdUnitsPerBox={setProdUnitsPerBox} prodBoxPrice={prodBoxPrice} setProdBoxPrice={setProdBoxPrice} prodDesc={prodDesc} setProdDesc={setProdDesc} prodCat={prodCat} setProdCat={setProdCat} prodImage={prodImage} setProdImage={setProdImage} prodBarcode={prodBarcode} setProdBarcode={setProdBarcode} prodExpiry={prodExpiry} setProdExpiry={setProdExpiry} prodSupplier={prodSupplier} setProdSupplier={setProdSupplier} handleProductSubmit={handleProductSubmit} handleGenerateDescription={handleGenerateDescription} handleImageUpload={(e) => handleImageUpload(e, setProdImage)} setShowProductScanner={setShowPosScanner} handleEditClick={handleEditClick} onDeleteProduct={onDeleteProduct} onUpdateStock={onUpdateStock} resetProductForm={resetProductForm} isGenerating={isGenerating} isSubmitting={isSubmitting} fileInputRef={productInputRef} />}
+                {activeTab === 'products' && <AdminProductManagement products={products} categories={categories} suppliers={suppliers} editingId={editingId} prodName={prodName} setProdName={setProdName} prodPrice={prodPrice} setProdPrice={setProdPrice} prodCostPrice={prodCostPrice} setProdCostPrice={setProdCostPrice} prodUnitsPerBox={prodUnitsPerBox} setProdUnitsPerBox={setProdUnitsPerBox} prodBoxPrice={prodBoxPrice} setProdBoxPrice={setProdBoxPrice} prodPublicBoxPrice={prodPublicBoxPrice} setProdPublicBoxPrice={setProdPublicBoxPrice} prodDesc={prodDesc} setProdDesc={setProdDesc} prodCat={prodCat} setProdCat={setProdCat} prodImage={prodImage} setProdImage={setProdImage} prodBarcode={prodBarcode} setProdBarcode={setProdBarcode} prodExpiry={prodExpiry} setProdExpiry={setProdExpiry} prodSupplier={prodSupplier} setProdSupplier={setProdSupplier} handleProductSubmit={handleProductSubmit} handleGenerateDescription={handleGenerateDescription} handleImageUpload={(e) => handleImageUpload(e, setProdImage)} setShowProductScanner={setShowPosScanner} handleEditClick={handleEditClick} onDeleteProduct={onDeleteProduct} onUpdateStock={onUpdateStock} resetProductForm={resetProductForm} isGenerating={isGenerating} isSubmitting={isSubmitting} fileInputRef={productInputRef} />}
                 {activeTab === 'stock_quick' && <AdminStockQuick products={products} onUpdateStock={onUpdateStock} />}
                 {activeTab === 'marketing' && <AdminMarketing products={products} banners={banners} coupons={coupons} blogTopic={blogTopic} setBlogTopic={setBlogTopic} handleGenerateBlog={() => handleGenerateBlog(blogTopic)} isGenerating={isGenerating} marketingProduct={marketingProduct} setMarketingProduct={setMarketingProduct} postPlatform={postPlatform} setPostPlatform={setPostPlatform} generatedPost={generatedPost} handleGeneratePost={handleGeneratePost} bannerTitle={bannerTitle} setBannerTitle={setBannerTitle} bannerInputRef={bannerInputRef} handleAddBanner={handleAddBanner} onDeleteBanner={deleteBannerDB} isUploadingBanner={isUploadingBanner} onAddCoupon={handleAddCoupon} onDeleteCoupon={deleteCouponDB} />}
                 {activeTab === 'categories' && <AdminSimpleTable title="Categorías" data={categories} onAdd={(name) => onAddCategory({id: '', name, image: ''})} onDelete={onDeleteCategory} />}

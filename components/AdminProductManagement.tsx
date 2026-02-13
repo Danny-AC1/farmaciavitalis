@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus, Search } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Sparkles, Loader2, ScanBarcode, X, Zap, ShieldCheck, Heart, Calendar, Minus, Search, } from 'lucide-react';
 import { Product, Category, Supplier } from '../types';
 import { generateProductDescription } from '../services/gemini';
 
@@ -14,6 +14,7 @@ interface AdminProductManagementProps {
   prodCostPrice: string; setProdCostPrice: (s: string) => void;
   prodUnitsPerBox: string; setProdUnitsPerBox: (s: string) => void;
   prodBoxPrice: string; setProdBoxPrice: (s: string) => void;
+  prodPublicBoxPrice: string; setProdPublicBoxPrice: (s: string) => void; // NUEVO
   prodDesc: string; setProdDesc: (s: string) => void;
   prodCat: string; setProdCat: (s: string) => void;
   prodImage: string; setProdImage: (s: string) => void;
@@ -21,7 +22,7 @@ interface AdminProductManagementProps {
   prodExpiry: string; setProdExpiry: (s: string) => void;
   prodSupplier: string; setProdSupplier: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void;
-  handleGenerateDescription: () => void; // Esta se ignora en favor de la interna
+  handleGenerateDescription: () => void;
   handleImageUpload: (e: any, setter: any) => void;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
@@ -36,6 +37,7 @@ interface AdminProductManagementProps {
 const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   products, categories, suppliers, editingId, prodName, setProdName, prodPrice, setProdPrice,
   prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox, prodBoxPrice, setProdBoxPrice,
+  prodPublicBoxPrice, setProdPublicBoxPrice,
   prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, prodBarcode, setProdBarcode,
   prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, handleProductSubmit, 
   handleImageUpload, setShowProductScanner, handleEditClick, 
@@ -46,14 +48,13 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
   const [listSearch, setListSearch] = useState('');
 
-  // Lógica de cálculo automático de costo por unidad
+  // Lógica de cálculo automático de costo por unidad basado en el Precio Caja (Costo)
   useEffect(() => {
     const boxPrice = parseFloat(prodBoxPrice);
     const units = parseInt(prodUnitsPerBox);
     
     if (!isNaN(boxPrice) && !isNaN(units) && units > 0) {
       const calculatedCost = (boxPrice / units).toFixed(2);
-      // Evitar actualizaciones infinitas si el valor ya es el mismo
       if (calculatedCost !== prodCostPrice) {
         setProdCostPrice(calculatedCost);
       }
@@ -73,7 +74,6 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
     }
   };
 
-  // Filtrar productos para la tabla
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(listSearch.toLowerCase()) || 
     p.category.toLowerCase().includes(listSearch.toLowerCase()) ||
@@ -130,24 +130,31 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Precio Venta</label>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Precio Unitario Público</label>
                             <input type="number" step="0.01" required className="w-full border p-2 rounded-lg" value={prodPrice} onChange={e => setProdPrice(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-blue-600 uppercase">Precio Caja Público</label>
+                            <input type="number" step="0.01" className="w-full border border-blue-200 p-2 rounded-lg bg-blue-50/30" value={prodPublicBoxPrice} onChange={e => setProdPublicBoxPrice(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Unid/Caja</label>
                             <input type="number" className="w-full border p-2 rounded-lg" value={prodUnitsPerBox} onChange={e => setProdUnitsPerBox(e.target.value)} />
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                         <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Precio Caja</label>
-                            <input type="number" step="0.01" className="w-full border p-2 rounded-lg" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
+                            <label className="text-xs font-bold text-gray-400 uppercase">Precio Caja (Costo Proveedor)</label>
+                            <input type="number" step="0.01" className="w-full border p-2 rounded-lg bg-gray-50" value={prodBoxPrice} onChange={e => setProdBoxPrice(e.target.value)} />
                         </div>
                         <div className="relative">
                             <label className="text-xs font-bold text-teal-600 uppercase flex items-center gap-1">
-                                Costo <span className="text-[8px] bg-teal-100 px-1 rounded">Auto</span>
+                                Costo Unitario <span className="text-[8px] bg-teal-100 px-1 rounded">Calculado</span>
                             </label>
-                            <input type="number" step="0.01" className="w-full border border-teal-200 bg-teal-50/30 p-2 rounded-lg font-bold text-teal-800" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
+                            <input type="number" step="0.01" className="w-full border border-teal-200 bg-teal-50 p-2 rounded-lg font-bold text-teal-800" value={prodCostPrice} onChange={e => setProdCostPrice(e.target.value)} />
                         </div>
                     </div>
 
@@ -202,7 +209,6 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
             </form>
         </div>
 
-        {/* Tabla de Productos con Barra de Búsqueda */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
              <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <h4 className="text-lg font-bold text-gray-800">Catálogo de Productos</h4>
@@ -210,7 +216,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Buscar producto, categoría o código..." 
+                        placeholder="Buscar producto..." 
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-teal-500 outline-none transition-all"
                         value={listSearch}
                         onChange={e => setListSearch(e.target.value)}
@@ -224,7 +230,8 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Categoría</th>
                             <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase">Stock</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio Unit.</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio Caja</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                         </tr>
                     </thead>
@@ -261,20 +268,13 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-sm font-black text-gray-800">${p.price.toFixed(2)}</td>
+                                <td className="px-6 py-4 text-sm font-black text-blue-600">{p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : 'N/A'}</td>
                                 <td className="px-6 py-4 text-right space-x-2">
                                     <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={16}/></button>
                                     <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Eliminar"><Trash2 size={16}/></button>
                                 </td>
                             </tr>
                         ))}
-                        {filteredProducts.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                    <Package size={32} className="mx-auto mb-2 opacity-20" />
-                                    <p className="text-sm font-bold uppercase tracking-widest">No se encontraron productos</p>
-                                </td>
-                            </tr>
-                        )}
                     </tbody>
                 </table>
              </div>
