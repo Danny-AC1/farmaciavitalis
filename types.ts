@@ -1,4 +1,5 @@
 
+
 export interface Product {
   id: string;
   name: string;
@@ -59,6 +60,12 @@ export interface User {
   createdAt: string;
 }
 
+export interface Ciudadela {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CheckoutFormData {
   name: string;
   phone: string;
@@ -66,6 +73,8 @@ export interface CheckoutFormData {
   city: string;
   paymentMethod: 'TRANSFER' | 'CASH';
   cashGiven?: string; 
+  deliveryFee: number;
+  deliveryZone: string;
 }
 
 export interface Coupon {
@@ -166,17 +175,20 @@ export interface MedicationSchedule {
 }
 
 export const AVAILABLE_SERVICES = [
-  { id: 's1', name: 'Inyectología', price: 2.00, durationMin: 10, description: 'Aplicación de inyecciones con receta.' },
-  { id: 's2', name: 'Control Presión', price: 1.00, durationMin: 5, description: 'Toma de presión arterial.' },
-  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' }
+  { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
+  { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
+  { id: 's4', name: 'Suero', price: 10.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
 
 export const ADMIN_PASSWORD = "1996";
 export const CASHIER_PASSWORD = "1234";
-export const DRIVER_PASSWORD = "2468";
-export const DELIVERY_FEE = 1.00;
+export const DRIVER_PASSWORD = "moto";
+
 export const DELIVERY_CITY = "Machalilla";
+// Added missing constant for delivery fee referenced in CartDrawer.tsx
+export const DELIVERY_FEE = 1.00;
 export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;

@@ -88,7 +88,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <Package size={24} />
               </div>
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ítems Registrados</span>
-              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} SKU</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} Productos</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">

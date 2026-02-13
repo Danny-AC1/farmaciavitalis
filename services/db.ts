@@ -1,9 +1,10 @@
+
 import { db, storage } from './firebase';
 // @ts-ignore
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, setDoc, getDoc, where, increment, limit } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert } from '../types';
+import { Product, Order, Category, User, Coupon, Banner, Supplier, SearchLog, BlogPost, Subscription, Expense, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert, Ciudadela } from '../types';
 
 const PRODUCTS_COLLECTION = 'products';
 const CATEGORIES_COLLECTION = 'categories';
@@ -20,6 +21,7 @@ const EXPENSES_COLLECTION = 'expenses';
 const FAMILY_COLLECTION = 'family_members';
 const MEDICATIONS_COLLECTION = 'medications';
 const BOOKINGS_COLLECTION = 'bookings';
+const CIUDADELAS_COLLECTION = 'ciudadelas';
 
 // Función para limpiar objetos de valores undefined antes de enviarlos a Firestore
 const cleanData = (obj: any): any => {
@@ -212,7 +214,6 @@ export const updateSubscriptionDB = async (id: string, data: Partial<Subscriptio
 };
 
 export const streamFamilyMembers = (userId: string, callback: (members: FamilyMember[]) => void) => {
-    // Se elimina el orderBy para evitar el requisito de índice compuesto
     const q = query(collection(db, FAMILY_COLLECTION), where('userId', '==', userId));
     return onSnapshot(q, (snapshot) => {
         const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FamilyMember[];
@@ -291,6 +292,16 @@ export const streamSuppliers = (callback: (suppliers: Supplier[]) => void) => {
 export const addSupplierDB = async (supplier: Supplier) => { const { id, ...data } = supplier; await addDoc(collection(db, SUPPLIERS_COLLECTION), cleanData(data)); };
 export const deleteSupplierDB = async (id: string) => { await deleteDoc(doc(db, SUPPLIERS_COLLECTION, id)); };
 
+export const streamCiudadelas = (callback: (data: Ciudadela[]) => void) => {
+    return onSnapshot(query(collection(db, CIUDADELAS_COLLECTION), orderBy('name')), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Ciudadela[];
+        callback(data);
+    });
+};
+export const addCiudadelaDB = async (data: Ciudadela) => { const { id, ...clean } = data; await addDoc(collection(db, CIUDADELAS_COLLECTION), cleanData(clean)); };
+export const updateCiudadelaDB = async (data: Ciudadela) => { await updateDoc(doc(db, CIUDADELAS_COLLECTION, data.id), cleanData(data)); };
+export const deleteCiudadelaDB = async (id: string) => { await deleteDoc(doc(db, CIUDADELAS_COLLECTION, id)); };
+
 export const logSearch = async (term: string) => {
     if (!term || term.length < 3) return;
     const today = new Date().toISOString().split('T')[0];
@@ -347,13 +358,3 @@ export const streamExpenses = (callback: (expenses: Expense[]) => void) => {
     });
 };
 export const deleteExpenseDB = async (id: string) => { await deleteDoc(doc(db, EXPENSES_COLLECTION, id)); };
-
-export const seedInitialData = async () => {
-    try {
-        const categoriesSnap = await getDocs(query(collection(db, CATEGORIES_COLLECTION), limit(1)));
-        if (categoriesSnap.empty) {
-            const defaultCats = [{ name: 'Medicamentos', image: '' }, { name: 'Vitaminas', image: '' }, { name: 'Primeros Auxilios', image: '' }, { name: 'Cuidado Personal', image: '' }];
-            for (const cat of defaultCats) await addDoc(collection(db, CATEGORIES_COLLECTION), cat);
-        }
-    } catch (e) {}
-};

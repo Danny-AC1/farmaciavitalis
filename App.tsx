@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Product, Category, Order, User, CartItem, ViewState, 
-  DELIVERY_FEE, CheckoutFormData, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD
+  CheckoutFormData, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD,
+  DELIVERY_FEE
 } from './types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
@@ -115,7 +116,8 @@ const App: React.FC = () => {
     return acc + (price * item.quantity);
   }, 0), [cart]);
 
-  const total = subtotal + (cart.length > 0 ? DELIVERY_FEE : 0);
+  // Total base con envío inicial incluido para visualización en el carrito
+  const totalBase = subtotal + DELIVERY_FEE;
 
   const displayedProducts = useMemo(() => {
     let filtered = products;
@@ -171,15 +173,15 @@ const App: React.FC = () => {
     }
 
     const orderId = `WEB-${Date.now()}`;
-    const finalTotal = total - discount;
+    const finalTotal = subtotal + details.deliveryFee - discount;
     const order: Order = {
       id: orderId,
       customerName: details.name,
       customerPhone: details.phone,
-      customerAddress: details.address,
+      customerAddress: `${details.deliveryZone}: ${details.address}`,
       items: cart,
       subtotal,
-      deliveryFee: DELIVERY_FEE,
+      deliveryFee: details.deliveryFee,
       discount,
       pointsRedeemed,
       total: finalTotal,
@@ -207,7 +209,8 @@ const App: React.FC = () => {
       const waMessage = `*NUEVO PEDIDO VITALIS* 💊\n\n` +
         `*Orden:* #${orderId.slice(-8)}\n` +
         `*Cliente:* ${order.customerName}\n` +
-        `*Dirección:* ${order.customerAddress}\n\n` +
+        `*Zona:* ${details.deliveryZone}\n` +
+        `*Dirección:* ${details.address}\n\n` +
         `*PRODUCTOS:*\n${itemsText}\n\n` +
         `*Subtotal:* $${order.subtotal.toFixed(2)}\n` +
         `*Envío:* $${order.deliveryFee.toFixed(2)}\n` +
@@ -287,13 +290,13 @@ const App: React.FC = () => {
 
       <CartDrawer 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cart={cart} updateQuantity={updateQuantity} 
-        removeFromCart={removeFromCart} subtotal={subtotal} total={total} onCheckout={handleProceedToCheckout}
+        removeFromCart={removeFromCart} subtotal={subtotal} total={totalBase} onCheckout={handleProceedToCheckout}
         checkingInteractions={checkingInteractions} interactionWarning={interactionWarning}
       />
 
       {selectedProduct && <ProductDetail product={selectedProduct} cart={cart} products={products} currentUserEmail={currentUser?.email} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} />}
 
-      {view === 'CHECKOUT' && <Checkout cart={cart} subtotal={subtotal} total={total} onConfirmOrder={handleConfirmOrder} onCancel={() => setView('HOME')} currentUser={currentUser} />}
+      {view === 'CHECKOUT' && <Checkout cart={cart} subtotal={subtotal} total={totalBase} onConfirmOrder={handleConfirmOrder} onCancel={() => setView('HOME')} currentUser={currentUser} />}
 
       {view === 'SUCCESS' && (
         <div className="fixed inset-0 z-[100] bg-teal-600 flex items-center justify-center p-6 text-white text-center">

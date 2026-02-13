@@ -105,9 +105,6 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, o
           </div>
         </div>
       </div>
-      <div className="bg-teal-800 py-1 text-center text-xs font-medium text-teal-50 flex justify-center gap-4 px-2 flex-wrap shadow-inner">
-        <span>📍 Envíos Machalilla (+$1.00)</span>
-      </div>
     </nav>
   );
 };
