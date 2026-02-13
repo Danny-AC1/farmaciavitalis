@@ -17,7 +17,7 @@ import HomeView from './components/HomeView';
 import SearchBar from './components/SearchBar';
 import CartDrawer from './components/CartDrawer';
 
-import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD, DELIVERY_FEE, DELIVERY_CITY, CheckoutFormData, User, Banner } from './types';
+import { Product, CartItem, ViewState, Order, Category, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD, DELIVERY_FEE, CheckoutFormData, User, Banner } from './types';
 import { 
   streamProducts, streamCategories, streamOrders, seedInitialData, addProductDB, updateProductDB, deleteProductDB, 
   updateStockDB, addCategoryDB, deleteCategoryDB, addOrderDB, updateOrderStatusDB, getUserDB, streamBanners, logSearch, deleteBannerDB
@@ -170,63 +170,88 @@ const App: React.FC = () => {
   const cartSubtotal = cart.reduce((sum, item) => sum + ((item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price) * item.quantity), 0);
   const cartTotal = cartSubtotal + DELIVERY_FEE;
 
-  const handleConfirmOrder = (details: CheckoutFormData, discount: number, pointsRedeemed: number) => {
+  const handleConfirmOrder = async (details: CheckoutFormData, discount: number, pointsRedeemed: number) => {
     const finalTotal = cartTotal - discount;
     const orderId = `ORD-${Date.now()}`;
     
-    // 1. REGISTRO INMEDIATO EN DB
+    // 1. CONSTRUCCIÓN DEL OBJETO DE ORDEN (SIN UNDEFINED)
     const newOrder: Order = {
-      id: orderId, customerName: details.name, customerPhone: details.phone, 
-      customerAddress: `${details.address}, ${DELIVERY_CITY}`, items: cart, subtotal: cartSubtotal, 
-      deliveryFee: DELIVERY_FEE, discount, pointsRedeemed, total: finalTotal, paymentMethod: details.paymentMethod, 
-      cashGiven: details.cashGiven ? parseFloat(details.cashGiven) : undefined, status: 'PENDING', source: 'ONLINE', 
-      date: new Date().toISOString(), userId: currentUser?.uid
+      id: orderId, 
+      customerName: details.name, 
+      customerPhone: details.phone, 
+      customerAddress: `${details.address}, Machalilla`, 
+      items: cart, 
+      subtotal: cartSubtotal, 
+      deliveryFee: DELIVERY_FEE, 
+      discount: discount || 0, 
+      pointsRedeemed: pointsRedeemed || 0, 
+      total: finalTotal, 
+      paymentMethod: details.paymentMethod, 
+      status: 'PENDING', 
+      source: 'ONLINE', 
+      date: new Date().toISOString()
     };
 
-    // 2. CONSTRUCCIÓN DE MENSAJE DETALLADO DE WHATSAPP
+    // Agregar campos opcionales solo si existen para evitar errores en Firestore
+    if (currentUser?.uid) newOrder.userId = currentUser.uid;
+    if (details.paymentMethod === 'CASH' && details.cashGiven) {
+        const val = parseFloat(details.cashGiven);
+        if (!isNaN(val)) newOrder.cashGiven = val;
+    }
+
+    // 2. CONSTRUCCIÓN DEL MENSAJE DE WHATSAPP (SÚPER DETALLADO)
     const itemsList = cart.map(item => {
-        const unitLabel = item.selectedUnit === 'BOX' ? `Caja x${item.unitsPerBox}` : 'Unid.';
-        const price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-        return `• ${item.quantity}x ${item.name} (${unitLabel}) - $${(price * item.quantity).toFixed(2)}`;
-    }).join('\n');
+        const isBox = item.selectedUnit === 'BOX';
+        const label = isBox ? `Caja x${item.unitsPerBox}` : 'Unidad';
+        const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+        return `✅ *${item.quantity}x* ${item.name.toUpperCase()}\n    _(${label})_ → $${(price * item.quantity).toFixed(2)}`;
+    }).join('\n\n');
 
-    const paymentInfo = details.paymentMethod === 'CASH' 
-        ? `*Pago:* Efectivo 💵\n*Paga con:* $${parseFloat(details.cashGiven || '0').toFixed(2)}\n*Cambio:* $${(parseFloat(details.cashGiven || '0') - finalTotal).toFixed(2)}`
-        : `*Pago:* Transferencia Bancaria 🏦\n_(Enviaré comprobante por este medio)_`;
+    const paymentText = details.paymentMethod === 'CASH' 
+        ? `💵 *PAGO:* EFECTIVO\n💰 *PAGA CON:* $${parseFloat(details.cashGiven || '0').toFixed(2)}\n🔄 *CAMBIO:* $${(parseFloat(details.cashGiven || '0') - finalTotal).toFixed(2)}`
+        : `🏦 *PAGO:* TRANSFERENCIA BANCARIA\n⚠️ _(Adjuntaré el comprobante a continuación)_`;
 
-    const message = `*NUEVO PEDIDO VITALIS* 💊\n` +
-                    `--------------------------\n` +
-                    `*Orden:* #${orderId.slice(-6)}\n` +
-                    `*Cliente:* ${details.name.toUpperCase()}\n` +
-                    `*Teléfono:* ${details.phone}\n` +
-                    `*Dirección:* ${details.address}, Machalilla\n` +
-                    `--------------------------\n` +
-                    `*PRODUCTOS:*\n${itemsList}\n` +
-                    `--------------------------\n` +
-                    `*Subtotal:* $${cartSubtotal.toFixed(2)}\n` +
-                    `*Envío:* $${DELIVERY_FEE.toFixed(2)}\n` +
-                    (discount > 0 ? `*Descuento:* -$${discount.toFixed(2)}\n` : '') +
-                    `*TOTAL A PAGAR: $${finalTotal.toFixed(2)}*\n` +
-                    `--------------------------\n` +
-                    `${paymentInfo}\n\n` +
-                    `_Pedido realizado desde la web de Vitalis_`;
+    const waMessage = 
+        `💊 *NUEVO PEDIDO VITALIS* 💊\n` +
+        `------------------------------------\n` +
+        `📝 *ORDEN:* #${orderId.slice(-6)}\n` +
+        `👤 *CLIENTE:* ${details.name.toUpperCase()}\n` +
+        `📞 *TELÉFONO:* ${details.phone}\n` +
+        `📍 *DIRECCIÓN:* ${details.address}, Machalilla\n` +
+        `------------------------------------\n` +
+        `📦 *PRODUCTOS SOLICITADOS:*\n\n${itemsList}\n` +
+        `------------------------------------\n` +
+        `💰 *SUBTOTAL:* $${cartSubtotal.toFixed(2)}\n` +
+        `🚚 *COSTO ENVÍO:* $${DELIVERY_FEE.toFixed(2)}\n` +
+        (discount > 0 ? `🎁 *DESCUENTO:* -$${discount.toFixed(2)}\n` : '') +
+        `✨ *TOTAL A PAGAR: $${finalTotal.toFixed(2)}*\n` +
+        `------------------------------------\n` +
+        `${paymentText}\n\n` +
+        `🚀 _Por favor confirmar mi pedido para el envío._`;
 
-    const link = `https://wa.me/593998506160?text=${encodeURIComponent(message)}`;
-    setLastOrderLink(link); 
-    
-    // 3. EJECUCIÓN DE PROCESO
-    addOrderDB(newOrder).then(() => {
-        cart.forEach(item => {
-            const current = products.find(p => p.id === item.id);
-            if (current) updateStockDB(item.id, Math.max(0, current.stock - (item.quantity * (item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1))));
-        });
-        setCart([]); 
+    const waLink = `https://wa.me/593998506160?text=${encodeURIComponent(waMessage)}`;
+    setLastOrderLink(waLink);
+
+    // 3. REGISTRO EN BASE DE DATOS Y WHATSAPP
+    try {
+        await addOrderDB(newOrder); // Esta función ahora limpia undefineds internamente
+        
+        // Actualizar Stock
+        for (const item of cart) {
+            const product = products.find(p => p.id === item.id);
+            if (product) {
+                const unitsToSubtract = item.selectedUnit === 'BOX' ? (product.unitsPerBox || 1) * item.quantity : item.quantity;
+                await updateStockDB(item.id, Math.max(0, product.stock - unitsToSubtract));
+            }
+        }
+
+        setCart([]);
         setView('SUCCESS');
-        window.open(link, '_blank');
-    }).catch(err => {
-        alert("Error al registrar el pedido. Intenta de nuevo.");
-        console.error(err);
-    });
+        window.open(waLink, '_blank');
+    } catch (err) {
+        console.error("Falla crítica en pedido:", err);
+        alert("Hubo un error al procesar tu pedido en la base de datos. Por favor, verifica tu conexión o intenta de nuevo.");
+    }
   };
 
   const handleTabChange = (tab: any) => {
@@ -266,7 +291,7 @@ const App: React.FC = () => {
         )}
         {view === 'ADMIN_LOGIN' && (
            <div className="min-h-[80vh] flex items-center justify-center px-4">
-              <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+              <div className="bg-white p-8 rounded-xl shadow-lg w-full max-md">
                 <h2 className="text-2xl font-bold mb-6 text-center">Acceso Personal</h2>
                 <form onSubmit={handleAdminLogin}>
                   <input type="password" className="w-full border rounded-lg px-3 py-2 mb-4" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="••••" />
@@ -286,7 +311,7 @@ const App: React.FC = () => {
                         <CheckCircle2 size={48} className="text-green-600" />
                     </div>
                     <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4 uppercase tracking-tighter">¡Pedido Recibido!</h2>
-                    <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">Gracias por confiar en <strong>Farmacia Vitalis</strong>. Tu pedido ha sido registrado correctamente.</p>
+                    <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">Gracias por confiar en <strong>Farmacia Vitalis</strong>. Tu pedido ha sido registrado correctamente y lo estamos preparando.</p>
                     
                     <div className="space-y-4">
                         {lastOrderLink && (
