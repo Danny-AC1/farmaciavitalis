@@ -110,19 +110,17 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     )}
                  </button>
 
-                 {/* DROPDOWN DE NOTIFICACIONES */}
                  {state.showNotifications && (
                     <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
                         <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
                             <h4 className="text-[10px] font-black uppercase tracking-widest">Centro de Alertas</h4>
                             <span className="bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">{totalNotifications} Nuevas</span>
                         </div>
-                        
                         <div className="max-h-[400px] overflow-y-auto no-scrollbar">
                             {totalNotifications === 0 ? (
                                 <div className="p-10 text-center flex flex-col items-center">
                                     <Bell className="text-slate-100 mb-3" size={40}/>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase">Sin novedades por ahora</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase">Sin novedades</p>
                                 </div>
                             ) : (
                                 <>
@@ -159,17 +157,6 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                 </>
                             )}
                         </div>
-                        
-                        {totalNotifications > 0 && (
-                            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                                <button 
-                                    onClick={() => state.setShowNotifications(false)}
-                                    className="text-[9px] font-black text-teal-600 uppercase tracking-widest hover:underline"
-                                >
-                                    Cerrar Ventana
-                                </button>
-                            </div>
-                        )}
                     </div>
                  )}
 
@@ -236,7 +223,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                 {state.activeTab === 'geostats' && <AdminGeoStats orders={props.orders} />}
                 {state.activeTab === 'users' && <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} />}
                 {state.activeTab === 'expenses' && <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} />}
-                {state.activeTab === 'subscriptions' && <AdminSubscriptions subscriptions={state.subscriptions} onDelete={state.handleDeleteSubscription} />}
+                {state.activeTab === 'subscriptions' && <AdminSubscriptions subscriptions={state.subscriptions} onProcess={state.handleProcessSubscription} onDelete={state.handleDeleteSubscription} />}
                 {state.activeTab === 'bookings' && <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} />}
                 {state.activeTab === 'stock_alerts' && <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />}
               </div>
@@ -254,7 +241,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
       {state.showCashClosure && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in">
+              <div className="bg-white rounded-3xl w-full max-sm shadow-2xl overflow-hidden animate-in zoom-in">
                   <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
                       <h3 className="text-sm font-bold flex items-center gap-2"><Calculator size={18}/> Corte de Caja</h3>
                       <button onClick={() => state.setShowCashClosure(false)} className="hover:bg-white/10 p-1.5 rounded-full"><X size={20}/></button>

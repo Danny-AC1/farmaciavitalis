@@ -12,7 +12,7 @@ import {
     deleteCouponDB, addExpenseDB, updateBookingStatusDB, saveUserDB, 
     deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
     addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB,
-    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB
+    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, updateSubscriptionDB
 } from '../services/db';
 import { generateProductDescription, generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -143,11 +143,9 @@ export const useAdminPanelState = (
     const todayCash = todayOrders.filter(o => o.paymentMethod === 'CASH').reduce((a, b) => a + b.total, 0);
     const todayTrans = todayOrders.filter(o => o.paymentMethod === 'TRANSFER').reduce((a, b) => a + b.total, 0);
 
-    // --- MANEJADORES QUE UTILIZAN LOS PARÁMETROS DEL HOOK ---
+    // --- MANEJADORES DE PRODUCTO ---
     const handleProductDelete = async (id: string) => {
-        if (confirm("¿Seguro que deseas eliminar este producto?")) {
-            await onDeleteProduct(id);
-        }
+        if (confirm("¿Seguro que deseas eliminar este producto?")) await onDeleteProduct(id);
     };
 
     const handleStockUpdate = async (id: string, newStock: number) => {
@@ -162,15 +160,62 @@ export const useAdminPanelState = (
         await onUpdateOrderStatus(id, status, order);
     };
 
-    // --- MANEJADORES DE DB DIRECTOS ---
+    // --- MANEJADORES DE SUSCRIPCIONES (NUEVO) ---
+    const handleProcessSubscription = async (sub: Subscription) => {
+        const product = products.find(p => p.id === sub.productId);
+        if (!product) return alert("Producto ya no disponible.");
+        if (product.stock <= 0) return alert("Sin stock para procesar esta suscripción.");
+
+        const user = users.find(u => u.email === sub.userId);
+        
+        const confirmProcess = confirm(`¿Generar pedido de "${sub.productName}" para ${sub.userId}?`);
+        if (!confirmProcess) return;
+
+        try {
+            // 1. Creamos la orden automática
+            const newOrder: Order = {
+                id: `SUB-${Date.now()}`,
+                customerName: user?.displayName || sub.userId,
+                customerPhone: user?.phone || 'S/N',
+                customerAddress: user?.address || 'Machalilla (Suscripción)',
+                items: [{ ...product, quantity: 1, selectedUnit: 'UNIT' }],
+                subtotal: product.price,
+                deliveryFee: 0,
+                total: product.price,
+                paymentMethod: 'CASH',
+                status: 'PENDING',
+                source: 'ONLINE',
+                date: new Date().toISOString(),
+                userId: user?.uid
+            };
+
+            await addOrderDB(newOrder);
+
+            // 2. Actualizamos la suscripción (sumamos días a la fecha)
+            const nextDate = new Date(new Date(sub.nextDelivery).getTime() + sub.frequencyDays * 86400000);
+            await updateSubscriptionDB(sub.id, {
+                nextDelivery: nextDate.toISOString()
+            });
+
+            // 3. Descontamos stock
+            await updateStockDB(product.id, product.stock - 1);
+
+            alert(`✅ Pedido generado. Próxima entrega: ${nextDate.toLocaleDateString()}`);
+        } catch (error) {
+            console.error("Error procesando suscripción:", error);
+            alert("Error al procesar.");
+        }
+    };
+
+    // --- OTROS MANEJADORES ---
     const handleDeleteOrder = async (id: string) => { if(confirm("¿Borrar pedido?")) await deleteOrderDB(id); };
     const handleDeleteBanner = async (id: string) => { if(confirm("¿Borrar banner?")) await deleteBannerDB(id); };
     const handleDeleteCoupon = async (id: string) => { if(confirm("¿Borrar cupón?")) await deleteCouponDB(id); };
     const handleDeleteSupplier = async (id: string) => { if(confirm("¿Borrar proveedor?")) await deleteSupplierDB(id); };
     const handleDeleteSubscription = async (id: string) => { if(confirm("¿Cancelar suscripción?")) await deleteSubscriptionDB(id); };
     const handleDeleteStockAlert = async (id: string) => { if(confirm("¿Borrar alerta?")) await deleteStockAlertDB(id); };
-    const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar este consejo de salud?")) await deleteBlogPostDB(id); };
-    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar definitivamente a este cliente?")) await deleteUserDB(uid); };
+    const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar consejo?")) await deleteBlogPostDB(id); };
+    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar cliente?")) await deleteUserDB(uid); };
     const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
     
     const handleAddBanner = async (file: File) => {
@@ -199,7 +244,6 @@ export const useAdminPanelState = (
     const handleProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const initialStock = editingId ? (products.find(p => p.id === editingId)?.stock || 0) : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0);
         const productData: Product = {
             id: editingId || '',
             name: prodName, description: prodDesc, price: parseFloat(prodPrice),
@@ -208,7 +252,8 @@ export const useAdminPanelState = (
             boxPrice: prodBoxPrice ? parseFloat(prodBoxPrice) : undefined,
             publicBoxPrice: prodPublicBoxPrice ? parseFloat(prodPublicBoxPrice) : undefined,
             category: prodCat || categories[0]?.name || 'Medicamentos',
-            stock: initialStock, image: prodImage || "https://via.placeholder.com/300",
+            stock: editingId ? (products.find(p => p.id === editingId)?.stock || 0) : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0),
+            image: prodImage || "https://via.placeholder.com/300",
             barcode: prodBarcode, expiryDate: prodExpiry, supplierId: prodSupplier
         };
         try {
@@ -242,7 +287,7 @@ export const useAdminPanelState = (
     };
 
     const handleGeneratePost = async () => {
-        if (!marketingProduct) return alert("Selecciona un producto primero.");
+        if (!marketingProduct) return alert("Selecciona un producto.");
         const p = products.find(x => x.id === marketingProduct);
         if (!p) return;
         setIsGenerating(true);
@@ -254,15 +299,12 @@ export const useAdminPanelState = (
 
     const handlePosCheckout = async (customer?: User) => {
         if (posCart.length === 0) return;
-
-        // Calculamos el total exacto basándonos en la unidad seleccionada
         const total = posCart.reduce((sum, item) => {
             const isBox = item.selectedUnit === 'BOX';
             const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
             return sum + (price * item.quantity);
         }, 0);
 
-        // Creamos el objeto de la orden limpiando valores undefined para evitar errores de Firebase
         const orderData: any = {
             id: `POS-${Date.now()}`,
             customerName: customer?.displayName || 'Venta Local',
@@ -278,16 +320,11 @@ export const useAdminPanelState = (
             date: new Date().toISOString()
         };
 
-        // Solo añadimos campos opcionales si existen
         if (customer?.uid) orderData.userId = customer.uid;
-        if (posCashReceived && !isNaN(parseFloat(posCashReceived))) {
-            orderData.cashGiven = parseFloat(posCashReceived);
-        }
+        if (posCashReceived && !isNaN(parseFloat(posCashReceived))) orderData.cashGiven = parseFloat(posCashReceived);
 
         try {
             await addOrderDB(orderData as Order);
-            
-            // Descontamos stock de forma precisa
             for (const item of posCart) {
                 const orig = products.find(p => p.id === item.id);
                 if (orig) {
@@ -296,14 +333,8 @@ export const useAdminPanelState = (
                     await updateStockDB(item.id, Math.max(0, orig.stock - unitsToSubtract));
                 }
             }
-            
-            setPosCart([]);
-            setPosCashReceived('');
-            alert("¡Venta exitosa!");
-        } catch (error: any) {
-            console.error("Error en Checkout POS:", error);
-            alert(`Error al procesar la venta: ${error.message || 'Error desconocido'}`);
-        }
+            setPosCart([]); setPosCashReceived(''); alert("¡Venta exitosa!");
+        } catch (error: any) { alert("Error al procesar venta."); }
     };
 
     const addToPosCart = (product: Product) => {
@@ -332,6 +363,7 @@ export const useAdminPanelState = (
         handleUpdateUserRole, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
         handleGenerateBlog, handleGeneratePost, handlePosCheckout, addToPosCart,
         handleProductDelete, handleStockUpdate, handleCategoryAdd, handleOrderStatusUpdate,
+        handleProcessSubscription,
         handleEditClick: (p: Product) => {
             setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString()); setProdCostPrice(p.costPrice?.toString() || '');
             setProdUnitsPerBox(p.unitsPerBox?.toString() || ''); setProdBoxPrice(p.boxPrice?.toString() || '');

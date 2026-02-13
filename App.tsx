@@ -33,6 +33,7 @@ import {
   logSearch,
   deleteBannerDB
 } from './services/db';
+import { getCart, saveCart } from './services/storage'; // Importar persistencia
 import { checkInteractions, searchProductsBySymptoms } from './services/gemini';
 import { auth } from './services/firebase';
 // @ts-ignore
@@ -169,7 +170,8 @@ const App: React.FC = () => {
   const [showFamilyHealthModal, setShowFamilyHealthModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
 
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Inicializar carrito desde localStorage
+  const [cart, setCart] = useState<CartItem[]>(() => getCart());
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   
@@ -190,6 +192,11 @@ const App: React.FC = () => {
   const [lastOrderLink, setLastOrderLink] = useState('');
 
   const isSuperAdmin = currentUser && AUTHORIZED_ADMIN_EMAILS.includes(currentUser.email);
+
+  // Sincronizar carrito con localStorage cada vez que cambie
+  useEffect(() => {
+      saveCart(cart);
+  }, [cart]);
 
   useEffect(() => {
     const unsubProducts = streamProducts((data) => {
@@ -401,6 +408,7 @@ const App: React.FC = () => {
       total: finalTotal,
       paymentMethod: details.paymentMethod,
       cashGiven: cashGivenValue, 
+      receiptUrl: details.receiptUrl, 
       status: 'PENDING',
       source: 'ONLINE',
       date: new Date().toISOString(),
@@ -420,6 +428,10 @@ const App: React.FC = () => {
         paymentInfo += `\n*Paga con:* $${cashGivenValue.toFixed(2)}\n*Cambio sugerido:* $${change.toFixed(2)}`;
     }
     
+    if (details.paymentMethod === 'TRANSFER' && details.receiptUrl) {
+        paymentInfo += `\n*Comprobante:* ${details.receiptUrl}`;
+    }
+    
     const message = `*NUEVO PEDIDO WEB - VITALIS* 💊\n\n` +
                     `*Cliente:* ${details.name}\n` +
                     `*Tel:* ${details.phone}\n` +
@@ -430,14 +442,14 @@ const App: React.FC = () => {
                     `*Envío Machalilla:* $${DELIVERY_FEE.toFixed(2)}\n` +
                     `${discount > 0 ? `*Descuento:* -$${discount.toFixed(2)}\n` : ''}` +
                     `*TOTAL A PAGAR:* $${finalTotal.toFixed(2)}\n\n` +
-                    `${details.paymentMethod === 'TRANSFER' ? '⚠️ *IMPORTANTE:* Por favor, adjunte el comprobante de transferencia a este chat para procesar su pedido.' : '🛵 El repartidor llevará cambio para el monto indicado.'}\n\n` +
+                    `${details.paymentMethod === 'TRANSFER' ? '✅ *TRANSFERENCIA REGISTRADA:* He adjuntado mi comprobante arriba.' : '🛵 El repartidor llevará cambio para el monto indicado.'}\n\n` +
                     `_¡Gracias por confiar en Vitalis! Tu salud al día._`;
 
     const link = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     setLastOrderLink(link);
     window.open(link, '_blank');
     handleAddOrder(newOrder);
-    setCart([]);
+    setCart([]); // Al vaciar el carrito aquí, el useEffect también vaciará el localStorage
     setView('SUCCESS');
   };
 

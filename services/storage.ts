@@ -1,8 +1,10 @@
-import { Product, Order, Category } from '../types';
+
+import { Product, Order, Category, CartItem } from '../types';
 
 const PRODUCTS_KEY = 'vitales_products_v2';
 const ORDERS_KEY = 'vitales_orders_v1';
 const CATEGORIES_KEY = 'vitales_categories_v1';
+const CART_KEY = 'vitalis_cart_v1'; // Nueva clave para el carrito
 
 // Simple SVG Placeholder
 const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' fill='%23f1f5f9'%3E%3Crect width='300' height='300' /%3E%3Cpath d='M150 100v100M100 150h100' stroke='%23cbd5e1' stroke-width='20' stroke-linecap='round'/%3E%3Ctext x='50%25' y='85%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%2394a3b8'%3ESin Imagen%3C/text%3E%3C/svg%3E";
@@ -86,4 +88,14 @@ export const getCategories = (): Category[] => {
 
 export const saveCategories = (categories: Category[]) => {
   localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+};
+
+// --- CARRITO PERSISTENTE ---
+export const getCart = (): CartItem[] => {
+    const stored = localStorage.getItem(CART_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+export const saveCart = (cart: CartItem[]) => {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
 };
