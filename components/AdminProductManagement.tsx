@@ -13,7 +13,7 @@ interface AdminProductManagementProps {
   prodCostPrice: string; setProdCostPrice: (s: string) => void;
   prodUnitsPerBox: string; setProdUnitsPerBox: (s: string) => void;
   prodBoxPrice: string; setProdBoxPrice: (s: string) => void;
-  prodPublicBoxPrice: string; setProdPublicBoxPrice: (s: string) => void; // NUEVO
+  prodPublicBoxPrice: string; setProdPublicBoxPrice: (s: string) => void;
   prodDesc: string; setProdDesc: (s: string) => void;
   prodCat: string; setProdCat: (s: string) => void;
   prodImage: string; setProdImage: (s: string) => void;
@@ -48,6 +48,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   const [descriptionTone, setDescriptionTone] = useState<'CLINICO' | 'PERSUASIVO' | 'CERCANO'>('PERSUASIVO');
   const [listSearch, setListSearch] = useState('');
 
+  // Cálculo automático del costo unitario basado en el precio de caja
   useEffect(() => {
     const boxPrice = parseFloat(prodBoxPrice);
     const units = parseInt(prodUnitsPerBox);
@@ -124,11 +125,11 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Precio Unitario Público</label>
-                            <input type="number" step="0.01" required className="w-full border p-2 rounded-lg" value={prodPrice} onChange={e => setProdPrice(e.target.value)} />
+                            <input type="number" step="0.01" required className="w-full border p-2 rounded-lg font-bold" value={prodPrice} onChange={e => setProdPrice(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-blue-600 uppercase">Precio Caja Público</label>
-                            <input type="number" step="0.01" className="w-full border border-blue-200 p-2 rounded-lg bg-blue-50/30" value={prodPublicBoxPrice} onChange={e => setProdPublicBoxPrice(e.target.value)} />
+                            <input type="number" step="0.01" className="w-full border border-blue-200 p-2 rounded-lg bg-blue-50/30 font-bold text-blue-800" value={prodPublicBoxPrice} onChange={e => setProdPublicBoxPrice(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Unid/Caja</label>
@@ -177,19 +178,19 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                     <label className="text-xs font-bold text-gray-500 uppercase block">Imagen del Producto</label>
                     <div className="w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 relative group">
                         {isUploadingImage ? (
-                            <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="animate-spin text-teal-600 h-10 w-10" />
-                                <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Subiendo...</span>
+                            <div className="flex flex-col items-center gap-3 animate-pulse">
+                                <Loader2 className="animate-spin text-teal-600 h-10 w-10" strokeWidth={3} />
+                                <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Subiendo imagen...</span>
                             </div>
                         ) : prodImage ? (
                             <>
-                                <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" alt="Vista previa del producto" />
-                                <button type="button" onClick={() => setProdImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"><X size={14}/></button>
+                                <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" alt="Vista previa" />
+                                <button type="button" onClick={() => setProdImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg"><X size={14}/></button>
                             </>
                         ) : (
                             <div className="text-center text-gray-400">
                                 <Plus size={32} className="mx-auto mb-2 opacity-20" />
-                                <span className="text-xs font-bold">Subir Imagen</span>
+                                <span className="text-xs font-bold uppercase tracking-tight">Clic o Arrastrar Imagen</span>
                             </div>
                         )}
                         <input 
@@ -198,13 +199,26 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                             onChange={e => handleImageUpload(e, setProdImage)} 
                             className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
                             disabled={isUploadingImage}
+                            accept="image/*"
                         />
                     </div>
                     
                     <div className="flex gap-2 pt-4">
-                        {editingId && <button type="button" onClick={resetProductForm} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">Cancelar</button>}
-                        <button type="submit" disabled={isSubmitting || isUploadingImage} className="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition disabled:opacity-50">
-                            {isSubmitting ? <Loader2 className="animate-spin mx-auto"/> : (editingId ? 'Actualizar Producto' : 'Guardar Producto')}
+                        {editingId && (
+                          <button type="button" onClick={resetProductForm} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-gray-200 transition">
+                            Cancelar
+                          </button>
+                        )}
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting || isUploadingImage || !prodName || !prodPrice} 
+                            className="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting ? (
+                                <Loader2 className="animate-spin h-5 w-5" />
+                            ) : (
+                                editingId ? 'Actualizar Producto' : 'Guardar en Catálogo'
+                            )}
                         </button>
                     </div>
                 </div>
@@ -213,12 +227,15 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
              <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h4 className="text-lg font-bold text-gray-800">Catálogo de Productos</h4>
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800">Catálogo de Productos</h4>
+                  <p className="text-xs text-gray-400 font-medium">{filteredProducts.length} productos registrados</p>
+                </div>
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Buscar producto..." 
+                        placeholder="Buscar por nombre, categoría o barra..." 
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-teal-500 outline-none transition-all"
                         value={listSearch}
                         onChange={e => setListSearch(e.target.value)}
@@ -229,56 +246,70 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Categoría</th>
-                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase">Stock</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio Unit.</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Precio Caja</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
+                            <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Producto</th>
+                            <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Categoría</th>
+                            <th className="px-6 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-widest">Stock</th>
+                            <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Precio Unit.</th>
+                            <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Precio Caja</th>
+                            <th className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                         {filteredProducts.map(p => (
-                            <tr key={p.id} className="hover:bg-gray-50 transition">
+                            <tr key={p.id} className="hover:bg-teal-50/30 transition group">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <img src={p.image} className="h-10 w-10 object-contain mix-blend-multiply" alt={p.name} />
-                                        <div>
-                                            <p className="font-bold text-gray-900 text-sm leading-tight">{p.name}</p>
+                                        <div className="h-10 w-10 bg-white border border-gray-100 rounded-lg p-1 shrink-0 flex items-center justify-center">
+                                          <img src={p.image} className="max-h-full max-w-full object-contain mix-blend-multiply" alt={p.name} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-gray-900 text-sm leading-tight truncate uppercase">{p.name}</p>
                                             {p.barcode && <p className="text-[10px] text-gray-400 font-mono mt-0.5">{p.barcode}</p>}
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4"><span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded">{p.category}</span></td>
+                                <td className="px-6 py-4">
+                                  <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full uppercase tracking-tighter border border-teal-100">
+                                    {p.category}
+                                  </span>
+                                </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center justify-center gap-2">
                                         <button 
                                             onClick={() => onUpdateStock(p.id, Math.max(0, p.stock - 1))}
-                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                            className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                         >
-                                            <Minus size={14} />
+                                            <Minus size={14} strokeWidth={3} />
                                         </button>
-                                        <span className={`text-xs font-black px-2 py-1 rounded min-w-[30px] text-center ${p.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                                        <span className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner ${p.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                                             {p.stock}
                                         </span>
                                         <button 
                                             onClick={() => onUpdateStock(p.id, p.stock + 1)}
-                                            className="p-1 text-emerald-500 hover:bg-emerald-50 rounded"
+                                            className="p-1 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
                                         >
-                                            <Plus size={14} />
+                                            <Plus size={14} strokeWidth={3} />
                                         </button>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-sm font-black text-gray-800">${p.price.toFixed(2)}</td>
-                                <td className="px-6 py-4 text-sm font-black text-blue-600">{p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : 'N/A'}</td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={16}/></button>
-                                    <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Eliminar"><Trash2 size={16}/></button>
+                                <td className="px-6 py-4 text-sm font-black text-gray-800 tabular-nums">${p.price.toFixed(2)}</td>
+                                <td className="px-6 py-4 text-sm font-black text-blue-600 tabular-nums">
+                                  {p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : '---'}
+                                </td>
+                                <td className="px-6 py-4 text-right space-x-1">
+                                    <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all" title="Editar"><Edit2 size={16}/></button>
+                                    <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Eliminar"><Trash2 size={16}/></button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+                {filteredProducts.length === 0 && (
+                  <div className="py-20 text-center flex flex-col items-center gap-2 opacity-30">
+                    <Package size={48} />
+                    <p className="font-bold uppercase tracking-widest text-xs">Sin resultados en el catálogo</p>
+                  </div>
+                )}
              </div>
         </div>
     </div>

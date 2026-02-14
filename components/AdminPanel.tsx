@@ -188,16 +188,18 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     prodExpiry={state.prodExpiry} setProdExpiry={state.setProdExpiry} prodSupplier={state.prodSupplier} setProdSupplier={state.setProdSupplier} 
                     handleProductSubmit={state.handleProductSubmit} handleGenerateDescription={state.handleGenerateDescription} 
                     handleImageUpload={async (e) => {
-                        if (e.target.files?.[0]) {
+                        const file = e.target.files?.[0];
+                        if (file) {
                             state.setIsUploadingImage(true);
                             try {
-                                const url = await uploadImageToStorage(e.target.files[0], `products/${Date.now()}`);
+                                const url = await uploadImageToStorage(file, `products/${Date.now()}`);
                                 state.setProdImage(url);
                             } catch (error) {
                                 console.error("Error al cargar imagen:", error);
-                                alert("No se pudo cargar la imagen. Revisa el tamaño y formato.");
+                                alert("Error al procesar la imagen. Intenta con otra.");
                             } finally {
                                 state.setIsUploadingImage(false);
+                                if (productInputRef.current) productInputRef.current.value = "";
                             }
                         }
                     }} 
