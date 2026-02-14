@@ -21,12 +21,10 @@ export const useAdminPanelState = (
     products: Product[], 
     categories: Category[], 
     orders: Order[],
-    // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
     onAddProduct: (p: Product) => Promise<any>,
     onEditProduct: (p: Product) => Promise<void>,
     onDeleteProduct: (id: string) => Promise<void>,
     onUpdateStock: (id: string, newStock: number) => Promise<void>,
-    // Fix: Changed Promise<void> to Promise<any> to match return types of database service functions
     onAddCategory: (c: Category) => Promise<any>,
     onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>
 ) => {
@@ -52,6 +50,7 @@ export const useAdminPanelState = (
     const [prodSupplier, setProdSupplier] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // ESTADOS DE MARKETING E IA
     const [blogTopic, setBlogTopic] = useState('');
@@ -174,7 +173,6 @@ export const useAdminPanelState = (
         if (!confirmProcess) return;
 
         try {
-            // 1. Creamos la orden automática
             const newOrder: Order = {
                 id: `SUB-${Date.now()}`,
                 customerName: user?.displayName || sub.userId,
@@ -193,13 +191,11 @@ export const useAdminPanelState = (
 
             await addOrderDB(newOrder);
 
-            // 2. Actualizamos la suscripción (sumamos días a la fecha)
             const nextDate = new Date(new Date(sub.nextDelivery).getTime() + sub.frequencyDays * 86400000);
             await updateSubscriptionDB(sub.id, {
                 nextDelivery: nextDate.toISOString()
             });
 
-            // 3. Descontamos stock
             await updateStockDB(product.id, product.stock - 1);
 
             alert(`✅ Pedido generado. Próxima entrega: ${nextDate.toLocaleDateString()}`);
@@ -360,7 +356,7 @@ export const useAdminPanelState = (
         editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice, prodCostPrice, setProdCostPrice, 
         prodUnitsPerBox, setProdUnitsPerBox, prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
         prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, prodBarcode, setProdBarcode, 
-        prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, isGenerating, isSubmitting, 
+        prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, isGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
         blogTopic, setBlogTopic, marketingProduct, setMarketingProduct, postPlatform, setPostPlatform,
         generatedPost, bannerTitle, setBannerTitle, isUploadingBanner, posCart, setPosCart, 
         posSearch, setPosSearch, posCashReceived, setPosCashReceived, posPaymentMethod, setPosPaymentMethod, 

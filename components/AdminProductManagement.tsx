@@ -30,6 +30,7 @@ interface AdminProductManagementProps {
   resetProductForm: () => void;
   isGenerating: boolean;
   isSubmitting: boolean;
+  isUploadingImage?: boolean;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
@@ -41,7 +42,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
   prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, handleProductSubmit, 
   handleGenerateDescription,
   handleImageUpload, setShowProductScanner, handleEditClick, 
-  onDeleteProduct, onUpdateStock, resetProductForm, isGenerating, isSubmitting, fileInputRef
+  onDeleteProduct, onUpdateStock, resetProductForm, isGenerating, isSubmitting, isUploadingImage, fileInputRef
 }) => {
   
   const [descriptionTone, setDescriptionTone] = useState<'CLINICO' | 'PERSUASIVO' | 'CERCANO'>('PERSUASIVO');
@@ -175,7 +176,12 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                 <div className="space-y-4">
                     <label className="text-xs font-bold text-gray-500 uppercase block">Imagen del Producto</label>
                     <div className="w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 relative group">
-                        {prodImage ? (
+                        {isUploadingImage ? (
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="animate-spin text-teal-600 h-10 w-10" />
+                                <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Subiendo...</span>
+                            </div>
+                        ) : prodImage ? (
                             <>
                                 <img src={prodImage} className="w-full h-full object-contain mix-blend-multiply p-4" alt="Vista previa del producto" />
                                 <button type="button" onClick={() => setProdImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"><X size={14}/></button>
@@ -186,12 +192,18 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = ({
                                 <span className="text-xs font-bold">Subir Imagen</span>
                             </div>
                         )}
-                        <input type="file" ref={fileInputRef} onChange={e => handleImageUpload(e, setProdImage)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={e => handleImageUpload(e, setProdImage)} 
+                            className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                            disabled={isUploadingImage}
+                        />
                     </div>
                     
                     <div className="flex gap-2 pt-4">
                         {editingId && <button type="button" onClick={resetProductForm} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">Cancelar</button>}
-                        <button type="submit" disabled={isSubmitting} className="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition disabled:opacity-50">
+                        <button type="submit" disabled={isSubmitting || isUploadingImage} className="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition disabled:opacity-50">
                             {isSubmitting ? <Loader2 className="animate-spin mx-auto"/> : (editingId ? 'Actualizar Producto' : 'Guardar Producto')}
                         </button>
                     </div>

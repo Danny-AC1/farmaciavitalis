@@ -189,13 +189,21 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     handleProductSubmit={state.handleProductSubmit} handleGenerateDescription={state.handleGenerateDescription} 
                     handleImageUpload={async (e) => {
                         if (e.target.files?.[0]) {
-                            const url = await uploadImageToStorage(e.target.files[0], `products/${Date.now()}`);
-                            state.setProdImage(url);
+                            state.setIsUploadingImage(true);
+                            try {
+                                const url = await uploadImageToStorage(e.target.files[0], `products/${Date.now()}`);
+                                state.setProdImage(url);
+                            } catch (error) {
+                                console.error("Error al cargar imagen:", error);
+                                alert("No se pudo cargar la imagen. Revisa el tamaño y formato.");
+                            } finally {
+                                state.setIsUploadingImage(false);
+                            }
                         }
                     }} 
                     setShowProductScanner={state.setShowPosScanner} handleEditClick={state.handleEditClick} 
                     onDeleteProduct={state.handleProductDelete} onUpdateStock={state.handleStockUpdate} 
-                    resetProductForm={() => state.setEditingId(null)} isGenerating={state.isGenerating} isSubmitting={state.isSubmitting} fileInputRef={productInputRef} 
+                    resetProductForm={() => state.setEditingId(null)} isGenerating={state.isGenerating} isSubmitting={state.isSubmitting} isUploadingImage={state.isUploadingImage} fileInputRef={productInputRef} 
                 />}
 
                 {state.activeTab === 'stock_quick' && <AdminStockQuick products={props.products} onUpdateStock={state.handleStockUpdate} />}
