@@ -9,7 +9,7 @@ import {
   streamProducts, streamCategories, streamOrders, addOrderDB, 
   updateStockDB, getUserDB, addProductDB, updateProductDB, 
   deleteProductDB, addCategoryDB, deleteCategoryDB, updateOrderStatusDB,
-  streamBanners, deleteBannerDB
+  streamBanners, deleteBannerDB, streamUser
 } from './services/db';
 import { auth } from './services/firebase';
 import { searchProductsBySymptoms, checkInteractions } from './services/gemini';
@@ -63,11 +63,18 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
-    const unsubAuth = auth.onAuthStateChanged(async (user) => {
+    let unsubUser: (() => void) | null = null;
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
       if (user) {
-        const userData = await getUserDB(user.uid);
-        setCurrentUser(userData);
+        // En lugar de una sola carga, conectamos el stream para que los puntos se actualicen solos
+        if (unsubUser) unsubUser();
+        unsubUser = streamUser(user.uid, (userData) => {
+            setCurrentUser(userData);
+        });
       } else {
+        if (unsubUser) unsubUser();
+        unsubUser = null;
         setCurrentUser(null);
       }
     });
@@ -79,6 +86,7 @@ const App: React.FC = () => {
 
     return () => {
       unsubAuth(); unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners();
+      if (unsubUser) unsubUser();
     };
   }, []);
 
@@ -116,7 +124,6 @@ const App: React.FC = () => {
     return acc + (price * item.quantity);
   }, 0), [cart]);
 
-  // Total base con envío inicial incluido para visualización en el carrito
   const totalBase = subtotal + DELIVERY_FEE;
 
   const displayedProducts = useMemo(() => {
@@ -194,7 +201,9 @@ const App: React.FC = () => {
     };
 
     try {
+      // addOrderDB ahora se encarga de restar los puntos en la DB
       await addOrderDB(order);
+      
       // Actualizar Stock
       for (const item of cart) {
         const orig = products.find(p => p.id === item.id);
@@ -204,7 +213,7 @@ const App: React.FC = () => {
         }
       }
 
-      // CONSTRUCCIÓN DEL MENSAJE DE WHATSAPP
+      // WhatsApp message construction
       const itemsText = cart.map(i => `- ${i.quantity}x ${i.name} (${i.selectedUnit === 'BOX' ? 'Caja' : 'Unid'})`).join('\n');
       const waMessage = `*NUEVO PEDIDO VITALIS* 💊\n\n` +
         `*Orden:* #${orderId.slice(-8)}\n` +
@@ -224,8 +233,6 @@ const App: React.FC = () => {
 
       setCart([]);
       setView('SUCCESS');
-      
-      // Redirigir a WhatsApp
       window.open(waUrl, '_blank');
       
     } catch (e) {

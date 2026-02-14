@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, ScanBarcode, Calculator, Trash2, ShoppingBag, ShoppingCart, Banknote, Landmark, Printer, Package, X, Edit2, UserPlus, UserCheck, Star, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ScanBarcode, Calculator, Trash2, ShoppingBag, ShoppingCart, Banknote, Landmark, Printer, Package, X, Edit2, UserPlus, UserCheck, Star, Plus, Minus, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Product, CartItem, User } from '../types';
 import { saveUserDB } from '../services/db';
 
@@ -32,6 +32,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [showUserForm, setShowUserForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Formulario Usuario (Add/Edit)
   const [userId, setUserId] = useState('');
@@ -88,14 +89,22 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     setCustomerSearch('');
   };
 
+  const onCheckoutClick = async () => {
+      setIsProcessing(true);
+      try {
+          await handlePosCheckout(selectedCustomer || undefined);
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative">
       
-      {/* 1. PANEL SUPERIOR: CLIENTES, ACCIONES Y BUSCADOR DE PRODUCTOS */}
+      {/* 1. PANEL SUPERIOR */}
       <div className="bg-white border-b border-slate-200 p-2 md:p-4 shrink-0 shadow-sm z-20">
         <div className="max-w-[1600px] mx-auto space-y-2 md:space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
-            {/* Gestión de Cliente */}
             <div className="flex-grow relative">
               {!selectedCustomer ? (
                 <div className="flex gap-1 md:gap-2">
@@ -134,7 +143,6 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               )}
             </div>
 
-            {/* Botones de Acción de Caja */}
             <div className="flex gap-1 md:gap-2 shrink-0">
               <button onClick={() => setShowScanner(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] text-slate-600 hover:bg-slate-50 transition">
                 <ScanBarcode size={14}/> <span className="hidden sm:inline">SCANNER</span>
@@ -145,7 +153,6 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
             </div>
           </div>
 
-          {/* Barra de Búsqueda de Productos */}
           <div className="relative">
             <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-teal-600" size={18} />
             <input 
@@ -172,7 +179,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         </div>
       </div>
 
-      {/* 2. PANEL CENTRAL: DETALLE DE VENTA (ESPACIOSO Y COMPACTO) */}
+      {/* 2. PANEL CENTRAL */}
       <div className="flex-grow overflow-y-auto p-2 md:p-4 bg-white no-scrollbar">
         <div className="max-w-[1400px] mx-auto">
           {posCart.length === 0 ? (
@@ -220,11 +227,10 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         </div>
       </div>
 
-      {/* 3. PANEL INFERIOR: TOTALES Y COBRO (COMPACTO Y RESPONSIVO) */}
+      {/* 3. PANEL INFERIOR */}
       <div className="shrink-0 bg-slate-900 p-3 md:p-4 md:px-8 md:py-5 text-white border-t border-slate-800 shadow-2xl z-30">
         <div className="max-w-[1600px] mx-auto">
           
-          {/* Fila superior móvil: Total y botón toggle detalles */}
           <div className="flex items-center justify-between mb-3 md:hidden">
             <div>
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">TOTAL</span>
@@ -240,12 +246,12 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
                 {showPaymentDetails ? <ChevronDown size={14}/> : <ChevronUp size={14}/>} Pago
               </button>
               <button 
-                onClick={() => handlePosCheckout(selectedCustomer || undefined)} 
-                disabled={posCart.length === 0}
+                onClick={onCheckoutClick} 
+                disabled={posCart.length === 0 || isProcessing}
                 className="bg-teal-600 text-white p-2 rounded-lg shadow-lg disabled:opacity-30"
                 title="Finalizar Venta"
               >
-                <Printer size={20}/>
+                {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Printer size={20}/>}
               </button>
             </div>
           </div>
@@ -300,11 +306,14 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               )}
 
               <button 
-                onClick={() => handlePosCheckout(selectedCustomer || undefined)} 
-                disabled={posCart.length === 0}
+                onClick={onCheckoutClick} 
+                disabled={posCart.length === 0 || isProcessing}
                 className="w-full sm:w-auto flex-grow bg-teal-600 hover:bg-teal-500 text-white py-3 md:py-3.5 px-4 md:px-6 rounded-lg md:rounded-xl font-black text-xs uppercase tracking-[0.1em] shadow-lg shadow-teal-500/10 transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
               >
-                <Printer size={16}/> <span className="text-[10px] md:text-xs">FINALIZAR VENTA</span>
+                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Printer size={16}/>} 
+                <span className="text-[10px] md:text-xs">
+                    {isProcessing ? 'PROCESANDO...' : 'FINALIZAR VENTA'}
+                </span>
               </button>
             </div>
           </div>
@@ -314,7 +323,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       {/* MODAL REGISTRO CLIENTE */}
       {showUserForm && (
           <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
-              <div className="bg-white rounded-2xl md:rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+              <div className="bg-white rounded-2xl md:rounded-[2rem] w-full max-sm shadow-2xl overflow-hidden animate-in zoom-in duration-300">
                   <div className="bg-slate-900 p-4 md:p-5 text-white flex justify-between items-center">
                       <h3 className="font-black text-sm md:text-base uppercase tracking-tight flex items-center gap-2"><UserPlus size={18}/> Nuevo Cliente</h3>
                       <button onClick={resetForm} className="bg-white/10 p-1 rounded-full hover:bg-white/20 transition-colors"><X size={16}/></button>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CartItem, Ciudadela, DELIVERY_CITY, CheckoutFormData, User, Coupon, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../types';
-import { Truck, X, Banknote, Gift, Landmark, Copy, AlertCircle, MapPin, ChevronDown } from 'lucide-react';
+import { Truck, X, Banknote, Gift, Landmark, Copy, AlertCircle, MapPin, Building2, ChevronDown, Sparkles, Loader2, Info, CheckCircle } from 'lucide-react';
 import { streamCoupons, streamCiudadelas } from '../services/db';
 
 interface CheckoutProps {
@@ -17,6 +17,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
   const [step, setStep] = useState(1);
   const [ciudadelas, setCiudadelas] = useState<Ciudadela[]>([]);
   const [selectedCiudadela, setSelectedCiudadela] = useState<Ciudadela | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState<CheckoutFormData>({
     name: '', phone: '', address: '', city: DELIVERY_CITY, paymentMethod: 'CASH', 
@@ -39,7 +40,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
     const unsubCiudadelas = streamCiudadelas((data) => {
         setCiudadelas(data);
         if (data.length > 0 && !selectedCiudadela) {
-            // Intentar buscar "Ciriales" por defecto si existe, sino la primera
             const defaultZone = data.find(c => c.name.toLowerCase().includes('cirial')) || data[0];
             setSelectedCiudadela(defaultZone);
         }
@@ -47,7 +47,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
     return () => { unsubCoupons(); unsubCiudadelas(); };
   }, [currentUser]);
 
-  // Recalculate discount
   useEffect(() => {
       let d = 0;
       if (appliedCoupon) {
@@ -60,7 +59,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
       setDiscountAmount(d);
   }, [appliedCoupon, usePoints, subtotal]);
 
-  // Update delivery fee in formData when zone changes
   useEffect(() => {
     if (selectedCiudadela) {
         setFormData(prev => ({ 
@@ -73,8 +71,16 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
 
   const currentDeliveryFee = selectedCiudadela?.price || 0;
   const finalTotal = Math.max(0, subtotal + currentDeliveryFee - discountAmount);
+  
+  // LOGICA DE PUNTOS PROYECTADOS
   const pointsAvailable = currentUser?.points || 0;
-  const canUsePoints = pointsAvailable >= POINTS_THRESHOLD;
+  const earnedInThisOrder = Math.floor(subtotal);
+  const projectedPoints = pointsAvailable + earnedInThisOrder;
+  const canUsePoints = projectedPoints >= POINTS_THRESHOLD;
+  const willReachThreshold = pointsAvailable < POINTS_THRESHOLD && projectedPoints >= POINTS_THRESHOLD;
+  
+  // Balance final tras la compra
+  const finalBalance = usePoints ? (projectedPoints - POINTS_THRESHOLD) : projectedPoints;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleNextStep = (e: React.FormEvent) => { e.preventDefault(); if (!formData.address.trim()) return alert("Dirección requerida"); setStep(2); };
@@ -89,7 +95,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
     }
   };
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     if (formData.paymentMethod === 'CASH') {
         const cashValue = parseFloat(cashGiven);
         if (!cashGiven || isNaN(cashValue)) {
@@ -102,11 +108,16 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
         }
     }
 
-    onConfirmOrder(
-        { ...formData, cashGiven: cashGiven }, 
-        discountAmount, 
-        usePoints ? POINTS_THRESHOLD : 0
-    );
+    setIsSubmitting(true);
+    try {
+        await onConfirmOrder(
+            { ...formData, cashGiven: cashGiven }, 
+            discountAmount, 
+            usePoints ? POINTS_THRESHOLD : 0
+        );
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const changeDue = cashGiven ? parseFloat(cashGiven) - finalTotal : 0;
@@ -127,7 +138,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">Teléfono</label><input required name="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-500" /></div>
                    </div>
                    
-                   {/* NUEVO SELECTOR DE CIUDADELA */}
                    <div className="space-y-2">
                        <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
                            <MapPin size={16} className="text-teal-600"/> Ciudadela / Sector en Machalilla
@@ -146,7 +156,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
                        </div>
                    </div>
 
-                   <div><label className="block text-sm font-semibold text-gray-700 mb-1">Calle y Referencia Exacta</label><input required name="address" value={formData.address} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ej: Frente a la cancha principal, casa color crema" /></div>
+                   <div><label className="block text-sm font-semibold text-gray-700 mb-1">Referencia Exacta</label><input required name="address" value={formData.address} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ej: Frente a la cancha principal, casa color crema" /></div>
                    
                    <div className="mt-8 flex gap-3 pt-4 border-t border-gray-100">
                     <button type="button" onClick={onCancel} className="w-1/3 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold">Cancelar</button>
@@ -164,26 +174,65 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
                         <span>${currentDeliveryFee.toFixed(2)}</span>
                     </div>
                     {appliedCoupon && <div className="flex justify-between text-sm text-green-600 font-bold"><span>Cupón</span><span>-${(subtotal * (appliedCoupon.value / 100)).toFixed(2)}</span></div>}
-                    {usePoints && <div className="flex justify-between text-sm text-purple-600 font-bold"><span>Puntos ({POINTS_THRESHOLD})</span><span>-${POINTS_DISCOUNT_VALUE.toFixed(2)}</span></div>}
+                    {usePoints && <div className="flex justify-between text-sm text-purple-600 font-bold"><span>Recompensa Vitalis (500 pts)</span><span>-${POINTS_DISCOUNT_VALUE.toFixed(2)}</span></div>}
                     <div className="border-t pt-2 mt-2 flex justify-between items-center"><span className="font-bold text-gray-800">Total</span><span className="font-bold text-xl text-teal-700">${finalTotal.toFixed(2)}</span></div>
                   </div>
 
                   {currentUser && (
-                      <div className={`p-4 rounded-lg border flex items-center justify-between ${canUsePoints ? 'bg-purple-50 border-purple-200' : 'bg-gray-100 border-gray-200 opacity-60'}`}>
-                          <div className="flex items-center gap-2">
-                              <Gift className="text-purple-600 h-5 w-5" />
-                              <div>
-                                  <p className="font-bold text-gray-800 text-sm">Vitalis Puntos</p>
-                                  <p className="text-xs text-gray-500">Tienes {pointsAvailable} puntos. Canjea {POINTS_THRESHOLD} por $5.</p>
+                      <div className={`p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${canUsePoints ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100 opacity-80'}`}>
+                          <div className="flex items-start justify-between relative z-10">
+                              <div className="flex items-center gap-3">
+                                  <div className={`p-3 rounded-2xl shadow-sm ${canUsePoints ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                    <Gift size={24} />
+                                  </div>
+                                  <div>
+                                      <p className="font-black text-slate-800 text-sm uppercase tracking-tight">Vitalis Rewards</p>
+                                      {willReachThreshold ? (
+                                          <p className="text-[10px] text-purple-600 font-black flex items-center gap-1 uppercase tracking-tighter">
+                                              <Sparkles size={12}/> ¡META ALCANZADA CON ESTA COMPRA!
+                                          </p>
+                                      ) : (
+                                          <p className="text-[10px] text-gray-500 font-bold uppercase">
+                                              Puntos acumulados: {pointsAvailable} pts
+                                          </p>
+                                      )}
+                                  </div>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <input 
+                                    type="checkbox" 
+                                    checked={usePoints} 
+                                    disabled={!canUsePoints}
+                                    onChange={(e) => setUsePoints(e.target.checked)}
+                                    className="h-7 w-7 accent-purple-600 cursor-pointer disabled:cursor-not-allowed rounded-lg"
+                                />
+                                {canUsePoints && <span className="text-[8px] font-black text-purple-600 mt-1 uppercase">ACTIVAR $5.00 OFF</span>}
                               </div>
                           </div>
-                          <input 
-                              type="checkbox" 
-                              checked={usePoints} 
-                              disabled={!canUsePoints}
-                              onChange={(e) => setUsePoints(e.target.checked)}
-                              className="h-5 w-5 accent-purple-600"
-                          />
+
+                          <div className="mt-4 grid grid-cols-2 gap-4 border-t border-purple-100 pt-3 relative z-10">
+                              <div>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ganarás hoy</p>
+                                  <p className="text-sm font-black text-teal-600">+{earnedInThisOrder} PTS</p>
+                              </div>
+                              <div className="text-right">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Balance Final</p>
+                                  <p className="text-sm font-black text-purple-700">{finalBalance} PTS</p>
+                              </div>
+                          </div>
+
+                          {usePoints && (
+                              <div className="mt-3 bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-in slide-in-from-top-2">
+                                  {/* Fix: Added missing CheckCircle to imports */}
+                                  <CheckCircle size={14}/> Descuento de $5.00 aplicado
+                              </div>
+                          )}
+                          
+                          {!canUsePoints && (
+                              <p className="mt-2 text-[9px] font-bold text-gray-400 uppercase flex items-center gap-1">
+                                  <Info size={12}/> Te faltan {POINTS_THRESHOLD - projectedPoints} puntos para tu próximo vale de $5.
+                              </p>
+                          )}
                       </div>
                   )}
 
@@ -247,8 +296,14 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, total: rawTotalNoDelivery
                   )}
 
                   <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                        <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold">Atrás</button>
-                        <button onClick={handleSubmitOrder} className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all active:scale-95">Confirmar Pedido</button>
+                        <button type="button" disabled={isSubmitting} onClick={() => setStep(1)} className="w-1/3 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold disabled:opacity-50">Atrás</button>
+                        <button 
+                            onClick={handleSubmitOrder} 
+                            disabled={isSubmitting}
+                            className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {isSubmitting ? <Loader2 className="animate-spin" size={20}/> : 'Confirmar Pedido'}
+                        </button>
                     </div>
                 </div>
               )}

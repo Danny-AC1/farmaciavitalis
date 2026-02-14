@@ -23,7 +23,6 @@ const MEDICATIONS_COLLECTION = 'medications';
 const BOOKINGS_COLLECTION = 'bookings';
 const CIUDADELAS_COLLECTION = 'ciudadelas';
 
-// Función para limpiar objetos de valores undefined antes de enviarlos a Firestore
 const cleanData = (obj: any): any => {
     const clean: any = {};
     Object.keys(obj).forEach(key => {
@@ -45,20 +44,17 @@ export const uploadImageToStorage = async (file: File, path: string): Promise<st
         const snapshot = await uploadBytes(storageRef, file);
         return await getDownloadURL(snapshot.ref);
     } catch (error) {
-        console.error("Error subiendo imagen a Firebase Storage:", error);
+        console.error("Error subiendo imagen:", error);
         throw error;
     }
 };
 
 export const streamProducts = (callback: (products: Product[]) => void) => {
   const q = query(collection(db, PRODUCTS_COLLECTION), orderBy('name'));
-  return onSnapshot(q, 
-    (snapshot) => {
+  return onSnapshot(q, (snapshot) => {
         const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
         callback(products);
-    },
-    () => { callback([]); }
-  );
+  }, () => callback([]));
 };
 
 export const addProductDB = async (product: Product) => {
@@ -113,24 +109,24 @@ export const getOrdersByUserDB = (userId: string, callback: (orders: Order[]) =>
     return onSnapshot(q, (snapshot) => {
         const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
         callback(orders);
-    }, (error) => {
-        console.error("Error en getOrdersByUserDB:", error);
-        callback([]);
-    });
+    }, () => callback([]));
 };
 
 export const addOrderDB = async (order: Order) => {
   const orderRef = doc(db, ORDERS_COLLECTION, order.id);
   const cleanedOrder = cleanData(order);
+  
   await setDoc(orderRef, cleanedOrder);
   
+  // RESTA INMEDIATA DE PUNTOS CANJEADOS
   if (order.userId && order.pointsRedeemed && order.pointsRedeemed > 0) {
       const userRef = doc(db, USERS_COLLECTION, order.userId);
       await updateDoc(userRef, { points: increment(-order.pointsRedeemed) });
   }
 
+  // SUMA INMEDIATA SI ES VENTA DIRECTA (POS)
   if (order.userId && order.status === 'DELIVERED') {
-      const pointsEarned = Math.floor(order.total);
+      const pointsEarned = Math.floor(order.subtotal); // Calculado sobre el subtotal real
       if (pointsEarned > 0) {
           const userRef = doc(db, USERS_COLLECTION, order.userId);
           await updateDoc(userRef, { points: increment(pointsEarned) });
@@ -146,8 +142,9 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
   const orderRef = doc(db, ORDERS_COLLECTION, id);
   await updateDoc(orderRef, { status });
 
+  // SUMA DE PUNTOS AL ENTREGAR (WEB ORDERS)
   if (status === 'DELIVERED' && order && order.userId) {
-      const pointsEarned = Math.floor(order.total);
+      const pointsEarned = Math.floor(order.subtotal); // Siempre sobre el valor de los productos
       if (pointsEarned > 0) {
         const userRef = doc(db, USERS_COLLECTION, order.userId);
         await updateDoc(userRef, { points: increment(pointsEarned) });
@@ -155,10 +152,10 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
   }
 };
 
-export const updateOrderLocationDB = async (id: string, lat: number, lng: number) => {
-    const orderRef = doc(db, ORDERS_COLLECTION, id);
-    await updateDoc(orderRef, { 
-        driverLocation: { lat, lng, lastUpdate: new Date().toISOString() } 
+export const updateOrderLocationDB = async (orderId: string, lat: number, lng: number) => {
+    const orderRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(orderRef, {
+        driverLocation: { lat, lng }
     });
 };
 
@@ -179,6 +176,18 @@ export const getUserDB = async (uid: string): Promise<User | null> => {
         return { ...data, points: data.points || 0 } as User;
     }
     return null;
+};
+
+export const streamUser = (uid: string, callback: (user: User | null) => void) => {
+    const userRef = doc(db, USERS_COLLECTION, uid);
+    return onSnapshot(userRef, (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            callback({ ...data, uid: snap.id, points: data.points || 0 } as User);
+        } else {
+            callback(null);
+        }
+    });
 };
 
 export const streamUsers = (callback: (users: User[]) => void) => {
@@ -306,15 +315,6 @@ export const addCiudadelaDB = async (data: Ciudadela) => { const { id, ...clean 
 export const updateCiudadelaDB = async (data: Ciudadela) => { await updateDoc(doc(db, CIUDADELAS_COLLECTION, data.id), cleanData(data)); };
 export const deleteCiudadelaDB = async (id: string) => { await deleteDoc(doc(db, CIUDADELAS_COLLECTION, id)); };
 
-export const logSearch = async (term: string) => {
-    if (!term || term.length < 3) return;
-    const today = new Date().toISOString().split('T')[0];
-    const q = query(collection(db, SEARCH_LOGS_COLLECTION), where('term', '==', term.toLowerCase()), where('date', '==', today));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) await addDoc(collection(db, SEARCH_LOGS_COLLECTION), { term: term.toLowerCase(), date: today, count: 1 });
-    else await updateDoc(snapshot.docs[0].ref, { count: increment(1) });
-};
-
 export const streamSearchLogs = (callback: (logs: SearchLog[]) => void) => {
     return onSnapshot(query(collection(db, SEARCH_LOGS_COLLECTION), orderBy('count', 'desc')), (snapshot) => {
         const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SearchLog[];
@@ -335,15 +335,19 @@ export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {
 export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } = post; await addDoc(collection(db, BLOG_COLLECTION), cleanData(data)); };
 export const deleteBlogPostDB = async (id: string) => { await deleteDoc(doc(db, BLOG_COLLECTION, id)); };
 
-export const addStockAlertDB = async (email: string, productId: string) => {
-    await addDoc(collection(db, STOCK_ALERTS_COLLECTION), cleanData({ email, productId, createdAt: new Date().toISOString() }));
-};
-
 export const streamStockAlerts = (callback: (alerts: StockAlert[]) => void) => {
     return onSnapshot(query(collection(db, STOCK_ALERTS_COLLECTION), orderBy('createdAt', 'desc')), (snapshot) => {
         const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockAlert[];
         callback(alerts);
     });
+};
+
+export const addStockAlertDB = async (email: string, productId: string) => {
+    await addDoc(collection(db, STOCK_ALERTS_COLLECTION), cleanData({
+        email,
+        productId,
+        createdAt: new Date().toISOString()
+    }));
 };
 
 export const deleteStockAlertDB = async (id: string) => {

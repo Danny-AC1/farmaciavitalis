@@ -189,6 +189,6 @@ export const DRIVER_PASSWORD = "moto";
 
 export const DELIVERY_CITY = "Machalilla";
 // Added missing constant for delivery fee referenced in CartDrawer.tsx
-export const DELIVERY_FEE = 1.00;
+export const DELIVERY_FEE = 0.00;
 export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;
