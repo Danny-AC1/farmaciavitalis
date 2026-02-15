@@ -189,7 +189,9 @@ export const useAppLogic = () => {
       status: 'PENDING',
       source: 'ONLINE',
       date: new Date().toISOString(),
-      userId: currentUser.uid
+      userId: currentUser.uid,
+      lat: details.lat,
+      lng: details.lng
     };
 
     try {
@@ -203,11 +205,14 @@ export const useAppLogic = () => {
       }
 
       const itemsText = cart.map(i => `- ${i.quantity}x ${i.name} (${i.selectedUnit === 'BOX' ? 'Caja' : 'Unid'})`).join('\n');
+      const mapsLink = order.lat && order.lng ? `\n📍 *Ubicación GPS:* https://www.google.com/maps?q=${order.lat},${order.lng}` : '';
+      
       const waMessage = `*NUEVO PEDIDO VITALIS* 💊\n\n` +
         `*Orden:* #${orderId.slice(-8)}\n` +
         `*Cliente:* ${order.customerName}\n` +
         `*Zona:* ${details.deliveryZone}\n` +
-        `*Dirección:* ${details.address}\n\n` +
+        `*Dirección:* ${details.address}\n` +
+        mapsLink + `\n\n` +
         `*PRODUCTOS:*\n${itemsText}\n\n` +
         `*Subtotal:* $${order.subtotal.toFixed(2)}\n` +
         `*Envío:* $${order.deliveryFee.toFixed(2)}\n` +

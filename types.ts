@@ -1,5 +1,4 @@
 
-
 export interface Product {
   id: string;
   name: string;
@@ -46,6 +45,8 @@ export interface Order {
   source?: 'ONLINE' | 'POS';
   date: string;
   userId?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface User {
@@ -75,6 +76,8 @@ export interface CheckoutFormData {
   cashGiven?: string; 
   deliveryFee: number;
   deliveryZone: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface Coupon {
