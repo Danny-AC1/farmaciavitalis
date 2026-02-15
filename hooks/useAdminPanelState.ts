@@ -1,21 +1,19 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
-    Product, Order, Category, User, Supplier, SearchLog, Banner, 
-    Expense, Subscription, Coupon, ServiceBooking, StockAlert, 
-    CartItem, BlogPost, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE 
+    Product, Order, Category, User, Subscription 
 } from '../types';
 import { 
-    streamUsers, streamSuppliers, streamSearchLogs, streamBanners, 
-    streamExpenses, streamCoupons, streamBookings, streamStockAlerts, 
-    streamSubscriptions, addSupplierDB, deleteSupplierDB, addCouponDB, 
-    deleteCouponDB, addExpenseDB, updateBookingStatusDB, saveUserDB, 
-    deleteBannerDB, addOrderDB, updateStockDB, uploadImageToStorage,
-    addBannerDB, addBlogPostDB, deleteSubscriptionDB, deleteStockAlertDB, deleteOrderDB,
-    deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, updateSubscriptionDB, deleteBookingDB
-} from '../services/db';
-import { generateProductDescription, generateSocialPost } from '../services/gemini';
+    addSupplierDB, addCouponDB, addExpenseDB, updateBookingStatusDB, 
+    saveUserDB, addOrderDB, updateStockDB, uploadImageToStorage,
+    addBannerDB, addBlogPostDB, updateSubscriptionDB
+} from '../services/db.ts';
+import { generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
+
+// Importación de los nuevos sub-hooks divididos
+import { useAdminData } from './useAdminData.ts';
+import { useAdminProductForm } from './useAdminProductForm.ts';
+import { useAdminPOS } from './useAdminPOS.ts';
 
 export const useAdminPanelState = (
     products: Product[], 
@@ -28,31 +26,18 @@ export const useAdminPanelState = (
     onAddCategory: (c: Category) => Promise<any>,
     onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>
 ) => {
-    // ESTADOS DE NAVEGACIÓN Y UI
+    // 1. Estados de Navegación y UI General
     const [activeTab, setActiveTab] = useState<string>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
     const [showNotifications, setShowNotifications] = useState(false);
 
-    // ESTADO DEL FORMULARIO DE PRODUCTOS
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [prodName, setProdName] = useState('');
-    const [prodPrice, setProdPrice] = useState('');
-    const [prodCostPrice, setProdCostPrice] = useState('');
-    const [prodUnitsPerBox, setProdUnitsPerBox] = useState('');
-    const [prodBoxPrice, setProdBoxPrice] = useState('');
-    const [prodPublicBoxPrice, setProdPublicBoxPrice] = useState('');
-    const [prodDesc, setProdDesc] = useState('');
-    const [prodCat, setProdCat] = useState('');
-    const [prodImage, setProdImage] = useState('');
-    const [prodBarcode, setProdBarcode] = useState('');
-    const [prodExpiry, setProdExpiry] = useState('');
-    const [prodSupplier, setProdSupplier] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    // 2. Cargar sub-hooks especializados (Aquí se inyecta la lógica dividida)
+    const data = useAdminData();
+    const productForm = useAdminProductForm(products, categories, onAddProduct, onEditProduct);
+    const pos = useAdminPOS(products);
 
-    // ESTADOS DE MARKETING E IA
+    // 3. Estados de Marketing (Mantenidos aquí por simplicidad)
     const [blogTopic, setBlogTopic] = useState('');
     const [marketingProduct, setMarketingProduct] = useState('');
     const [postPlatform, setPostPlatform] = useState<'INSTAGRAM' | 'WHATSAPP'>('INSTAGRAM');
@@ -60,41 +45,7 @@ export const useAdminPanelState = (
     const [bannerTitle, setBannerTitle] = useState('');
     const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
-    // ESTADO DEL POS (PUNTO DE VENTA)
-    const [posCart, setPosCart] = useState<CartItem[]>([]);
-    const [posSearch, setPosSearch] = useState('');
-    const [posCashReceived, setPosCashReceived] = useState('');
-    const [posPaymentMethod, setPosPaymentMethod] = useState<'CASH' | 'TRANSFER'>('CASH');
-    const [showPosScanner, setShowPosScanner] = useState(false);
-    const [showCashClosure, setShowCashClosure] = useState(false);
-
-    // ESTADOS DE DATOS EN TIEMRE REAL (FIREBASE)
-    const [banners, setBanners] = useState<Banner[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [coupons, setCoupons] = useState<Coupon[]>([]);
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
-    const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
-    const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
-    const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-    const [bookings, setBookings] = useState<ServiceBooking[]>([]);
-
-    useEffect(() => {
-        const unsubs = [
-            streamBanners(setBanners),
-            streamExpenses(setExpenses),
-            streamCoupons(setCoupons),
-            streamSuppliers(setSuppliers),
-            streamUsers(setUsers),
-            streamSearchLogs(setSearchLogs),
-            streamStockAlerts(setStockAlerts),
-            streamSubscriptions(setSubscriptions),
-            streamBookings(setBookings)
-        ];
-        return () => unsubs.forEach(unsub => unsub());
-    }, []);
-
-    // --- CÁLCULOS FINANCIEROS ---
+    // 4. Cálculos Financieros (El "Cerebro" del Dashboard)
     const { chartData, profitableProducts, topCategory, totalRevenue, totalGrossProfit } = useMemo(() => {
         const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
         let totalRev = 0;
@@ -108,11 +59,9 @@ export const useAdminPanelState = (
                 const cost = item.costPrice || 0;
                 const totalProfit = (item.price - cost) * item.quantity;
                 totalGP += totalProfit;
-                
                 if (!profitsMap[item.id]) profitsMap[item.id] = { name: item.name, profit: 0, quantity: 0 };
                 profitsMap[item.id].profit += totalProfit;
                 profitsMap[item.id].quantity += item.quantity;
-
                 if (item.category) categorySales[item.category] = (categorySales[item.category] || 0) + item.quantity;
             });
         });
@@ -132,91 +81,40 @@ export const useAdminPanelState = (
         });
 
         const cData = Object.entries(historyMap)
-            .map(([name, data]) => ({ name, ventas: data.total, timestamp: data.timestamp }))
+            .map(([name, d]) => ({ name, ventas: d.total, timestamp: d.timestamp }))
             .sort((a, b) => a.timestamp - b.timestamp)
             .map(({ name, ventas }) => ({ name, ventas }));
 
         return { chartData: cData.slice(-12), profitableProducts: sortedProfits, topCategory: topCat, totalRevenue: totalRev, totalGrossProfit: totalGP };
     }, [orders, reportPeriod]);
 
-    const netProfit = totalGrossProfit - expenses.reduce((a, b) => a + b.amount, 0);
+    const netProfit = totalGrossProfit - data.expenses.reduce((a, b) => a + b.amount, 0);
     const todayOrders = orders.filter(o => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString());
     const todayCash = todayOrders.filter(o => o.paymentMethod === 'CASH').reduce((a, b) => a + b.total, 0);
     const todayTrans = todayOrders.filter(o => o.paymentMethod === 'TRANSFER').reduce((a, b) => a + b.total, 0);
 
-    // --- MANEJADORES DE PRODUCTO ---
-    const handleProductDelete = async (id: string) => {
-        if (confirm("¿Seguro que deseas eliminar este producto?")) await onDeleteProduct(id);
-    };
-
-    const handleStockUpdate = async (id: string, newStock: number) => {
-        await onUpdateStock(id, newStock);
-    };
-
-    const handleCategoryAdd = async (name: string) => {
-        await onAddCategory({ id: '', name, image: '' });
-    };
-
-    const handleOrderStatusUpdate = async (id: string, status: 'DELIVERED', order: Order) => {
-        await onUpdateOrderStatus(id, status, order);
-    };
-
-    // --- MANEJADORES DE SUSCRIPCIONES ---
-    const handleProcessSubscription = async (sub: Subscription) => {
-        const product = products.find(p => p.id === sub.productId);
-        if (!product) return alert("Producto ya no disponible.");
-        if (product.stock <= 0) return alert("Sin stock para procesar esta suscripción.");
-
-        const user = users.find(u => u.email === sub.userId);
-        
-        const confirmProcess = confirm(`¿Generar pedido de "${sub.productName}" para ${sub.userId}?`);
-        if (!confirmProcess) return;
-
+    // 5. Manejadores de Marketing e IA
+    const handleGenerateBlog = async (topic: string) => {
+        productForm.setIsUploadingImage(true); 
         try {
-            const newOrder: Order = {
-                id: `SUB-${Date.now()}`,
-                customerName: user?.displayName || sub.userId,
-                customerPhone: user?.phone || 'S/N',
-                customerAddress: user?.address || 'Machalilla (Suscripción)',
-                items: [{ ...product, quantity: 1, selectedUnit: 'UNIT' }],
-                subtotal: product.price,
-                deliveryFee: 0,
-                total: product.price,
-                paymentMethod: 'CASH',
-                status: 'PENDING',
-                source: 'ONLINE',
-                date: new Date().toISOString(),
-                userId: user?.uid
-            };
-
-            await addOrderDB(newOrder);
-
-            const nextDate = new Date(new Date(sub.nextDelivery).getTime() + sub.frequencyDays * 86400000);
-            await updateSubscriptionDB(sub.id, {
-                nextDelivery: nextDate.toISOString()
-            });
-
-            await updateStockDB(product.id, product.stock - 1);
-
-            alert(`✅ Pedido generado. Próxima entrega: ${nextDate.toLocaleDateString()}`);
-        } catch (error) {
-            console.error("Error procesando suscripción:", error);
-            alert("Error al procesar.");
-        }
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Articulo de salud: "${topic}". HTML.` });
+            await addBlogPostDB({ id: '', title: topic.toUpperCase(), content: response.text || "", date: new Date().toISOString(), author: "Vitalis Admin" });
+            setBlogTopic(''); alert("¡Publicado!");
+        } finally { productForm.setIsUploadingImage(false); }
     };
 
-    // --- OTROS MANEJADORES ---
-    const handleDeleteOrder = async (id: string) => { if(confirm("¿Borrar pedido?")) await deleteOrderDB(id); };
-    const handleDeleteBanner = async (id: string) => { if(confirm("¿Borrar banner?")) await deleteBannerDB(id); };
-    const handleDeleteCoupon = async (id: string) => { if(confirm("¿Borrar cupón?")) await deleteCouponDB(id); };
-    const handleDeleteSupplier = async (id: string) => { if(confirm("¿Borrar proveedor?")) await deleteSupplierDB(id); };
-    const handleDeleteSubscription = async (id: string) => { if(confirm("¿Cancelar suscripción?")) await deleteSubscriptionDB(id); };
-    const handleDeleteStockAlert = async (id: string) => { if(confirm("¿Borrar alerta?")) await deleteStockAlertDB(id); };
-    const handleDeleteBlogPost = async (id: string) => { if(confirm("¿Borrar consejo?")) await deleteBlogPostDB(id); };
-    const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar permanentemente este usuario y su historial?")) await deleteUserDB(uid); };
-    const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
-    const handleDeleteBooking = async (id: string) => { if(confirm("¿Estás seguro de eliminar permanentemente esta cita?")) await deleteBookingDB(id); };
-    
+    const handleGeneratePost = async () => {
+        if (!marketingProduct) return alert("Selecciona producto");
+        const p = products.find(x => x.id === marketingProduct);
+        if (!p) return;
+        productForm.setIsUploadingImage(true);
+        try {
+            const res = await generateSocialPost(p, postPlatform);
+            setGeneratedPost(res);
+        } finally { productForm.setIsUploadingImage(false); }
+    };
+
     const handleAddBanner = async (file: File) => {
         setIsUploadingBanner(true);
         try {
@@ -226,180 +124,53 @@ export const useAdminPanelState = (
         } finally { setIsUploadingBanner(false); }
     };
 
-    const handleAddCoupon = async (code: string, value: number) => {
-        await addCouponDB({ id: '', code: code.toUpperCase(), value, type: 'PERCENTAGE', active: true });
-    };
+    // 6. Integración de Servicios y Suscripciones
+    const handleProcessSubscription = async (sub: Subscription) => {
+        const product = products.find(p => p.id === sub.productId);
+        if (!product || product.stock <= 0) return alert("Producto no disponible o sin stock.");
+        if (!confirm(`¿Generar pedido de "${sub.productName}" para ${sub.userId}?`)) return;
 
-    const handleAddSupplier = async (s: Supplier) => { await addSupplierDB(s); };
-    const handleAddExpense = async (e: Expense) => { await addExpenseDB(e); };
-    
-    const handleUpdateUserRole = async (uid: string, role: User['role']) => {
-        const u = users.find(x => x.uid === uid);
-        if (u) await saveUserDB({ ...u, role });
-    };
-
-    const handleUpdateUser = async (user: User) => {
-        await saveUserDB(user);
-    };
-
-    const handleUpdateBookingStatus = async (id: string, status: ServiceBooking['status']) => {
-        await updateBookingStatusDB(id, status);
-    };
-
-    const handleProductSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        const productData: Product = {
-            id: editingId || '',
-            name: prodName, description: prodDesc, price: parseFloat(prodPrice),
-            costPrice: prodCostPrice ? parseFloat(prodCostPrice) : undefined,
-            unitsPerBox: prodUnitsPerBox ? parseInt(prodUnitsPerBox) : undefined,
-            boxPrice: prodBoxPrice ? parseFloat(prodBoxPrice) : undefined,
-            publicBoxPrice: prodPublicBoxPrice ? parseFloat(prodPublicBoxPrice) : undefined,
-            category: prodCat || categories[0]?.name || 'Medicamentos',
-            stock: editingId ? (products.find(p => p.id === editingId)?.stock || 0) : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0),
-            image: prodImage || "https://via.placeholder.com/300",
-            barcode: prodBarcode, expiryDate: prodExpiry, supplierId: prodSupplier
-        };
         try {
-            if (editingId) await onEditProduct(productData);
-            else await onAddProduct(productData);
-            setEditingId(null); setProdName(''); setProdPrice(''); setProdCostPrice(''); setProdUnitsPerBox('');
-            setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage(''); setProdBarcode('');
-        } finally { setIsSubmitting(false); }
-    };
-
-    const handleGenerateDescription = async (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => {
-        if (!prodName) return alert("Escribe el nombre");
-        setIsGenerating(true);
-        try {
-            const desc = await generateProductDescription(prodName, prodCat || 'Medicamentos', tone);
-            setProdDesc(desc);
-        } finally { setIsGenerating(false); }
-    };
-
-    const handleGenerateBlog = async (topic: string) => {
-        setIsGenerating(true);
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: `Articulo de salud sobre: "${topic}". Formato HTML.`
+            await addOrderDB({
+                id: `SUB-${Date.now()}`, customerName: sub.userId, customerPhone: 'S/N', customerAddress: 'Machalilla (Sub)',
+                items: [{ ...product, quantity: 1, selectedUnit: 'UNIT' }], subtotal: product.price, deliveryFee: 0,
+                total: product.price, paymentMethod: 'CASH', status: 'PENDING', source: 'ONLINE', date: new Date().toISOString()
             });
-            await addBlogPostDB({ id: '', title: topic.toUpperCase(), content: response.text || "", date: new Date().toISOString(), author: "Vitalis Admin" });
-            setBlogTopic(''); alert("¡Publicado!");
-        } finally { setIsGenerating(false); }
-    };
-
-    const handleGeneratePost = async () => {
-        if (!marketingProduct) return alert("Selecciona un producto.");
-        const p = products.find(x => x.id === marketingProduct);
-        if (!p) return;
-        setIsGenerating(true);
-        try {
-            const res = await generateSocialPost(p, postPlatform);
-            setGeneratedPost(res);
-        } finally { setIsGenerating(false); }
-    };
-
-    const handlePosCheckout = async (customer?: User, pointsRedeemed: number = 0) => {
-        if (posCart.length === 0) return;
-        
-        const subtotalValue = posCart.reduce((sum, item) => {
-            const isBox = item.selectedUnit === 'BOX';
-            const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-            return sum + (price * item.quantity);
-        }, 0);
-
-        const discount = pointsRedeemed > 0 ? POINTS_DISCOUNT_VALUE : 0;
-        const totalValue = Math.max(0, subtotalValue - discount);
-
-        const orderData: Order = {
-            id: `POS-${Date.now()}`,
-            customerName: customer?.displayName || 'Venta Local',
-            customerPhone: customer?.phone || 'N/A',
-            customerAddress: customer?.cedula || 'Mostrador',
-            items: posCart,
-            subtotal: subtotalValue,
-            deliveryFee: 0,
-            discount: discount,
-            pointsRedeemed: pointsRedeemed,
-            total: totalValue,
-            paymentMethod: posPaymentMethod,
-            status: 'DELIVERED',
-            source: 'POS',
-            date: new Date().toISOString(),
-            userId: customer?.uid
-        };
-
-        if (posCashReceived && !isNaN(parseFloat(posCashReceived))) orderData.cashGiven = parseFloat(posCashReceived);
-
-        try {
-            await addOrderDB(orderData);
-            for (const item of posCart) {
-                const orig = products.find(p => p.id === item.id);
-                if (orig) {
-                    const isBox = item.selectedUnit === 'BOX';
-                    const unitsToSubtract = isBox ? (orig.unitsPerBox || 1) * item.quantity : item.quantity;
-                    await updateStockDB(item.id, Math.max(0, orig.stock - unitsToSubtract));
-                }
-            }
-            setPosCart([]); setPosCashReceived(''); alert("¡Venta exitosa!");
-        } catch (error: any) { alert("Error al procesar venta."); }
-    };
-
-    const addToPosCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
-        const unitsNeeded = unitType === 'BOX' ? (product.unitsPerBox || 1) : 1;
-        
-        // Calcular total de unidades de este producto ya presentes en el carrito
-        const currentTotalInCart = posCart
-            .filter(item => item.id === product.id)
-            .reduce((sum, item) => {
-                const itemUnits = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
-                return sum + (item.quantity * itemUnits);
-            }, 0);
-
-        if (currentTotalInCart + unitsNeeded > product.stock) {
-            return alert(`Stock insuficiente. Disponible: ${product.stock} unidades. Tienes ${currentTotalInCart} en el carrito.`);
-        }
-        
-        setPosCart(prev => {
-            const exists = prev.find(item => item.id === product.id && item.selectedUnit === unitType);
-            if (exists) {
-                return prev.map(item => (item.id === product.id && item.selectedUnit === unitType) 
-                    ? { ...item, quantity: item.quantity + 1 } 
-                    : item
-                );
-            }
-            return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
-        });
+            const nextDate = new Date(new Date(sub.nextDelivery).getTime() + sub.frequencyDays * 86400000);
+            await updateSubscriptionDB(sub.id, { nextDelivery: nextDate.toISOString() });
+            await updateStockDB(product.id, product.stock - 1);
+            alert("Pedido generado.");
+        } catch (e) { alert("Error al procesar."); }
     };
 
     return {
+        // UI
         activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen, reportPeriod, setReportPeriod, showNotifications, setShowNotifications,
-        editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice, prodCostPrice, setProdCostPrice, 
-        prodUnitsPerBox, setProdUnitsPerBox, prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
-        prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, prodBarcode, setProdBarcode, 
-        prodExpiry, setProdExpiry, prodSupplier, setProdSupplier, isGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
+        // Datos Firebase & Eliminaciones (vienen de useAdminData)
+        ...data,
+        // Formulario de Productos (vienen de useAdminProductForm)
+        ...productForm,
+        // Terminal POS (vienen de useAdminPOS)
+        ...pos,
+        // Marketing & Banners
         blogTopic, setBlogTopic, marketingProduct, setMarketingProduct, postPlatform, setPostPlatform,
-        generatedPost, bannerTitle, setBannerTitle, isUploadingBanner, posCart, setPosCart, 
-        posSearch, setPosSearch, posCashReceived, setPosCashReceived, posPaymentMethod, setPosPaymentMethod, 
-        showPosScanner, setShowPosScanner, showCashClosure, setShowCashClosure, 
-        banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
+        generatedPost, bannerTitle, setBannerTitle, isUploadingBanner,
+        // Finanzas
         chartData, profitableProducts, topCategory, totalRevenue, netProfit, todayCash, todayTrans,
-        handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, handleDeleteSubscription,
-        handleDeleteStockAlert, handleDeleteBlogPost, handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking,
-        handleAddBanner, handleAddCoupon, handleAddSupplier, handleAddExpense, 
-        handleUpdateUserRole, handleUpdateUser, handleUpdateBookingStatus, handleProductSubmit, handleGenerateDescription,
-        handleGenerateBlog, handleGeneratePost, handlePosCheckout, addToPosCart,
-        handleProductDelete, handleStockUpdate, handleCategoryAdd, handleOrderStatusUpdate,
+        // Handlers Directos y Redireccionamientos
+        handleAddBanner, 
+        handleAddCoupon: (c: string, v: number) => addCouponDB({ id: '', code: c.toUpperCase(), value: v, type: 'PERCENTAGE', active: true }),
+        handleAddSupplier: addSupplierDB, 
+        handleAddExpense: addExpenseDB,
+        handleUpdateUserRole: async (uid: string, role: User['role']) => { const u = data.users.find(x => x.uid === uid); if (u) await saveUserDB({ ...u, role }); },
+        handleUpdateUser: saveUserDB, 
+        handleUpdateBookingStatus: updateBookingStatusDB, 
+        handleGenerateBlog, 
+        handleGeneratePost, 
         handleProcessSubscription,
-        handleEditClick: (p: Product) => {
-            setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString()); setProdCostPrice(p.costPrice?.toString() || '');
-            setProdUnitsPerBox(p.unitsPerBox?.toString() || ''); setProdBoxPrice(p.boxPrice?.toString() || '');
-            setProdPublicBoxPrice(p.publicBoxPrice?.toString() || ''); setProdDesc(p.description); setProdCat(p.category);
-            setProdImage(p.image); setProdBarcode(p.barcode || ''); setProdExpiry(p.expiryDate || ''); setProdSupplier(p.supplierId || '');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        handleProductDelete: (id: string) => confirm("¿Eliminar producto?") && onDeleteProduct(id),
+        handleStockUpdate: onUpdateStock, 
+        handleCategoryAdd: (n: string) => onAddCategory({ id: '', name: n, image: '' }),
+        handleOrderStatusUpdate: onUpdateOrderStatus
     };
 };

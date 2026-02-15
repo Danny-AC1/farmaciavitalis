@@ -1,18 +1,10 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
+import { useAppLogic } from './hooks/useAppLogic';
 import { 
-  Product, Category, Order, User, CartItem, ViewState, 
-  CheckoutFormData, ADMIN_PASSWORD, CASHIER_PASSWORD, DRIVER_PASSWORD,
-  DELIVERY_FEE
-} from './types';
-import { 
-  streamProducts, streamCategories, streamOrders, addOrderDB, 
-  updateStockDB, getUserDB, addProductDB, updateProductDB, 
-  deleteProductDB, addCategoryDB, deleteCategoryDB, updateOrderStatusDB,
-  streamBanners, deleteBannerDB, streamUser
+  addProductDB, updateProductDB, deleteProductDB, updateStockDB, 
+  addCategoryDB, deleteCategoryDB, addOrderDB, updateOrderStatusDB, deleteBannerDB 
 } from './services/db';
-import { auth } from './services/firebase';
-import { searchProductsBySymptoms, checkInteractions } from './services/gemini';
 import { CheckCircle } from 'lucide-react';
 
 // Components
@@ -35,303 +27,109 @@ import FamilyHealthModal from './components/FamilyHealthModal';
 import StaffAccessModal from './components/StaffAccessModal';
 
 const App: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [banners, setBanners] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [tempStaffRole, setTempStaffRole] = useState<User['role'] | null>(null);
+  const logic = useAppLogic();
 
-  const [view, setView] = useState<ViewState>('HOME');
-  const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'assistant' | 'health' | 'services'>('home');
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [showStaffAccess, setShowStaffAccess] = useState(false);
+  if (logic.view === 'DRIVER_DASHBOARD') {
+    return <DriverDashboard orders={logic.orders} onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} />;
+  }
 
-  const [isSymptomMode, setIsSymptomMode] = useState(false);
-  const [isSearchingAI, setIsSearchingAI] = useState(false);
-  const [aiResults, setAiResults] = useState<string[]>([]);
-  const [checkingInteractions, setCheckingInteractions] = useState(false);
-  const [interactionWarning, setInteractionWarning] = useState<string | null>(null);
-
-  const [cart, setCart] = useState<CartItem[]>([]);
-
-  useEffect(() => {
-    let unsubUser: (() => void) | null = null;
-
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // En lugar de una sola carga, conectamos el stream para que los puntos se actualicen solos
-        if (unsubUser) unsubUser();
-        unsubUser = streamUser(user.uid, (userData) => {
-            setCurrentUser(userData);
-        });
-      } else {
-        if (unsubUser) unsubUser();
-        unsubUser = null;
-        setCurrentUser(null);
-      }
-    });
-
-    const unsubProducts = streamProducts(setProducts);
-    const unsubCategories = streamCategories(setCategories);
-    const unsubOrders = streamOrders(setOrders);
-    const unsubBanners = streamBanners(setBanners);
-
-    return () => {
-      unsubAuth(); unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners();
-      if (unsubUser) unsubUser();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isSymptomMode && searchTerm.length > 3) {
-      const timer = setTimeout(async () => {
-        setIsSearchingAI(true);
-        const ids = await searchProductsBySymptoms(searchTerm, products);
-        setAiResults(ids);
-        setIsSearchingAI(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setAiResults([]);
-    }
-  }, [searchTerm, isSymptomMode, products]);
-
-  useEffect(() => {
-    if (cart.length >= 2) {
-      const check = async () => {
-        setCheckingInteractions(true);
-        const names = cart.map(i => i.name);
-        const result = await checkInteractions(names);
-        setInteractionWarning(result.safe ? null : result.message);
-        setCheckingInteractions(false);
-      };
-      check();
-    } else {
-      setInteractionWarning(null);
-    }
-  }, [cart]);
-
-  const subtotal = useMemo(() => cart.reduce((acc, item) => {
-    const price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-    return acc + (price * item.quantity);
-  }, 0), [cart]);
-
-  const totalBase = subtotal + DELIVERY_FEE;
-
-  const displayedProducts = useMemo(() => {
-    let filtered = products;
-    if (activeCategory) {
-      const catName = categories.find(c => c.id === activeCategory)?.name;
-      filtered = products.filter(p => p.category === catName);
-    }
-    if (searchTerm) {
-      if (isSymptomMode) {
-        filtered = filtered.filter(p => aiResults.includes(p.id));
-      } else {
-        filtered = filtered.filter(p => 
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-    }
-    return filtered;
-  }, [products, searchTerm, activeCategory, categories, isSymptomMode, aiResults]);
-
-  const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id && item.selectedUnit === unitType);
-      if (existing) {
-        return prev.map(item => item.id === product.id && item.selectedUnit === unitType 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
-    });
-    setIsCartOpen(true);
-  };
-
-  const removeFromCart = (index: number) => {
-    setCart(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateQuantity = (index: number, delta: number) => {
-    setCart(prev => prev.map((item, i) => {
-      if (i === index) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-
-  const handleConfirmOrder = async (details: CheckoutFormData, discount: number, pointsRedeemed: number) => {
-    if (!currentUser) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    const orderId = `WEB-${Date.now()}`;
-    const finalTotal = subtotal + details.deliveryFee - discount;
-    const order: Order = {
-      id: orderId,
-      customerName: details.name,
-      customerPhone: details.phone,
-      customerAddress: `${details.deliveryZone}: ${details.address}`,
-      items: cart,
-      subtotal,
-      deliveryFee: details.deliveryFee,
-      discount,
-      pointsRedeemed,
-      total: finalTotal,
-      paymentMethod: details.paymentMethod,
-      cashGiven: details.cashGiven ? parseFloat(details.cashGiven) : undefined,
-      status: 'PENDING',
-      source: 'ONLINE',
-      date: new Date().toISOString(),
-      userId: currentUser.uid
-    };
-
-    try {
-      // addOrderDB ahora se encarga de restar los puntos en la DB
-      await addOrderDB(order);
-      
-      // Actualizar Stock
-      for (const item of cart) {
-        const orig = products.find(p => p.id === item.id);
-        if (orig) {
-          const unitsToSubtract = item.selectedUnit === 'BOX' ? (orig.unitsPerBox || 1) * item.quantity : item.quantity;
-          await updateStockDB(item.id, Math.max(0, orig.stock - unitsToSubtract));
-        }
-      }
-
-      // WhatsApp message construction
-      const itemsText = cart.map(i => `- ${i.quantity}x ${i.name} (${i.selectedUnit === 'BOX' ? 'Caja' : 'Unid'})`).join('\n');
-      const waMessage = `*NUEVO PEDIDO VITALIS* 💊\n\n` +
-        `*Orden:* #${orderId.slice(-8)}\n` +
-        `*Cliente:* ${order.customerName}\n` +
-        `*Zona:* ${details.deliveryZone}\n` +
-        `*Dirección:* ${details.address}\n\n` +
-        `*PRODUCTOS:*\n${itemsText}\n\n` +
-        `*Subtotal:* $${order.subtotal.toFixed(2)}\n` +
-        `*Envío:* $${order.deliveryFee.toFixed(2)}\n` +
-        (order.discount ? `*Descuento:* -$${order.discount.toFixed(2)}\n` : '') +
-        `*TOTAL A PAGAR: $${order.total.toFixed(2)}*\n\n` +
-        `*Método de Pago:* ${order.paymentMethod === 'CASH' ? 'Efectivo 💵' : 'Transferencia 🏦'}\n` +
-        (order.paymentMethod === 'CASH' && order.cashGiven ? `*Paga con:* $${order.cashGiven.toFixed(2)}\n*Cambio:* $${(order.cashGiven - order.total).toFixed(2)}` : '');
-
-      const waNumber = "593998506160";
-      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
-
-      setCart([]);
-      setView('SUCCESS');
-      window.open(waUrl, '_blank');
-      
-    } catch (e) {
-      alert("Error al procesar el pedido");
-    }
-  };
-
-  const handleTabChange = (tab: any) => {
-    if ((tab === 'orders' || tab === 'health' || tab === 'services') && !currentUser) {
-      setShowAuthModal(true);
-      return;
-    }
-    setActiveTab(tab);
-  };
-
-  const handleProceedToCheckout = () => {
-    setIsCartOpen(false);
-    setView('CHECKOUT');
-  };
-
-  if (view === 'DRIVER_DASHBOARD') return <DriverDashboard orders={orders} onLogout={() => { setView('HOME'); setTempStaffRole(null); }} />;
-  if (view === 'ADMIN_DASHBOARD') return (
-    <AdminPanel 
-      products={products} categories={categories} orders={orders}
-      onAddProduct={addProductDB} onEditProduct={updateProductDB} onDeleteProduct={deleteProductDB} onUpdateStock={updateStockDB}
-      onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB}
-      onLogout={() => { setView('HOME'); setTempStaffRole(null); }} 
-      currentUserRole={tempStaffRole || currentUser?.role}
-    />
-  );
+  if (logic.view === 'ADMIN_DASHBOARD') {
+    return (
+      <AdminPanel 
+        products={logic.products} categories={logic.categories} orders={logic.orders}
+        onAddProduct={addProductDB} onEditProduct={updateProductDB} onDeleteProduct={deleteProductDB} onUpdateStock={updateStockDB}
+        onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB}
+        onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} 
+        currentUserRole={logic.tempStaffRole || logic.currentUser?.role}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16 md:pb-0">
       <Navbar 
-        cartCount={cart.length} 
-        onCartClick={() => setIsCartOpen(true)}
-        onAdminClick={() => setShowStaffAccess(true)}
-        onLogoClick={() => { setActiveTab('home'); setView('HOME'); }}
-        onUserClick={() => currentUser ? setShowProfileModal(true) : setShowAuthModal(true)}
-        currentUser={currentUser}
-        onTabChange={handleTabChange}
+        cartCount={logic.cart.length} 
+        onCartClick={() => logic.setIsCartOpen(true)}
+        onAdminClick={() => logic.setShowStaffAccess(true)}
+        onLogoClick={() => { logic.setActiveTab('home'); logic.setView('HOME'); }}
+        onUserClick={() => logic.currentUser ? logic.setShowProfileModal(true) : logic.setShowAuthModal(true)}
+        currentUser={logic.currentUser}
+        onTabChange={logic.handleTabChange}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
         <SearchBar 
-          searchTerm={searchTerm} 
-          setSearchTerm={setSearchTerm} 
-          isSymptomMode={isSymptomMode} 
-          setIsSymptomMode={setIsSymptomMode}
-          isSearchingAI={isSearchingAI}
+          searchTerm={logic.searchTerm} 
+          setSearchTerm={logic.setSearchTerm} 
+          isSymptomMode={logic.isSymptomMode} 
+          setIsSymptomMode={logic.setIsSymptomMode}
+          isSearchingAI={logic.isSearchingAI}
           startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
-          banners={banners} categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory}
-          displayedProducts={displayedProducts} searchTerm={searchTerm} currentUser={currentUser} isSuperAdmin={currentUser?.role === 'ADMIN'}
-          handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => setView('ADMIN_DASHBOARD')} onOpenPrescription={() => setShowPrescriptionModal(true)}
-          onOpenServices={() => setActiveTab('services')} onAddToCart={addToCart} onSelectProduct={setSelectedProduct} cart={cart}
+          banners={logic.banners} categories={logic.categories} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
+          displayedProducts={logic.displayedProducts} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN'}
+          handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
+          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onSelectProduct={logic.setSelectedProduct} cart={logic.cart}
         />
       </main>
 
-      <BottomNav activeTab={activeTab as any} cartCount={cart.length} onTabChange={handleTabChange} onCartClick={() => setIsCartOpen(true)} />
+      <BottomNav activeTab={logic.activeTab} cartCount={logic.cart.length} onTabChange={logic.handleTabChange} onCartClick={() => logic.setIsCartOpen(true)} />
 
       <CartDrawer 
-        isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cart={cart} updateQuantity={updateQuantity} 
-        removeFromCart={removeFromCart} subtotal={subtotal} total={totalBase} onCheckout={handleProceedToCheckout}
-        checkingInteractions={checkingInteractions} interactionWarning={interactionWarning}
+        isOpen={logic.isCartOpen} onClose={() => logic.setIsCartOpen(false)} cart={logic.cart} updateQuantity={logic.updateQuantity} 
+        removeFromCart={logic.removeFromCart} subtotal={logic.subtotal} total={logic.totalBase} onCheckout={() => { logic.setIsCartOpen(false); logic.setView('CHECKOUT'); }}
+        checkingInteractions={logic.checkingInteractions} interactionWarning={logic.interactionWarning}
       />
 
-      {selectedProduct && <ProductDetail product={selectedProduct} cart={cart} products={products} currentUserEmail={currentUser?.email} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} />}
+      {logic.selectedProduct && (
+        <ProductDetail 
+          product={logic.selectedProduct} cart={logic.cart} products={logic.products} 
+          currentUserEmail={logic.currentUser?.email} onClose={() => logic.setSelectedProduct(null)} onAddToCart={logic.addToCart} 
+        />
+      )}
 
-      {view === 'CHECKOUT' && <Checkout cart={cart} subtotal={subtotal} total={totalBase} onConfirmOrder={handleConfirmOrder} onCancel={() => setView('HOME')} currentUser={currentUser} />}
+      {logic.view === 'CHECKOUT' && (
+        <Checkout 
+          cart={logic.cart} subtotal={logic.subtotal} total={logic.totalBase} 
+          onConfirmOrder={logic.handleConfirmOrder} onCancel={() => logic.setView('HOME')} currentUser={logic.currentUser} 
+        />
+      )}
 
-      {view === 'SUCCESS' && (
+      {logic.view === 'SUCCESS' && (
         <div className="fixed inset-0 z-[100] bg-teal-600 flex items-center justify-center p-6 text-white text-center">
           <div className="max-sm animate-in zoom-in duration-300">
             <CheckCircle className="h-24 w-24 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">¡Pedido Recibido!</h2>
             <p className="mb-8 opacity-90">Tu pedido ha sido registrado con éxito. Te avisaremos cuando esté en camino.</p>
-            <button onClick={() => { setView('HOME'); setActiveTab('home'); }} className="w-full bg-white text-teal-600 py-4 rounded-xl font-bold">Volver al Inicio</button>
+            <button onClick={() => { logic.setView('HOME'); logic.setActiveTab('home'); }} className="w-full bg-white text-teal-600 py-4 rounded-xl font-bold">Volver al Inicio</button>
           </div>
         </div>
       )}
 
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => {}} />}
-      {showProfileModal && currentUser && <ProfileModal user={currentUser} onClose={() => setShowProfileModal(false)} />}
+      {logic.showAuthModal && <AuthModal onClose={() => logic.setShowAuthModal(false)} onSuccess={() => {}} />}
+      {logic.showProfileModal && logic.currentUser && <ProfileModal user={logic.currentUser} onClose={() => logic.setShowProfileModal(false)} />}
       
-      {activeTab === 'orders' && currentUser && <UserOrdersModal user={currentUser} onClose={() => setActiveTab('home')} onReorder={(o) => { o.items.forEach(i => addToCart(i, i.selectedUnit)); setIsCartOpen(true); }} />}
-      {activeTab === 'services' && <ServicesModal user={currentUser} onClose={() => setActiveTab('home')} onLoginRequest={() => setShowAuthModal(true)} />}
-      {activeTab === 'assistant' && <Assistant products={products} isOpen={true} onClose={() => setActiveTab('home')} />}
-      {activeTab === 'health' && currentUser && <FamilyHealthModal user={currentUser} products={products} onClose={() => setActiveTab('home')} onAddToCart={(p) => addToCart(p, 'UNIT')} />}
+      {logic.activeTab === 'orders' && logic.currentUser && (
+        <UserOrdersModal 
+          user={logic.currentUser} onClose={() => logic.setActiveTab('home')} 
+          onReorder={(o) => { o.items.forEach(i => logic.addToCart(i, i.selectedUnit)); logic.setIsCartOpen(true); }} 
+        />
+      )}
+      {logic.activeTab === 'services' && <ServicesModal user={logic.currentUser} onClose={() => logic.setActiveTab('home')} onLoginRequest={() => logic.setShowAuthModal(true)} />}
+      {logic.activeTab === 'assistant' && <Assistant products={logic.products} isOpen={true} onClose={() => logic.setActiveTab('home')} />}
+      {logic.activeTab === 'health' && logic.currentUser && (
+        <FamilyHealthModal user={logic.currentUser} products={logic.products} onClose={() => logic.setActiveTab('home')} onAddToCart={(p) => logic.addToCart(p, 'UNIT')} />
+      )}
       
-      {showPrescriptionModal && <PrescriptionModal onClose={() => setShowPrescriptionModal(false)} />}
+      {logic.showPrescriptionModal && <PrescriptionModal onClose={() => logic.setShowPrescriptionModal(false)} />}
       
-      {showStaffAccess && (
+      {logic.showStaffAccess && (
         <StaffAccessModal 
-          onClose={() => setShowStaffAccess(false)} 
+          onClose={() => logic.setShowStaffAccess(false)} 
           onAuthorized={(targetView, role) => {
-              setTempStaffRole(role);
-              setView(targetView);
+              logic.setTempStaffRole(role);
+              logic.setView(targetView);
           }} 
         />
       )}

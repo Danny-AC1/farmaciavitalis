@@ -1,10 +1,11 @@
 import React from 'react';
 import { Home, ClipboardList, ShoppingCart, HeartPulse, Sparkles } from 'lucide-react';
 
+// Added 'services' to the tab types to align with useAppLogic state and fix TypeScript error in App.tsx
 interface BottomNavProps {
-  activeTab: 'home' | 'orders' | 'assistant' | 'health';
+  activeTab: 'home' | 'orders' | 'assistant' | 'health' | 'services';
   cartCount: number;
-  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health') => void;
+  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services') => void;
   onCartClick: () => void;
 }
 
