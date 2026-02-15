@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, ChevronDown, Navigation, Loader2, CheckCircle2, AlertCircle, Move } from 'lucide-react';
+import { MapPin, ChevronDown, Navigation, Loader2, CheckCircle2, AlertCircle, Move, Maximize2, Check, X } from 'lucide-react';
 import { CheckoutFormData, Ciudadela } from '../types';
 
 interface CheckoutFormProps {
@@ -14,7 +13,6 @@ interface CheckoutFormProps {
   onNextStep: (e: React.FormEvent) => void;
 }
 
-// Coordenadas por defecto (Machalilla Centro)
 const MACHALILLA_CENTER: [number, number] = [-1.4836, -80.7733];
 
 const CheckoutForm: React.FC<CheckoutFormProps> = ({
@@ -23,14 +21,36 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   const [isLocating, setIsLocating] = useState(false);
   const [locationSuccess, setLocationSuccess] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const mapContainerId = "checkout-map-container";
 
-  // Inicializar el mapa
+  // Efecto para redimensionar el mapa cuando cambia a pantalla completa
   useEffect(() => {
-    // @ts-ignore - Leaflet viene de window por el CDN
+    if (mapRef.current) {
+      // Forzar a Leaflet a reconocer el nuevo tamaño del contenedor (fixed vs relative)
+      setTimeout(() => {
+        mapRef.current.invalidateSize();
+        if (isMapFullscreen && markerRef.current) {
+          mapRef.current.setView(markerRef.current.getLatLng(), mapRef.current.getZoom());
+        }
+      }, 100);
+    }
+    
+    // Bloquear el scroll del body cuando el mapa está en fullscreen
+    if (isMapFullscreen) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+    
+    return () => { document.body.style.overflow = ''; };
+  }, [isMapFullscreen]);
+
+  useEffect(() => {
+    // @ts-ignore
     const L = window.L;
     if (!L) return;
 
@@ -39,7 +59,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       const initialLng = formData.lng || MACHALILLA_CENTER[1];
 
       mapRef.current = L.map(mapContainerId, {
-        zoomControl: false
+        zoomControl: false,
+        tap: false 
       }).setView([initialLat, initialLng], 16);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -48,14 +69,13 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
 
       L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
 
-      // Crear el marcador arrastrable
       const customIcon = L.divIcon({
         className: 'custom-div-icon',
-        html: `<div style="background-color: #0d9488; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
-                 <div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>
+        html: `<div style="background-color: #0d9488; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
+                 <div style="width: 10px; height: 10px; background: white; border-radius: 50%;"></div>
                </div>`,
-        iconSize: [30, 42],
-        iconAnchor: [15, 42]
+        iconSize: [34, 46],
+        iconAnchor: [17, 46]
       });
 
       markerRef.current = L.marker([initialLat, initialLng], {
@@ -63,7 +83,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         icon: customIcon
       }).addTo(mapRef.current);
 
-      // Evento al terminar de arrastrar
       markerRef.current.on('dragend', (event: any) => {
         const marker = event.target;
         const position = marker.getLatLng();
@@ -72,22 +91,16 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           lat: position.lat,
           lng: position.lng
         });
-        setLocationSuccess(true);
-        setTimeout(() => setLocationSuccess(false), 2000);
       });
 
-      // Si el usuario ya tiene coordenadas, guardarlas al iniciar si no existen
       if (!formData.lat || !formData.lng) {
         setFormData({ ...formData, lat: initialLat, lng: initialLng });
       }
     }
-
-    return () => {
-      // No destruimos el mapa aquí para evitar parpadeos si hay re-renders de React
-    };
   }, []);
 
-  const handleGetLocation = () => {
+  const handleGetLocation = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!navigator.geolocation) return alert("Navegador no compatible.");
 
     setIsLocating(true);
@@ -96,28 +109,40 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-
         if (mapRef.current && markerRef.current) {
           mapRef.current.flyTo([latitude, longitude], 17);
           markerRef.current.setLatLng([latitude, longitude]);
-          
-          setFormData({
-            ...formData,
-            lat: latitude,
-            lng: longitude
-          });
+          setFormData({ ...formData, lat: latitude, lng: longitude });
         }
         setIsLocating(false);
         setLocationSuccess(true);
         setTimeout(() => setLocationSuccess(false), 3000);
       },
-      (error) => {
+      () => { // Se eliminó 'error' para limpiar la advertencia de la línea 115
         setIsLocating(false);
-        setLocationError("Ubicación por GPS no disponible. Mueve el pin manualmente.");
-        console.error(error);
+        setLocationError("GPS no disponible. Mueve el pin manualmente.");
       },
       { timeout: 10000 }
     );
+  };
+
+  const confirmLocation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMapFullscreen(false);
+    setLocationSuccess(true);
+    setTimeout(() => setLocationSuccess(false), 3000);
+  };
+
+  const openFullscreen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMapFullscreen(true);
+  };
+
+  const closeFullscreen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMapFullscreen(false);
   };
 
   return (
@@ -151,14 +176,13 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         </div>
       </div>
 
-      {/* Selector de Ubicación Interactiva */}
       <div className="bg-slate-50 rounded-[1.5rem] p-4 border-2 border-dashed border-slate-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <div>
                 <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight flex items-center gap-2">
-                  Selecciona tu Ubicación <Move size={14} className="text-teal-500 animate-pulse" />
+                  Punto de Entrega <Move size={14} className="text-teal-500 animate-pulse" />
                 </h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Arrastra el marcador hacia tu puerta</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Ubica tu casa exactamente en el mapa</p>
             </div>
             <button 
                 type="button" 
@@ -166,8 +190,9 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
                 disabled={isLocating}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95 ${locationSuccess ? 'bg-green-500 text-white' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
             >
-                {isLocating ? <Loader2 size={16} className="animate-spin"/> : locationSuccess ? <CheckCircle2 size={16}/> : <Navigation size={16}/>}
-                {isLocating ? 'Capturando...' : locationSuccess ? '¡Confirmado!' : 'Detectar mi GPS'}
+                {/* Fixed escaped quotes in className and redundant backslashes on line 192 */}
+                {isLocating ? <Loader2 size={16} className="animate-spin" /> : locationSuccess ? <CheckCircle2 size={16} /> : <Navigation size={16} />}
+                {isLocating ? 'Buscando...' : locationSuccess ? 'Ubicado' : 'Detectar GPS'}
             </button>
         </div>
 
@@ -178,20 +203,57 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           </div>
         )}
 
-        <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden border-2 border-white shadow-xl">
-           <div id={mapContainerId} className="w-full h-full z-0"></div>
+        {/* Contenedor del Mapa */}
+        <div 
+          className={`relative overflow-hidden ${isMapFullscreen ? 'fixed inset-0 !m-0 !p-0 rounded-none z-[9999] bg-white' : 'w-full h-48 md:h-56 rounded-2xl border-2 border-white shadow-xl'}`}
+        >
+           <div id={mapContainerId} className="w-full h-full absolute inset-0 z-0"></div>
            
-           <div className="absolute top-2 left-2 right-2 z-[10] pointer-events-none">
-              <div className="bg-teal-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg inline-flex items-center gap-2 text-[8px] font-black text-white uppercase tracking-widest shadow-lg">
-                <div className="w-2 h-2 bg-teal-400 rounded-full animate-ping"></div>
-                Arrastra el pin al punto exacto
-              </div>
-           </div>
+           {isMapFullscreen ? (
+             <div className="absolute inset-0 pointer-events-none z-[10000]">
+               <div className="absolute top-6 left-6 right-6 flex justify-between items-start">
+                  <div className="bg-slate-900/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl pointer-events-auto border border-white/20">
+                    <p className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                       <Move size={14} className="text-teal-400" /> Mueve el pin a tu casa
+                    </p>
+                    <p className="text-slate-400 text-[9px] font-bold uppercase mt-1">Acércate lo más posible</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={closeFullscreen}
+                    className="p-3 bg-white text-slate-900 rounded-2xl shadow-2xl pointer-events-auto hover:bg-slate-50 active:scale-95 transition-all border border-slate-200"
+                  >
+                    <X size={24} />
+                  </button>
+               </div>
 
-           <div className="absolute bottom-2 left-2 z-[10] bg-white/90 backdrop-blur-sm p-2 rounded-lg text-[8px] font-black text-slate-500 uppercase flex items-center gap-1 shadow-md">
-                <MapPin size={10} className="text-teal-600"/> 
-                LAT: {formData.lat?.toFixed(5)} | LNG: {formData.lng?.toFixed(5)}
-           </div>
+               <div className="absolute bottom-10 left-6 right-6 flex flex-col gap-4 items-center">
+                  <div className="bg-white/95 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-white flex items-center gap-2 pointer-events-auto">
+                    <MapPin size={14} className="text-teal-600"/>
+                    <span className="text-[10px] font-black text-slate-700 uppercase">
+                      Coords: {formData.lat?.toFixed(5)}, {formData.lng?.toFixed(5)}
+                    </span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={confirmLocation}
+                    className="w-full max-w-sm bg-teal-600 text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(13,148,136,0.6)] pointer-events-auto flex items-center justify-center gap-3 hover:bg-teal-700 active:scale-95 transition-all border-4 border-white"
+                  >
+                    <CheckCircle2 size={24} /> CONFIRMAR PUNTO
+                  </button>
+               </div>
+             </div>
+           ) : (
+             <div 
+                className="absolute inset-0 bg-teal-900/10 flex flex-col items-center justify-center group hover:bg-teal-900/20 transition-all cursor-pointer z-10"
+                onClick={openFullscreen}
+             >
+                <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 transform transition-transform group-hover:scale-105">
+                  <Maximize2 size={14} className="text-teal-600" />
+                  <span className="text-[10px] font-black text-teal-800 uppercase tracking-widest">Toca para ampliar mapa</span>
+                </div>
+             </div>
+           )}
         </div>
       </div>
 
@@ -202,16 +264,32 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       
       <div className="mt-8 flex gap-3 pt-4 border-t border-gray-100">
         <button type="button" onClick={onCancel} className="w-1/3 bg-white border-2 border-gray-100 text-gray-400 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-colors">Cancelar</button>
-        <button type="submit" className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-teal-700 shadow-lg shadow-teal-500/20 transition-transform active:scale-95">Elegir Método de Pago &rarr;</button>
+        <button type="submit" className="w-2/3 bg-teal-600 text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-teal-700 shadow-lg shadow-teal-600/20 transition-transform active:scale-95">Elegir Método de Pago &rarr;</button>
       </div>
       
       <style>{`
-        .leaflet-container { font-family: inherit; }
+        .leaflet-container { font-family: inherit; width: 100% !important; height: 100% !important; z-index: 1; }
         .custom-div-icon { background: none; border: none; }
         .leaflet-bar { border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important; }
         .leaflet-bar a { background-color: white !important; color: #0d9488 !important; border: 1px solid #f1f5f9 !important; }
-        .leaflet-bar a:first-child { border-top-left-radius: 12px !important; border-top-right-radius: 12px !important; }
-        .leaflet-bar a:last-child { border-bottom-left-radius: 12px !important; border-bottom-right-radius: 12px !important; }
+        .leaflet-control-zoom { margin-bottom: 20px !important; margin-right: 20px !important; }
+        
+        /* Forzar visibilidad absoluta en fullscreen rompiendo el overflow del modal */
+        :global(.fixed.inset-0:has(#checkout-map-container)) {
+            z-index: 9999 !important;
+        }
+
+        /* Si el mapa está en fullscreen, forzamos al modal padre a no tener transform que rompa el 'fixed' */
+        ${isMapFullscreen ? `
+            :global(.animate-in.zoom-in) {
+                transform: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+        ` : ''}
+        
+        .leaflet-pane { z-index: 2 !important; }
+        .leaflet-top, .leaflet-bottom { z-index: 3 !important; }
       `}</style>
     </form>
   );
