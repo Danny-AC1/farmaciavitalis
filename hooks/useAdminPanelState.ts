@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Product, Order, Category, User, Supplier, SearchLog, Banner, 
     Expense, Subscription, Coupon, ServiceBooking, StockAlert, 
-    CartItem, BlogPost 
+    CartItem, BlogPost, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE 
 } from '../types';
 import { 
     streamUsers, streamSuppliers, streamSearchLogs, streamBanners, 
@@ -302,34 +302,40 @@ export const useAdminPanelState = (
         } finally { setIsGenerating(false); }
     };
 
-    const handlePosCheckout = async (customer?: User) => {
+    const handlePosCheckout = async (customer?: User, pointsRedeemed: number = 0) => {
         if (posCart.length === 0) return;
-        const total = posCart.reduce((sum, item) => {
+        
+        const subtotalValue = posCart.reduce((sum, item) => {
             const isBox = item.selectedUnit === 'BOX';
             const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
             return sum + (price * item.quantity);
         }, 0);
 
-        const orderData: any = {
+        const discount = pointsRedeemed > 0 ? POINTS_DISCOUNT_VALUE : 0;
+        const totalValue = Math.max(0, subtotalValue - discount);
+
+        const orderData: Order = {
             id: `POS-${Date.now()}`,
             customerName: customer?.displayName || 'Venta Local',
             customerPhone: customer?.phone || 'N/A',
             customerAddress: customer?.cedula || 'Mostrador',
             items: posCart,
-            subtotal: total,
+            subtotal: subtotalValue,
             deliveryFee: 0,
-            total: total,
+            discount: discount,
+            pointsRedeemed: pointsRedeemed,
+            total: totalValue,
             paymentMethod: posPaymentMethod,
             status: 'DELIVERED',
             source: 'POS',
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            userId: customer?.uid
         };
 
-        if (customer?.uid) orderData.userId = customer.uid;
         if (posCashReceived && !isNaN(parseFloat(posCashReceived))) orderData.cashGiven = parseFloat(posCashReceived);
 
         try {
-            await addOrderDB(orderData as Order);
+            await addOrderDB(orderData);
             for (const item of posCart) {
                 const orig = products.find(p => p.id === item.id);
                 if (orig) {
@@ -342,12 +348,30 @@ export const useAdminPanelState = (
         } catch (error: any) { alert("Error al procesar venta."); }
     };
 
-    const addToPosCart = (product: Product) => {
-        if (product.stock <= 0) return alert("Sin stock");
+    const addToPosCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+        const unitsNeeded = unitType === 'BOX' ? (product.unitsPerBox || 1) : 1;
+        
+        // Calcular total de unidades de este producto ya presentes en el carrito
+        const currentTotalInCart = posCart
+            .filter(item => item.id === product.id)
+            .reduce((sum, item) => {
+                const itemUnits = item.selectedUnit === 'BOX' ? (item.unitsPerBox || 1) : 1;
+                return sum + (item.quantity * itemUnits);
+            }, 0);
+
+        if (currentTotalInCart + unitsNeeded > product.stock) {
+            return alert(`Stock insuficiente. Disponible: ${product.stock} unidades. Tienes ${currentTotalInCart} en el carrito.`);
+        }
+        
         setPosCart(prev => {
-            const exists = prev.find(item => item.id === product.id);
-            if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-            return [...prev, { ...product, quantity: 1, selectedUnit: 'UNIT' }];
+            const exists = prev.find(item => item.id === product.id && item.selectedUnit === unitType);
+            if (exists) {
+                return prev.map(item => (item.id === product.id && item.selectedUnit === unitType) 
+                    ? { ...item, quantity: item.quantity + 1 } 
+                    : item
+                );
+            }
+            return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
         });
     };
 
