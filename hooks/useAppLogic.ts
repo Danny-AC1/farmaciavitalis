@@ -6,12 +6,23 @@ import {
 } from '../types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
-  updateStockDB, streamBanners, streamUser, logSearchDB, updateUserFieldsDB
+  updateStockDB, streamBanners, streamUser,  updateUserFieldsDB
 } from '../services/db';
 import { auth } from '../services/firebase';
 import { searchProductsBySymptoms, checkInteractions } from '../services/gemini';
 
 export const useAppLogic = () => {
+  // Inicializamos estados leyendo de la URL si existen parámetros
+  const getInitialState = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      view: (params.get('view') as ViewState) || 'HOME',
+      tab: (params.get('tab') as any) || 'home'
+    };
+  };
+
+  const initialState = getInitialState();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -19,8 +30,8 @@ export const useAppLogic = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tempStaffRole, setTempStaffRole] = useState<User['role'] | null>(null);
 
-  const [view, setView] = useState<ViewState>('HOME');
-  const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'assistant' | 'health' | 'services'>('home');
+  const [view, setView] = useState<ViewState>(initialState.view);
+  const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'assistant' | 'health' | 'services'>(initialState.tab);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,17 +50,35 @@ export const useAppLogic = () => {
 
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // 1. Streams de Firebase
+  // 1. Sincronización de URL (Efecto de persistencia)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (view !== 'HOME') params.set('view', view);
+    if (activeTab !== 'home') params.set('tab', activeTab);
+    
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [view, activeTab]);
+
+  // 2. Streams de Firebase
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
     const unsubAuth = auth.onAuthStateChanged((user) => {
       if (user) {
         if (unsubUser) unsubUser();
-        unsubUser = streamUser(user.uid, (userData) => setCurrentUser(userData));
+        unsubUser = streamUser(user.uid, (userData) => {
+            setCurrentUser(userData);
+            // Si cargamos una pestaña protegida por URL, pero no estábamos logueados, 
+            // este efecto se asegura de que ahora que hay user, la vista sea correcta.
+        });
       } else {
         if (unsubUser) unsubUser();
         unsubUser = null;
         setCurrentUser(null);
+        // Si no hay usuario y estamos en una pestaña protegida, mostrar login
+        if (['orders', 'health'].includes(activeTab)) {
+            setShowAuthModal(true);
+        }
       }
     });
 
@@ -62,9 +91,9 @@ export const useAppLogic = () => {
       unsubAuth(); unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners();
       if (unsubUser) unsubUser();
     };
-  }, []);
+  }, [activeTab]);
 
-  // 2. IA: Búsqueda por síntomas
+  // 3. IA: Búsqueda por síntomas
   useEffect(() => {
     if (isSymptomMode && searchTerm.length > 3) {
       const timer = setTimeout(async () => {
@@ -79,7 +108,7 @@ export const useAppLogic = () => {
     }
   }, [searchTerm, isSymptomMode, products]);
 
-  // 3. IA: Interacciones medicamentosas
+  // 4. IA: Interacciones medicamentosas
   useEffect(() => {
     if (cart.length >= 2) {
       const check = async () => {
@@ -95,7 +124,7 @@ export const useAppLogic = () => {
     }
   }, [cart]);
 
-  // 4. Cálculos y Filtros
+  // 5. Cálculos y Filtros
   const subtotal = useMemo(() => cart.reduce((acc, item) => {
     const price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
     return acc + (price * item.quantity);
@@ -121,20 +150,6 @@ export const useAppLogic = () => {
     }
     return filtered;
   }, [products, searchTerm, activeCategory, categories, isSymptomMode, aiResults]);
-
-  // 5. Registro de Demanda (Búsquedas sin resultado)
-  useEffect(() => {
-    if (searchTerm.length > 3 && displayedProducts.length === 0 && !isSearchingAI) {
-      const timer = setTimeout(async () => {
-        try {
-          await logSearchDB(searchTerm);
-        } catch (error) {
-          console.error("Error al registrar demanda:", error);
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchTerm, displayedProducts.length, isSearchingAI]);
 
   // 6. Handlers del Carrito
   const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
@@ -194,11 +209,7 @@ export const useAppLogic = () => {
     };
 
     try {
-      // 1. Guardamos la orden (addOrderDB ahora gestiona los puntos atómicamente)
       await addOrderDB(order);
-      
-      // 2. ACTUALIZACIÓN PARCIAL DE PERFIL: 
-      // Usamos updateUserFieldsDB para persistir dirección sin riesgo de sobrescribir puntos.
       await updateUserFieldsDB(currentUser.uid, {
           address: details.address,
           lat: details.lat,
@@ -207,7 +218,6 @@ export const useAppLogic = () => {
           phone: details.phone
       });
 
-      // 3. Actualizar stock
       for (const item of cart) {
         const orig = products.find(p => p.id === item.id);
         if (orig) {
@@ -216,7 +226,6 @@ export const useAppLogic = () => {
         }
       }
 
-      // 4. WhatsApp y finalización
       const itemsText = cart.map(i => `- ${i.quantity}x ${i.name} (${i.selectedUnit === 'BOX' ? 'Caja' : 'Unid'})`).join('\n');
       const mapsLink = order.lat && order.lng ? `\n📍 *Ubicación GPS:* https://www.google.com/maps?q=${order.lat},${order.lng}` : '';
       
@@ -250,6 +259,7 @@ export const useAppLogic = () => {
       return;
     }
     setActiveTab(tab);
+    setView('HOME'); // Aseguramos que al cambiar de pestaña estemos en la vista principal
   };
 
   return {
