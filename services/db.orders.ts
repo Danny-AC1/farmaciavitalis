@@ -28,15 +28,16 @@ export const addOrderDB = async (order: Order) => {
   const orderRef = doc(db, ORDERS_COLLECTION, order.id);
   const cleanedOrder = cleanData(order);
   await setDoc(orderRef, cleanedOrder);
-  if (order.userId && order.pointsRedeemed && order.pointsRedeemed > 0) {
-      const userRef = doc(db, USERS_COLLECTION, order.userId);
-      await updateDoc(userRef, { points: increment(-order.pointsRedeemed) });
-  }
-  if (order.userId && order.status === 'DELIVERED') {
+
+  // ACTUALIZACIÓN INMEDIATA DE PUNTOS AL CREAR LA ORDEN
+  if (order.userId) {
       const pointsEarned = Math.floor(order.subtotal);
-      if (pointsEarned > 0) {
+      const pointsRedeemed = order.pointsRedeemed || 0;
+      const netChange = pointsEarned - pointsRedeemed;
+      
+      if (netChange !== 0) {
           const userRef = doc(db, USERS_COLLECTION, order.userId);
-          await updateDoc(userRef, { points: increment(pointsEarned) });
+          await updateDoc(userRef, { points: increment(netChange) });
       }
   }
 };
@@ -45,16 +46,10 @@ export const deleteOrderDB = async (id: string) => {
   await deleteDoc(doc(db, ORDERS_COLLECTION, id));
 };
 
-export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order?: Order) => {
+export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DELIVERED', _order?: Order) => {
   const orderRef = doc(db, ORDERS_COLLECTION, id);
+  // Solo actualizamos el estado. Los puntos ya se gestionaron en addOrderDB para ser inmediatos.
   await updateDoc(orderRef, { status });
-  if (status === 'DELIVERED' && order && order.userId) {
-      const pointsEarned = Math.floor(order.subtotal);
-      if (pointsEarned > 0) {
-        const userRef = doc(db, USERS_COLLECTION, order.userId);
-        await updateDoc(userRef, { points: increment(pointsEarned) });
-      }
-  }
 };
 
 export const updateOrderLocationDB = async (orderId: string, lat: number, lng: number) => {

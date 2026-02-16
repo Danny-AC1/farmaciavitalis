@@ -41,13 +41,25 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
           ...prev, 
           name: currentUser.displayName || '', 
           phone: currentUser.phone || '', 
-          address: currentUser.address || '' 
+          address: currentUser.address || '',
+          lat: currentUser.lat || prev.lat,
+          lng: currentUser.lng || prev.lng,
+          deliveryZone: currentUser.deliveryZone || prev.deliveryZone
         }));
     }
     const unsubCoupons = streamCoupons(setCoupons);
     const unsubCiudadelas = streamCiudadelas((data) => {
         setCiudadelas(data);
-        if (data.length > 0 && !selectedCiudadela) {
+        if (data.length > 0) {
+            // Si el usuario tiene una zona guardada, la buscamos y la seleccionamos
+            if (currentUser?.deliveryZone) {
+                const savedZone = data.find(c => c.name === currentUser.deliveryZone);
+                if (savedZone) {
+                    setSelectedCiudadela(savedZone);
+                    return;
+                }
+            }
+            // Si no hay guardada, buscamos la predeterminada
             const defaultZone = data.find(c => c.name.toLowerCase().includes('cirial')) || data[0];
             setSelectedCiudadela(defaultZone);
         }

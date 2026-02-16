@@ -1,13 +1,14 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Order } from '../types';
 import { updateOrderStatusDB, updateOrderLocationDB } from '../services/db';
-import { Truck, CheckCircle, MapPin, Phone, Clock, LogOut, Navigation, Radio, Loader2 } from 'lucide-react';
+import { Truck, CheckCircle, MapPin, Phone, Clock, LogOut, Navigation, Radio, Loader2, Map as MapIcon } from 'lucide-react';
 
 interface DriverDashboardProps {
     orders: Order[];
     onLogout: () => void;
 }
+
+const VITALIS_LOCATION = { lat: -1.483699, lng: -80.77338 };
 
 const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) => {
     const [isGPSActive, setIsGPSActive] = useState(false);
@@ -24,7 +25,6 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
                 (position) => {
                     const { latitude, longitude } = position.coords;
                     
-                    // Solo actualizar si hay un movimiento significativo (> 0.0001 aprox 10m)
                     if (!lastPosRef.current || 
                         Math.abs(lastPosRef.current.lat - latitude) > 0.0001 || 
                         Math.abs(lastPosRef.current.lng - longitude) > 0.0001) {
@@ -65,8 +65,11 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
         }
     };
 
-    const openMap = (address: string) => {
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address + ", Machalilla, Ecuador")}`, '_blank');
+    const openMap = (order: Order) => {
+        const destination = order.lat && order.lng 
+            ? `${order.lat},${order.lng}` 
+            : encodeURIComponent(order.customerAddress + ", Machalilla, Ecuador");
+        window.open(`https://www.google.com/maps/search/?api=1&query=${destination}`, '_blank');
     };
 
     const callCustomer = (phone: string) => {
@@ -74,13 +77,30 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
     };
 
     const generateOptimizedRoute = () => {
-        if (activeOrders.length === 0) return;
-        const origin = encodeURIComponent("Farmacia Vitalis, Machalilla, Ecuador");
-        const stops = activeOrders.slice(0, 9).map(o => encodeURIComponent(o.customerAddress + ", Machalilla, Ecuador"));
-        if (stops.length === 0) return;
-        const destination = stops.pop(); 
+        if (inTransitOrders.length === 0) {
+            alert("Primero marca los pedidos como 'Empezar Entrega' para generar la ruta optimizada.");
+            return;
+        }
+
+        // 1. Definir Origen (GPS Real o Local Vitalis)
+        const origin = lastPosRef.current 
+            ? `${lastPosRef.current.lat},${lastPosRef.current.lng}` 
+            : `${VITALIS_LOCATION.lat},${VITALIS_LOCATION.lng}`;
+
+        // 2. Preparar destinos (Preferir coordenadas GPS si existen)
+        const stops = inTransitOrders.map(o => {
+            if (o.lat && o.lng) return `${o.lat},${o.lng}`;
+            return encodeURIComponent(o.customerAddress + ", Machalilla, Ecuador");
+        });
+
+        // 3. Construir URL multi-parada de Google Maps
+        // El último de la lista será el 'destination' final, los demás van en 'waypoints'
+        const finalDestination = stops.pop();
         const waypoints = stops.join('|');
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+        
+        const baseUrl = "https://www.google.com/maps/dir/?api=1";
+        const url = `${baseUrl}&origin=${origin}&destination=${finalDestination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+        
         window.open(url, '_blank');
     };
 
@@ -89,11 +109,11 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
             <div className="bg-teal-800 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <Truck className="h-6 w-6" />
-                    <h1 className="font-bold text-lg">Modo Repartidor</h1>
+                    <h1 className="font-black text-lg uppercase tracking-tighter">Modo Repartidor</h1>
                 </div>
                 <div className="flex items-center gap-3">
                     {isGPSActive && (
-                        <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded text-[10px] font-black uppercase text-green-300 border border-green-500/50 animate-pulse">
+                        <div className="flex items-center gap-1.5 bg-green-500/20 px-2 py-1 rounded-lg text-[9px] font-black uppercase text-green-300 border border-green-500/30 animate-pulse">
                             <Radio size={12}/> GPS Activo
                         </div>
                     )}
@@ -103,83 +123,102 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
 
             <div className="p-4 space-y-6 max-w-lg mx-auto">
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
-                        <span className="text-xs text-gray-500 uppercase font-bold tracking-tighter">Por Entregar</span>
-                        <p className="text-2xl font-black text-gray-800">{activeOrders.length}</p>
+                    <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-l-4 border-orange-500">
+                        <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Pendientes</span>
+                        <p className="text-3xl font-black text-slate-800">{activeOrders.length}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <span className="text-xs text-gray-500 uppercase font-bold tracking-tighter">Entregas Hoy</span>
-                        <p className="text-2xl font-black text-gray-800">{deliveredToday.length}</p>
+                    <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-l-4 border-green-500">
+                        <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Éxitos Hoy</span>
+                        <p className="text-3xl font-black text-slate-800">{deliveredToday.length}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between border-b border-gray-300 pb-2">
-                    <h2 className="font-bold text-gray-700 text-lg">Hoja de Ruta</h2>
-                    {activeOrders.length > 0 && (
-                        <button onClick={generateOptimizedRoute} className="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md">
-                            <Navigation size={14} /> Ruta Optimizada
+                <div className="flex items-center justify-between border-b border-gray-300 pb-3">
+                    <h2 className="font-black text-slate-700 text-xs uppercase tracking-[0.2em]">Hoja de Ruta Activa</h2>
+                    {inTransitOrders.length > 0 && (
+                        <button 
+                            onClick={generateOptimizedRoute} 
+                            className="bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                        >
+                            <Navigation size={14} className="animate-pulse" /> Ruta Optimizada ({inTransitOrders.length})
                         </button>
                     )}
                 </div>
 
                 {activeOrders.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400">
-                        <CheckCircle className="h-16 w-16 mx-auto mb-2 opacity-10" />
-                        <p className="font-bold">No hay entregas pendientes.</p>
-                        <p className="text-xs">Los nuevos pedidos aparecerán aquí.</p>
+                    <div className="text-center py-20 text-gray-400">
+                        <div className="bg-white h-24 w-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                            <CheckCircle className="h-12 w-12 text-slate-100" />
+                        </div>
+                        <p className="font-black uppercase tracking-widest text-sm">Sin entregas</p>
+                        <p className="text-[10px] uppercase font-bold mt-1">Los nuevos pedidos aparecerán aquí.</p>
                     </div>
                 ) : (
                     activeOrders.map(order => (
-                        <div key={order.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mb-4 animate-in slide-in-from-bottom-2">
-                            <div className={`p-3 text-white font-bold flex justify-between items-center ${order.status === 'IN_TRANSIT' ? 'bg-blue-600' : 'bg-orange-500'}`}>
-                                <span className="text-[10px] uppercase tracking-widest flex items-center gap-2">
-                                    {order.status === 'IN_TRANSIT' ? <><Loader2 className="animate-spin" size={12}/> EN CAMINO 🛵</> : 'ESPERANDO ⏳'}
+                        <div key={order.id} className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 mb-6 animate-in slide-in-from-bottom-4 group">
+                            <div className={`p-4 text-white font-black flex justify-between items-center ${order.status === 'IN_TRANSIT' ? 'bg-blue-600' : 'bg-slate-900'}`}>
+                                <span className="text-[10px] uppercase tracking-[0.15em] flex items-center gap-2">
+                                    {order.status === 'IN_TRANSIT' ? <><Loader2 className="animate-spin" size={14}/> EN RUTA 🛵</> : 'ESPERANDO ⏳'}
                                 </span>
-                                <span className="text-[10px] opacity-80 font-mono">#{order.id.slice(-6)}</span>
+                                <span className="text-[10px] opacity-60 font-mono">#{order.id.slice(-6)}</span>
                             </div>
-                            <div className="p-5 space-y-4">
+                            <div className="p-6 space-y-5">
                                 <div>
-                                    <h3 className="font-bold text-xl text-gray-800 uppercase tracking-tight">{order.customerName}</h3>
-                                    <div className="flex gap-4 mt-2">
-                                        <button onClick={() => callCustomer(order.customerPhone)} className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1 rounded-full text-gray-700 font-medium hover:bg-gray-200">
-                                            <Phone size={14} /> {order.customerPhone}
+                                    <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tight leading-none mb-2">{order.customerName}</h3>
+                                    <div className="flex gap-4">
+                                        <button onClick={() => callCustomer(order.customerPhone)} className="flex items-center gap-2 text-[10px] bg-slate-100 px-3 py-1.5 rounded-full text-slate-700 font-black hover:bg-teal-50 hover:text-teal-600 transition-colors uppercase tracking-widest">
+                                            <Phone size={12} /> {order.customerPhone}
                                         </button>
-                                        <div className="flex items-center gap-1 text-sm text-gray-400">
-                                            <Clock size={14} /> {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                            <Clock size={12} /> {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => openMap(order.customerAddress)}>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Destino en Machalilla</p>
-                                    <p className="flex items-start gap-2 text-gray-800 font-medium leading-tight">
-                                        <MapPin className="shrink-0 mt-0.5 text-red-500" size={16} />
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 cursor-pointer hover:bg-blue-50 transition-colors relative" onClick={() => openMap(order)}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dirección de Entrega</p>
+                                        {order.lat && order.lng && (
+                                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">📍 GPS Exacto</span>
+                                        )}
+                                    </div>
+                                    <p className="flex items-start gap-3 text-slate-800 font-bold text-sm leading-snug uppercase">
+                                        <MapPin className="shrink-0 mt-0.5 text-red-500" size={18} />
                                         {order.customerAddress}
                                     </p>
+                                    <div className="absolute bottom-2 right-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                                        <MapIcon size={20} className="text-blue-600"/>
+                                    </div>
                                 </div>
 
-                                <div className="flex justify-between items-end border-t border-gray-100 pt-4">
+                                <div className="flex justify-between items-end border-t border-slate-100 pt-5">
                                     <div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Cobro Pendiente</p>
-                                        <p className="text-2xl font-black text-teal-700">${order.total.toFixed(2)}</p>
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${order.paymentMethod === 'CASH' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
-                                            {order.paymentMethod === 'CASH' ? 'Efectivo 💵' : 'Transferencia 🏦'}
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Monto a Cobrar</p>
+                                        <p className="text-3xl font-black text-teal-700 tabular-nums">${order.total.toFixed(2)}</p>
+                                        <span className={`inline-block mt-2 text-[9px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.paymentMethod === 'CASH' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            {order.paymentMethod === 'CASH' ? '💵 EFECTIVO' : '🏦 TRANSFERENCIA'}
                                         </span>
                                     </div>
                                     {order.paymentMethod === 'CASH' && order.cashGiven && (
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Dar Vuelto</p>
-                                            <p className="text-lg font-black text-red-500">${(order.cashGiven - order.total).toFixed(2)}</p>
+                                        <div className="text-right bg-red-50 p-3 rounded-2xl border border-red-100">
+                                            <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">Dar Vuelto</p>
+                                            <p className="text-xl font-black text-red-600 tabular-nums">${(order.cashGiven - order.total).toFixed(2)}</p>
                                         </div>
                                     )}
                                 </div>
 
                                 {order.status === 'PENDING' ? (
-                                    <button onClick={() => handleStatusChange(order, 'IN_TRANSIT')} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black shadow-lg shadow-blue-200 active:scale-95 transition-transform uppercase tracking-widest text-sm">
+                                    <button 
+                                        onClick={() => handleStatusChange(order, 'IN_TRANSIT')} 
+                                        className="w-full bg-slate-900 text-white py-4.5 rounded-2xl font-black shadow-xl hover:bg-black active:scale-95 transition-all uppercase tracking-[0.2em] text-xs"
+                                    >
                                         Empezar Entrega 🛵
                                     </button>
                                 ) : (
-                                    <button onClick={() => handleStatusChange(order, 'DELIVERED')} className="w-full bg-green-600 text-white py-4 rounded-xl font-black shadow-lg shadow-green-200 active:scale-95 transition-transform flex justify-center items-center gap-2 uppercase tracking-widest text-sm">
+                                    <button 
+                                        onClick={() => handleStatusChange(order, 'DELIVERED')} 
+                                        className="w-full bg-emerald-600 text-white py-4.5 rounded-2xl font-black shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all flex justify-center items-center gap-3 uppercase tracking-[0.2em] text-xs"
+                                    >
                                         <CheckCircle size={20}/> Confirmar Entrega ✅
                                     </button>
                                 )}

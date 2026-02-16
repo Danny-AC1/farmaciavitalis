@@ -1,7 +1,6 @@
-
 import { db } from './firebase';
 // @ts-ignore
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Subscription, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert } from '../types';
 import { cleanData } from './db.utils';
 
@@ -46,6 +45,20 @@ export const streamFamilyMembers = (userId: string, callback: (members: FamilyMe
 export const addFamilyMemberDB = async (member: FamilyMember) => {
     const { id, ...data } = member;
     await addDoc(collection(db, FAMILY_COLLECTION), cleanData(data));
+};
+
+export const deleteFamilyMemberDB = async (memberId: string) => {
+    // 1. Eliminar al miembro
+    await deleteDoc(doc(db, FAMILY_COLLECTION, memberId));
+    
+    // 2. Opcional: Eliminar todos sus medicamentos vinculados
+    const q = query(collection(db, MEDICATIONS_COLLECTION), where('familyMemberId', '==', memberId));
+    const medsSnap = await getDocs(q);
+    const batch = writeBatch(db);
+    medsSnap.forEach((medDoc) => {
+        batch.delete(medDoc.ref);
+    });
+    await batch.commit();
 };
 
 export const streamMedications = (userId: string, callback: (meds: MedicationSchedule[]) => void) => {

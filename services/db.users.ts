@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 // @ts-ignore
-import { onSnapshot, deleteDoc, doc, query, orderBy, setDoc, getDoc, collection } from 'firebase/firestore';
+import { onSnapshot, deleteDoc, doc, query, orderBy, setDoc, getDoc, collection, updateDoc } from 'firebase/firestore';
 import { User } from '../types';
 import { cleanData } from './db.utils';
 
@@ -10,6 +10,11 @@ const USERS_COLLECTION = 'users';
 export const saveUserDB = async (user: User) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
     await setDoc(userRef, cleanData(user), { merge: true }); 
+};
+
+export const updateUserFieldsDB = async (uid: string, fields: Partial<User>) => {
+    const userRef = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(userRef, cleanData(fields));
 };
 
 export const deleteUserDB = async (uid: string) => {

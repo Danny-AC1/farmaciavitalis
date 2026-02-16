@@ -6,7 +6,7 @@ import {
 } from '../types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
-  updateStockDB, streamBanners, streamUser, logSearchDB
+  updateStockDB, streamBanners, streamUser, logSearchDB, updateUserFieldsDB
 } from '../services/db';
 import { auth } from '../services/firebase';
 import { searchProductsBySymptoms, checkInteractions } from '../services/gemini';
@@ -126,7 +126,6 @@ export const useAppLogic = () => {
   useEffect(() => {
     if (searchTerm.length > 3 && displayedProducts.length === 0 && !isSearchingAI) {
       const timer = setTimeout(async () => {
-        // Logueamos solo si el término de búsqueda sigue sin resultados tras 2 segundos
         try {
           await logSearchDB(searchTerm);
         } catch (error) {
@@ -195,7 +194,20 @@ export const useAppLogic = () => {
     };
 
     try {
+      // 1. Guardamos la orden (addOrderDB ahora gestiona los puntos atómicamente)
       await addOrderDB(order);
+      
+      // 2. ACTUALIZACIÓN PARCIAL DE PERFIL: 
+      // Usamos updateUserFieldsDB para persistir dirección sin riesgo de sobrescribir puntos.
+      await updateUserFieldsDB(currentUser.uid, {
+          address: details.address,
+          lat: details.lat,
+          lng: details.lng,
+          deliveryZone: details.deliveryZone,
+          phone: details.phone
+      });
+
+      // 3. Actualizar stock
       for (const item of cart) {
         const orig = products.find(p => p.id === item.id);
         if (orig) {
@@ -204,6 +216,7 @@ export const useAppLogic = () => {
         }
       }
 
+      // 4. WhatsApp y finalización
       const itemsText = cart.map(i => `- ${i.quantity}x ${i.name} (${i.selectedUnit === 'BOX' ? 'Caja' : 'Unid'})`).join('\n');
       const mapsLink = order.lat && order.lng ? `\n📍 *Ubicación GPS:* https://www.google.com/maps?q=${order.lat},${order.lng}` : '';
       
@@ -226,6 +239,7 @@ export const useAppLogic = () => {
       setCart([]);
       setView('SUCCESS');
     } catch (e) {
+      console.error(e);
       alert("Error al procesar el pedido");
     }
   };

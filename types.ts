@@ -56,6 +56,9 @@ export interface User {
   phone?: string;
   cedula?: string; // Nuevo: Para identificación en POS
   address?: string;
+  lat?: number; // Persistencia de ubicación
+  lng?: number; // Persistencia de ubicación
+  deliveryZone?: string; // Persistencia de zona
   role: 'USER' | 'ADMIN' | 'CASHIER' | 'DRIVER';
   points: number;
   createdAt: string;
