@@ -19,7 +19,7 @@ interface AdminMarketingProps {
   handleGeneratePost: () => void;
   bannerTitle: string;
   setBannerTitle: (s: string) => void;
-  bannerInputRef: React.RefObject<HTMLInputElement>;
+  bannerInputRef: React.Ref<HTMLInputElement>;
   handleAddBanner: (e: React.FormEvent) => void;
   onDeleteBanner: (id: string) => void;
   isUploadingBanner: boolean;

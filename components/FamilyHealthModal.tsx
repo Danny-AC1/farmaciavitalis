@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User, FamilyMember, MedicationSchedule, Product } from '../types';
 import { streamFamilyMembers, addFamilyMemberDB, streamMedications, addMedicationDB, takeDoseDB, deleteMedicationDB, deleteFamilyMemberDB } from '../services/db';
-import { X, Heart, Users, Pill, Plus, Check, RefreshCw, Trash2, Smile, Clock, AlertCircle, ShoppingCart, UserX } from 'lucide-react';
+import { X, Users, Pill, Plus, Check, Trash2, Smile, Clock, AlertCircle, ShoppingCart, UserX } from 'lucide-react';
 
 interface FamilyHealthModalProps {
   user: User;

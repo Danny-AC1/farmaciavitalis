@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { SearchLog } from '../types';
 // Fixed typo in lucide-react import: change mousePointer2 to MousePointer2
-import { TrendingUp, BarChart3, Trash2, Calendar, Search, AlertCircle} from 'lucide-react';
+import { TrendingUp, BarChart3, Trash2, Calendar, Search, AlertCircle } from 'lucide-react';
 
 interface AdminDemandProps {
   logs: SearchLog[];

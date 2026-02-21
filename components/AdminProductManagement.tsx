@@ -32,7 +32,7 @@ interface AdminProductManagementProps {
   isGenerating: boolean;
   isSubmitting: boolean;
   isUploadingImage?: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.Ref<HTMLInputElement>;
 }
 
 const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) => {

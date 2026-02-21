@@ -25,7 +25,7 @@ interface AdminProductFormProps {
   isGenerating: boolean;
   isSubmitting: boolean;
   isUploadingImage?: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.Ref<HTMLInputElement>;
   categories: Category[];
   suppliers: Supplier[];
 }

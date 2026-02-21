@@ -133,7 +133,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                             {isServiceActive ? 'Cobertura Total Activa' : 'Cobertura Inactiva'}
                         </span>
                         <span className="text-[8px] font-bold opacity-80 uppercase tracking-tighter leading-tight mt-0.5">
-                            {isServiceActive ? 'Horario: 07:00 AM - 09:00 PM' : 'Iniciamos a las 07:00 AM'}
+                            {isServiceActive ? 'Horario: 08:00 AM - 09:00 PM' : 'Iniciamos a las 08:00 AM'}
                         </span>
                     </div>
                 </div>
@@ -148,7 +148,7 @@ const HomeView: React.FC<HomeViewProps> = ({
           {!searchTerm && (
             <div className="mb-12 flex flex-col sm:flex-row justify-center gap-4">
               <button onClick={onOpenPrescription} className="flex-1 bg-white border-2 border-teal-500 text-teal-700 hover:bg-teal-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Camera className="h-6 w-6" /> Subir Receta Médica</button>
-              <button onClick={onOpenServices} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Stethoscope className="h-6 w-6" /> Consultorio / Servicios</button>
+              <button onClick={onOpenServices} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Stethoscope className="h-6 w-6" />Servicios</button>
             </div>
           )}
 

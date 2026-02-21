@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Subscription } from '../types';
-import { RefreshCw, User, Calendar, Trash2, Truck, AlertCircle} from 'lucide-react';
+import { RefreshCw, User, Calendar, Trash2, Truck, AlertCircle } from 'lucide-react';
 
 interface AdminSubscriptionsProps {
   subscriptions: Subscription[];

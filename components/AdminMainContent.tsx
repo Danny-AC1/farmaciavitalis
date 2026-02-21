@@ -21,8 +21,8 @@ interface AdminMainContentProps {
     activeTab: string;
     props: any; // Props del componente padre AdminPanel
     state: any; // Estado extendido del hook useAdminPanelState
-    productInputRef: React.RefObject<HTMLInputElement>;
-    bannerInputRef: React.RefObject<HTMLInputElement>;
+    productInputRef: React.RefObject<HTMLInputElement | null>;
+    bannerInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef }) => {

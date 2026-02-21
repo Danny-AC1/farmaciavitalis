@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { User } from '../types';
-import { Users, Star, Trash2, ShieldCheck, Mail, Phone, Calendar, Search, Edit2, X, Save, UserCheck, Shield } from 'lucide-react';
+import { Users, Star, Trash2, ShieldCheck, Mail, Phone, Calendar, Search, Edit2, X, Save, UserCheck } from 'lucide-react';
 
 interface AdminUsersProps {
   users: User[];

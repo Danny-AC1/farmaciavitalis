@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User } from '../types';
-import { X, LogOut, User as Mail, Phone, Award, ShieldCheck } from 'lucide-react';
+import { X, LogOut, Mail, Phone, Award, ShieldCheck } from 'lucide-react';
 import { auth } from '../services/firebase';
 
 interface ProfileModalProps {

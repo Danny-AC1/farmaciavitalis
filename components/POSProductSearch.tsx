@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Search, Package, Plus, ShoppingCart } from 'lucide-react';
+import { Search, Package } from 'lucide-react';
 import { Product } from '../types';
 
 interface POSProductSearchProps {

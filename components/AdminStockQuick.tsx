@@ -19,7 +19,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
       p.barcode === search
     ), [products, search]);
 
-  const lowStockProducts = useMemo(() => products.filter(p => p.stock <= 10), [products]);
+  const lowStockProducts = useMemo(() => products.filter(p => p.stock <= 5), [products]);
 
   const handleUpdate = (id: string, delta: number) => {
     setUpdates(prev => ({ ...prev, [id]: (prev[id] || 0) + delta }));
@@ -185,7 +185,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
                     </td>
                     <td className="px-6 py-7 text-center">
                       <div className="relative inline-block">
-                        <span className={`px-6 py-2.5 rounded-full font-black text-base min-w-[80px] inline-block shadow-inner ${finalStock <= 10 ? 'bg-red-100 text-red-600' : 'bg-[#D1FAE5] text-[#065F46]'}`}>
+                        <span className={`px-6 py-2.5 rounded-full font-black text-base min-w-[80px] inline-block shadow-inner ${finalStock <= 5 ? 'bg-red-100 text-red-600' : 'bg-[#D1FAE5] text-[#065F46]'}`}>
                           {finalStock}
                         </span>
                         {diff !== 0 && (
@@ -250,7 +250,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
               </div>
               <div>
                   <p className="text-xs font-black text-orange-600 uppercase tracking-widest">Agotándose</p>
-                  <p className="text-3xl font-black text-orange-950">{products.filter(p => p.stock <=105).length} Ítems</p>
+                  <p className="text-3xl font-black text-orange-950">{products.filter(p => p.stock <= 5).length} Ítems</p>
               </div>
           </div>
           <div className="bg-emerald-50 p-8 rounded-[2rem] border-2 border-emerald-100 flex items-center gap-6 group hover:bg-emerald-100/50 transition-colors">

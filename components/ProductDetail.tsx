@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Product, CartItem, Subscription } from '../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check, ExternalLink } from 'lucide-react';
+import { Product, CartItem } from '../types';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB, streamSubscriptions } from '../services/db';
 import { getCrossSellSuggestion } from '../services/gemini';
 

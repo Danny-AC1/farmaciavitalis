@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Trash2, Plus} from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 
 interface AdminSimpleTableProps {
   title: string;

@@ -53,7 +53,7 @@ const Footer: React.FC = () => {
             <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Servicios</h4>
             <ul className="space-y-2 text-sm text-gray-500 font-medium">
               <li className="flex items-center gap-2"><Truck size={16} className="text-teal-500" /> Entrega a Domicilio</li>
-              <li className="flex items-center gap-2"><Clock size={16} className="text-teal-500" /> Horario: 07:00 - 21:00</li>
+              <li className="flex items-center gap-2"><Clock size={16} className="text-teal-500" /> Horario: 08:00 - 21:00</li>
               <li className="flex items-center gap-2"><Award size={16} className="text-teal-500" /> Puntos Vitalis</li>
             </ul>
           </div>
