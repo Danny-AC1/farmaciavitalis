@@ -1,11 +1,12 @@
+
 import { useState, useMemo } from 'react';
 import { 
-    Product, Order, Category, User, Subscription 
+    Product, Order, Category, User, Subscription, Expense 
 } from '../types';
 import { 
     addSupplierDB, addCouponDB, addExpenseDB, updateBookingStatusDB, 
     saveUserDB, addOrderDB, updateStockDB, uploadImageToStorage,
-    addBannerDB, addBlogPostDB, updateSubscriptionDB
+    addBannerDB, addBlogPostDB, updateSubscriptionDB, updateExpenseDB
 } from '../services/db.ts';
 import { generateSocialPost } from '../services/gemini';
 import { GoogleGenAI } from "@google/genai";
@@ -162,6 +163,7 @@ export const useAdminPanelState = (
         handleAddCoupon: (c: string, v: number) => addCouponDB({ id: '', code: c.toUpperCase(), value: v, type: 'PERCENTAGE', active: true }),
         handleAddSupplier: addSupplierDB, 
         handleAddExpense: addExpenseDB,
+        handleUpdateExpense: updateExpenseDB,
         handleUpdateUserRole: async (uid: string, role: User['role']) => { const u = data.users.find(x => x.uid === uid); if (u) await saveUserDB({ ...u, role }); },
         handleUpdateUser: saveUserDB, 
         handleUpdateBookingStatus: updateBookingStatusDB, 

@@ -6,7 +6,7 @@ import {
 } from '../types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
-  updateStockDB, streamBanners, streamUser,  updateUserFieldsDB
+  updateStockDB, streamBanners, streamUser, logSearchDB, updateUserFieldsDB
 } from '../services/db';
 import { auth } from '../services/firebase';
 import { searchProductsBySymptoms, checkInteractions } from '../services/gemini';
@@ -260,6 +260,12 @@ export const useAppLogic = () => {
     }
     setActiveTab(tab);
     setView('HOME'); // Aseguramos que al cambiar de pestaña estemos en la vista principal
+    
+    // Si navegamos al inicio, reseteamos filtros de categorías y búsqueda
+    if (tab === 'home') {
+      setActiveCategory(null);
+      setSearchTerm('');
+    }
   };
 
   return {

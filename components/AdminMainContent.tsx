@@ -150,7 +150,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         case 'demand': return <AdminDemand logs={state.searchLogs} onDeleteLog={state.handleDeleteSearchLog} />;
         case 'geostats': return <AdminGeoStats orders={props.orders} />;
         case 'users': return <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} onUpdateUser={state.handleUpdateUser} onDeleteUser={state.handleDeleteUser} />;
-        case 'expenses': return <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} />;
+        case 'expenses': return <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} onUpdate={state.handleUpdateExpense} onDelete={state.handleDeleteExpense} />;
         case 'subscriptions': return <AdminSubscriptions subscriptions={state.subscriptions} onProcess={state.handleProcessSubscription} onDelete={state.handleDeleteSubscription} />;
         case 'bookings': return <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} onDelete={state.handleDeleteBooking} />;
         case 'stock_alerts': return <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />;

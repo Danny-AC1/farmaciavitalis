@@ -64,6 +64,13 @@ export const addExpenseDB = async (expense: Expense) => {
     const { id, ...data } = expense;
     await addDoc(collection(db, EXPENSES_COLLECTION), cleanData(data));
 };
+
+export const updateExpenseDB = async (expense: Expense) => {
+    const { id, ...data } = expense;
+    const expenseRef = doc(db, EXPENSES_COLLECTION, id);
+    await updateDoc(expenseRef, cleanData(data));
+};
+
 export const streamExpenses = (callback: (expenses: Expense[]) => void) => {
     return onSnapshot(query(collection(db, EXPENSES_COLLECTION), orderBy('date', 'desc')), (snapshot) => {
         const expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Expense[];

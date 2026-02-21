@@ -6,7 +6,7 @@ import {
     streamSearchLogs, streamStockAlerts, streamSubscriptions, streamBookings,
     deleteBannerDB, deleteCouponDB, deleteSupplierDB, deleteSubscriptionDB,
     deleteStockAlertDB, deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, deleteBookingDB,
-    deleteOrderDB
+    deleteOrderDB, deleteExpenseDB
 } from '../services/db.ts';
 
 export const useAdminData = () => {
@@ -45,11 +45,12 @@ export const useAdminData = () => {
     const handleDeleteUser = async (uid: string) => { if(confirm("¿Borrar permanentemente este usuario?")) await deleteUserDB(uid); };
     const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
     const handleDeleteBooking = async (id: string) => { if(confirm("¿Eliminar esta cita?")) await deleteBookingDB(id); };
+    const handleDeleteExpense = async (id: string) => { if(confirm("¿Eliminar este registro de gasto?")) await deleteExpenseDB(id); };
 
     return {
         banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
         handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, 
         handleDeleteSubscription, handleDeleteStockAlert, handleDeleteBlogPost, 
-        handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking
+        handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking, handleDeleteExpense
     };
 };

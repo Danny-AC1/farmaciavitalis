@@ -51,7 +51,7 @@ const App: React.FC = () => {
         cartCount={logic.cart.length} 
         onCartClick={() => logic.setIsCartOpen(true)}
         onAdminClick={() => logic.setShowStaffAccess(true)}
-        onLogoClick={() => { logic.setActiveTab('home'); logic.setView('HOME'); }}
+        onLogoClick={() => logic.handleTabChange('home')}
         onUserClick={() => logic.currentUser ? logic.setShowProfileModal(true) : logic.setShowAuthModal(true)}
         currentUser={logic.currentUser}
         onTabChange={logic.handleTabChange}
@@ -102,7 +102,7 @@ const App: React.FC = () => {
             <CheckCircle className="h-24 w-24 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">¡Pedido Recibido!</h2>
             <p className="mb-8 opacity-90">Tu pedido ha sido registrado con éxito. Te avisaremos cuando esté en camino.</p>
-            <button onClick={() => { logic.setView('HOME'); logic.setActiveTab('home'); }} className="w-full bg-white text-teal-600 py-4 rounded-xl font-bold">Volver al Inicio</button>
+            <button onClick={() => logic.handleTabChange('home')} className="w-full bg-white text-teal-600 py-4 rounded-xl font-bold">Volver al Inicio</button>
           </div>
         </div>
       )}
