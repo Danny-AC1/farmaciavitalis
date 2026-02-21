@@ -1,7 +1,7 @@
 
 import { useState, useMemo } from 'react';
 import { 
-    Product, Order, Category, User, Subscription, Expense 
+    Product, Order, Category, User, Subscription,
 } from '../types';
 import { 
     addSupplierDB, addCouponDB, addExpenseDB, updateBookingStatusDB, 

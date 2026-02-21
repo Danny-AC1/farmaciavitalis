@@ -6,7 +6,7 @@ import {
 } from '../types';
 import { 
   streamProducts, streamCategories, streamOrders, addOrderDB, 
-  updateStockDB, streamBanners, streamUser, logSearchDB, updateUserFieldsDB
+  updateStockDB, streamBanners, streamUser, updateUserFieldsDB
 } from '../services/db';
 import { auth } from '../services/firebase';
 import { searchProductsBySymptoms, checkInteractions } from '../services/gemini';

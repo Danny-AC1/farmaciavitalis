@@ -25,6 +25,7 @@ import ServicesModal from './components/ServicesModal';
 import Assistant from './components/Assistant';
 import FamilyHealthModal from './components/FamilyHealthModal';
 import StaffAccessModal from './components/StaffAccessModal';
+import Footer from './components/Footer';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
@@ -68,10 +69,11 @@ const App: React.FC = () => {
         />
         <HomeView 
           banners={logic.banners} categories={logic.categories} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
-          displayedProducts={logic.displayedProducts} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN'}
+          displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN' || false}
           handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
           onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onSelectProduct={logic.setSelectedProduct} cart={logic.cart}
         />
+        <Footer />
       </main>
 
       <BottomNav activeTab={logic.activeTab} cartCount={logic.cart.length} onTabChange={logic.handleTabChange} onCartClick={() => logic.setIsCartOpen(true)} />

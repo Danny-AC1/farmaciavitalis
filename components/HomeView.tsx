@@ -10,6 +10,7 @@ interface HomeViewProps {
   activeCategory: string | null;
   setActiveCategory: React.Dispatch<React.SetStateAction<string | null>>;
   displayedProducts: Product[];
+  allProducts: Product[];
   searchTerm: string;
   currentUser: User | null;
   isSuperAdmin: boolean;
@@ -34,7 +35,7 @@ const getCategoryStyle = (name: string) => {
 };
 
 const HomeView: React.FC<HomeViewProps> = ({
-  banners, categories, activeCategory, setActiveCategory, displayedProducts, searchTerm, currentUser, 
+  banners, categories, activeCategory, setActiveCategory, displayedProducts, allProducts, searchTerm, currentUser, 
   isSuperAdmin, handleDeleteBanner, onOpenAdminPanel, onOpenPrescription, onOpenServices, onAddToCart, onSelectProduct, cart
 }) => {
   const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name || '' : '';
@@ -43,6 +44,14 @@ const HomeView: React.FC<HomeViewProps> = ({
   const now = new Date();
   const currentHour = now.getHours();
   const isServiceActive = currentHour >= 7 && currentHour < 21;
+
+  // Productos sugeridos (aleatorios o los primeros 4 que tengan stock)
+  const suggestedProducts = React.useMemo(() => {
+    return [...allProducts]
+      .filter(p => p.stock > 0)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 4);
+  }, [allProducts]);
 
   return (
     <div className="animate-in fade-in">
@@ -124,7 +133,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                             {isServiceActive ? 'Cobertura Total Activa' : 'Cobertura Inactiva'}
                         </span>
                         <span className="text-[8px] font-bold opacity-80 uppercase tracking-tighter leading-tight mt-0.5">
-                            {isServiceActive ? 'Horario: 08:00 AM - 09:00 PM' : 'Iniciamos a las 08:00 AM'}
+                            {isServiceActive ? 'Horario: 07:00 AM - 09:00 PM' : 'Iniciamos a las 07:00 AM'}
                         </span>
                     </div>
                 </div>
@@ -165,14 +174,34 @@ const HomeView: React.FC<HomeViewProps> = ({
 
           {searchTerm && (
             <div className="animate-in slide-in-from-bottom-5 duration-500">
-              <h3 className="text-2xl font-bold mb-6 border-l-4 pl-4 text-gray-800 border-teal-500">Resultados</h3>
+              <h3 className="text-2xl font-bold mb-6 border-l-4 pl-4 text-gray-800 border-teal-500">
+                {displayedProducts.length > 0 ? 'Resultados' : 'Sin resultados'}
+              </h3>
               {displayedProducts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-12">
                   {displayedProducts.map(product => (<ProductCard key={product.id} product={product} cart={cart} onAddToCart={onAddToCart} onSelect={onSelectProduct} />))}
                 </div>
               ) : (
-                <div className="text-center py-20 animate-in fade-in">
-                  <p className="text-gray-400 text-lg">No encontramos productos con "{searchTerm}"</p>
+                <div className="animate-in fade-in">
+                  <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200 mb-12">
+                    <ShoppingBag className="h-12 w-12 text-gray-200 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg mb-2">No encontramos productos con "{searchTerm}"</p>
+                    <p className="text-gray-400 text-sm">Prueba con otros términos o revisa nuestras sugerencias abajo.</p>
+                  </div>
+                  
+                  {suggestedProducts.length > 0 && (
+                    <div className="mb-12">
+                      <h4 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <Sparkles className="text-yellow-500 h-5 w-5" />
+                        Productos que te podrían interesar
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                        {suggestedProducts.map(product => (
+                          <ProductCard key={product.id} product={product} cart={cart} onAddToCart={onAddToCart} onSelect={onSelectProduct} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
