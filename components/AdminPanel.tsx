@@ -36,6 +36,14 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado para corte de caja personalizado
+  const [customClosure, setCustomClosure] = React.useState<{cash: number, trans: number, date: string} | null>(null);
+
+  const handleShowCustomClosure = (cash: number, trans: number, date: string) => {
+    setCustomClosure({ cash, trans, date });
+    state.setShowCashClosure(true);
+  };
+
   // Filtros para el Header
   const pendingOrders = props.orders.filter(o => o.status === 'PENDING');
   const lowStockItems = props.products.filter(p => p.stock <= 5);
@@ -75,6 +83,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     state={state} 
                     productInputRef={productInputRef}
                     bannerInputRef={bannerInputRef}
+                    onShowCashClosure={handleShowCustomClosure}
                 />
               </div>
           </div>
@@ -97,9 +106,13 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
       <CashClosureModal 
         isOpen={state.showCashClosure}
-        onClose={() => state.setShowCashClosure(false)}
-        todayCash={state.todayCash}
-        todayTrans={state.todayTrans}
+        onClose={() => {
+          state.setShowCashClosure(false);
+          setCustomClosure(null);
+        }}
+        todayCash={customClosure ? customClosure.cash : state.todayCash}
+        todayTrans={customClosure ? customClosure.trans : state.todayTrans}
+        customDate={customClosure?.date}
       />
     </div>
   );

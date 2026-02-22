@@ -21,11 +21,12 @@ interface AdminMainContentProps {
     activeTab: string;
     props: any; // Props del componente padre AdminPanel
     state: any; // Estado extendido del hook useAdminPanelState
-    productInputRef: React.RefObject<HTMLInputElement | null>;
-    bannerInputRef: React.RefObject<HTMLInputElement | null>;
+    productInputRef: React.Ref<HTMLInputElement>;
+    bannerInputRef: React.Ref<HTMLInputElement>;
+    onShowCashClosure?: (cash: number, trans: number, date: string) => void;
 }
 
-const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef }) => {
+const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef, onShowCashClosure }) => {
     switch (activeTab) {
         case 'dashboard':
             return (
@@ -67,7 +68,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
             );
         
         case 'orders':
-            return <AdminOrders orders={props.orders} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} />;
+            return <AdminOrders orders={props.orders} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} onShowCashClosure={onShowCashClosure} />;
         
         case 'products':
             return (

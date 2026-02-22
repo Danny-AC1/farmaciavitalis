@@ -1,15 +1,16 @@
 
-import React, { useState } from 'react';
-import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer, Trash2, Calendar, Calculator } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminOrdersProps {
   orders: Order[];
   onUpdateStatus: (id: string, status: 'DELIVERED', order: Order) => void;
   onDeleteOrder?: (id: string) => void;
+  onShowCashClosure?: (cash: number, trans: number, date: string) => void;
 }
 
-const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDeleteOrder }) => {
+const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDeleteOrder, onShowCashClosure }) => {
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL');
   const [search, setSearch] = useState('');
 
@@ -18,6 +19,25 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
     const matchesSearch = o.customerName.toLowerCase().includes(search.toLowerCase()) || o.id.includes(search);
     return matchesFilter && matchesSearch;
   });
+
+  // Agrupar pedidos por fecha
+  const groupedOrders = useMemo(() => {
+    const groups: Record<string, Order[]> = {};
+    filteredOrders.forEach(order => {
+      const dateKey = new Date(order.date).toISOString().split('T')[0];
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(order);
+    });
+    // Ordenar fechas descendente
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredOrders]);
+
+  const handleCashClosure = (dateKey: string, dayOrders: Order[]) => {
+    const delivered = dayOrders.filter(o => o.status === 'DELIVERED');
+    const cash = delivered.filter(o => o.paymentMethod === 'CASH').reduce((a, b) => a + b.total, 0);
+    const trans = delivered.filter(o => o.paymentMethod === 'TRANSFER').reduce((a, b) => a + b.total, 0);
+    onShowCashClosure?.(cash, trans, dateKey);
+  };
 
   const handlePrintOrder = (order: Order) => {
     const printWindow = window.open('', '_blank');
@@ -172,80 +192,106 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {filteredOrders.map(order => (
-          <div key={order.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 relative overflow-hidden group">
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${order.status === 'DELIVERED' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-
-            <div className="flex-grow">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Orden #{order.id.slice(-6)}</p>
-                  <h4 className="text-xl font-bold text-gray-900">{order.customerName}</h4>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(order.date).toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                    {order.status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}
-                  </span>
-                  <p className="text-2xl font-black text-teal-700 mt-2">${order.total.toFixed(2)}</p>
-                </div>
+      <div className="space-y-12">
+        {groupedOrders.map(([dateKey, dayOrders]) => (
+          <div key={dateKey} className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div className="flex items-center gap-2 text-gray-500">
+                <Calendar size={18} className="text-teal-600" />
+                <h3 className="text-lg font-bold uppercase tracking-wider">
+                  {new Date(dateKey + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </h3>
+                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-xs font-bold">
+                  {dayOrders.length} {dayOrders.length === 1 ? 'pedido' : 'pedidos'}
+                </span>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="bg-gray-100 p-2 rounded-lg"><Phone size={16}/></div>
-                  <span>{order.customerPhone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="bg-gray-100 p-2 rounded-lg"><MapPin size={16}/></div>
-                  <span className="truncate">{order.customerAddress}</span>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Detalles del Carrito</p>
-                <div className="space-y-2">
-                  {order.items.map((item, idx) => {
-                    const isBox = item.selectedUnit === 'BOX';
-                    const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-                    return (
-                      <div key={idx} className="flex justify-between text-xs font-medium text-gray-700">
-                        <span>{item.quantity}x {item.name} {isBox ? `(Caja x${item.unitsPerBox})` : '(Unid)'}</span>
-                        <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              
+              <button 
+                onClick={() => handleCashClosure(dateKey, dayOrders)}
+                className="flex items-center gap-2 bg-teal-50 text-teal-700 px-4 py-2 rounded-xl text-xs font-black hover:bg-teal-100 transition-colors border border-teal-100"
+              >
+                <Calculator size={14} />
+                CORTE DE CAJA ({dateKey})
+              </button>
             </div>
 
-            <div className="md:w-48 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-              <button 
-                onClick={() => handlePrintOrder(order)}
-                className="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-teal-600 transition-colors shadow-sm"
-              >
-                <Printer size={14}/> Imprimir Ticket
-              </button>
-              {order.status === 'PENDING' && (
-                <button 
-                  onClick={() => onUpdateStatus(order.id, 'DELIVERED', order)}
-                  className="w-full bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition shadow-sm"
-                >
-                  <CheckCircle size={14}/> Marcar Entregado
-                </button>
-              )}
-              <button 
-                onClick={() => onDeleteOrder?.(order.id)}
-                className="w-full bg-red-50 text-red-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition border border-red-100"
-              >
-                <Trash2 size={14}/> Eliminar Registro
-              </button>
+            <div className="grid grid-cols-1 gap-4">
+              {dayOrders.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 relative overflow-hidden group">
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${order.status === 'DELIVERED' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+
+                  <div className="flex-grow">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Orden #{order.id.slice(-6)}</p>
+                        <h4 className="text-xl font-bold text-gray-900">{order.customerName}</h4>
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(order.date).toLocaleTimeString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {order.status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}
+                        </span>
+                        <p className="text-2xl font-black text-teal-700 mt-2">${order.total.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <div className="bg-gray-100 p-2 rounded-lg"><Phone size={16}/></div>
+                        <span>{order.customerPhone}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <div className="bg-gray-100 p-2 rounded-lg"><MapPin size={16}/></div>
+                        <span className="truncate">{order.customerAddress}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Detalles del Carrito</p>
+                      <div className="space-y-2">
+                        {order.items.map((item, idx) => {
+                          const isBox = item.selectedUnit === 'BOX';
+                          const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+                          return (
+                            <div key={idx} className="flex justify-between text-xs font-medium text-gray-700">
+                              <span>{item.quantity}x {item.name} {isBox ? `(Caja x${item.unitsPerBox})` : '(Unid)'}</span>
+                              <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="md:w-48 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                    <button 
+                      onClick={() => handlePrintOrder(order)}
+                      className="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-teal-600 transition-colors shadow-sm"
+                    >
+                      <Printer size={14}/> Imprimir Ticket
+                    </button>
+                    {order.status === 'PENDING' && (
+                      <button 
+                        onClick={() => onUpdateStatus(order.id, 'DELIVERED', order)}
+                        className="w-full bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition shadow-sm"
+                      >
+                        <CheckCircle size={14}/> Marcar Entregado
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => onDeleteOrder?.(order.id)}
+                      className="w-full bg-red-50 text-red-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition border border-red-100"
+                    >
+                      <Trash2 size={14}/> Eliminar Registro
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
 
-        {filteredOrders.length === 0 && (
+        {groupedOrders.length === 0 && (
           <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
             <ClipboardList size={48} className="mx-auto text-gray-200 mb-4" />
             <p className="text-gray-400 font-bold">No hay pedidos que coincidan con los filtros.</p>

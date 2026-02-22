@@ -7,16 +7,17 @@ interface CashClosureModalProps {
     onClose: () => void;
     todayCash: number;
     todayTrans: number;
+    customDate?: string;
 }
 
-const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, todayCash, todayTrans }) => {
+const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, todayCash, todayTrans, customDate }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
             <div className="bg-white rounded-3xl w-full max-sm shadow-2xl overflow-hidden animate-in zoom-in">
                 <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
-                    <h3 className="text-sm font-bold flex items-center gap-2"><Calculator size={18}/> Corte de Caja</h3>
+                    <h3 className="text-sm font-bold flex items-center gap-2"><Calculator size={18}/> Corte de Caja {customDate ? `(${customDate})` : ''}</h3>
                     <button onClick={onClose} className="hover:bg-white/10 p-1.5 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 <div className="p-8 space-y-6">
