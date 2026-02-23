@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { firestore } from './firebase';
 // @ts-ignore
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Subscription, FamilyMember, MedicationSchedule, ServiceBooking, StockAlert } from '../types';
@@ -11,14 +11,14 @@ const MEDICATIONS_COLLECTION = 'medications';
 const BOOKINGS_COLLECTION = 'bookings';
 
 export const addSubscriptionDB = async (email: string, productId: string, productName: string, freq: number) => {
-    await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), cleanData({ 
+    await addDoc(collection(firestore, SUBSCRIPTIONS_COLLECTION), cleanData({ 
         userId: email, productId, productName, frequencyDays: freq, 
         nextDelivery: new Date(Date.now() + freq * 86400000).toISOString(), active: true 
     }));
 };
 
 export const streamSubscriptions = (callback: (subs: Subscription[]) => void) => {
-    const q = query(collection(db, SUBSCRIPTIONS_COLLECTION), orderBy('nextDelivery', 'asc'));
+    const q = query(collection(firestore, SUBSCRIPTIONS_COLLECTION), orderBy('nextDelivery', 'asc'));
     return onSnapshot(q, (snapshot) => {
         const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Subscription[];
         callback(subs);
@@ -26,16 +26,16 @@ export const streamSubscriptions = (callback: (subs: Subscription[]) => void) =>
 };
 
 export const deleteSubscriptionDB = async (id: string) => {
-    await deleteDoc(doc(db, SUBSCRIPTIONS_COLLECTION, id));
+    await deleteDoc(doc(firestore, SUBSCRIPTIONS_COLLECTION, id));
 };
 
 export const updateSubscriptionDB = async (id: string, data: Partial<Subscription>) => {
-    const subRef = doc(db, SUBSCRIPTIONS_COLLECTION, id);
+    const subRef = doc(firestore, SUBSCRIPTIONS_COLLECTION, id);
     await updateDoc(subRef, cleanData(data));
 };
 
 export const streamFamilyMembers = (userId: string, callback: (members: FamilyMember[]) => void) => {
-    const q = query(collection(db, FAMILY_COLLECTION), where('userId', '==', userId));
+    const q = query(collection(firestore, FAMILY_COLLECTION), where('userId', '==', userId));
     return onSnapshot(q, (snapshot) => {
         const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FamilyMember[];
         callback(members);
@@ -44,17 +44,17 @@ export const streamFamilyMembers = (userId: string, callback: (members: FamilyMe
 
 export const addFamilyMemberDB = async (member: FamilyMember) => {
     const { id, ...data } = member;
-    await addDoc(collection(db, FAMILY_COLLECTION), cleanData(data));
+    await addDoc(collection(firestore, FAMILY_COLLECTION), cleanData(data));
 };
 
 export const deleteFamilyMemberDB = async (memberId: string) => {
     // 1. Eliminar al miembro
-    await deleteDoc(doc(db, FAMILY_COLLECTION, memberId));
+    await deleteDoc(doc(firestore, FAMILY_COLLECTION, memberId));
     
     // 2. Opcional: Eliminar todos sus medicamentos vinculados
-    const q = query(collection(db, MEDICATIONS_COLLECTION), where('familyMemberId', '==', memberId));
+    const q = query(collection(firestore, MEDICATIONS_COLLECTION), where('familyMemberId', '==', memberId));
     const medsSnap = await getDocs(q);
-    const batch = writeBatch(db);
+    const batch = writeBatch(firestore);
     medsSnap.forEach((medDoc) => {
         batch.delete(medDoc.ref);
     });
@@ -62,7 +62,7 @@ export const deleteFamilyMemberDB = async (memberId: string) => {
 };
 
 export const streamMedications = (userId: string, callback: (meds: MedicationSchedule[]) => void) => {
-    const q = query(collection(db, MEDICATIONS_COLLECTION), where('userId', '==', userId));
+    const q = query(collection(firestore, MEDICATIONS_COLLECTION), where('userId', '==', userId));
     return onSnapshot(q, (snapshot) => {
         const meds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MedicationSchedule[];
         callback(meds);
@@ -71,25 +71,25 @@ export const streamMedications = (userId: string, callback: (meds: MedicationSch
 
 export const addMedicationDB = async (med: MedicationSchedule) => {
     const { id, ...data } = med;
-    await addDoc(collection(db, MEDICATIONS_COLLECTION), cleanData(data));
+    await addDoc(collection(firestore, MEDICATIONS_COLLECTION), cleanData(data));
 };
 
 export const takeDoseDB = async (medId: string, newStock: number) => {
-    const medRef = doc(db, MEDICATIONS_COLLECTION, medId);
+    const medRef = doc(firestore, MEDICATIONS_COLLECTION, medId);
     await updateDoc(medRef, { currentStock: newStock, lastTaken: new Date().toISOString() });
 };
 
 export const deleteMedicationDB = async (medId: string) => {
-    await deleteDoc(doc(db, MEDICATIONS_COLLECTION, medId));
+    await deleteDoc(doc(firestore, MEDICATIONS_COLLECTION, medId));
 };
 
 export const addBookingDB = async (booking: ServiceBooking) => {
     const { id, ...data } = booking;
-    await addDoc(collection(db, BOOKINGS_COLLECTION), cleanData(data));
+    await addDoc(collection(firestore, BOOKINGS_COLLECTION), cleanData(data));
 };
 
 export const streamBookings = (callback: (bookings: ServiceBooking[]) => void) => {
-    const q = query(collection(db, BOOKINGS_COLLECTION), orderBy('date', 'desc'));
+    const q = query(collection(firestore, BOOKINGS_COLLECTION), orderBy('date', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ServiceBooking[];
         callback(bookings);
@@ -97,26 +97,26 @@ export const streamBookings = (callback: (bookings: ServiceBooking[]) => void) =
 };
 
 export const updateBookingStatusDB = async (id: string, status: ServiceBooking['status']) => {
-    await updateDoc(doc(db, BOOKINGS_COLLECTION, id), { status });
+    await updateDoc(doc(firestore, BOOKINGS_COLLECTION, id), { status });
 };
 
 export const deleteBookingDB = async (id: string) => {
-    await deleteDoc(doc(db, BOOKINGS_COLLECTION, id));
+    await deleteDoc(doc(firestore, BOOKINGS_COLLECTION, id));
 };
 
 export const streamStockAlerts = (callback: (alerts: StockAlert[]) => void) => {
-    return onSnapshot(query(collection(db, STOCK_ALERTS_COLLECTION), orderBy('createdAt', 'desc')), (snapshot) => {
+    return onSnapshot(query(collection(firestore, STOCK_ALERTS_COLLECTION), orderBy('createdAt', 'desc')), (snapshot) => {
         const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockAlert[];
         callback(alerts);
     });
 };
 
 export const addStockAlertDB = async (email: string, productId: string) => {
-    await addDoc(collection(db, STOCK_ALERTS_COLLECTION), cleanData({
+    await addDoc(collection(firestore, STOCK_ALERTS_COLLECTION), cleanData({
         email, productId, createdAt: new Date().toISOString()
     }));
 };
 
 export const deleteStockAlertDB = async (id: string) => {
-    await deleteDoc(doc(db, STOCK_ALERTS_COLLECTION, id));
+    await deleteDoc(doc(firestore, STOCK_ALERTS_COLLECTION, id));
 };

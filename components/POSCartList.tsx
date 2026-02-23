@@ -64,56 +64,64 @@ const POSCartList: React.FC<POSCartListProps> = ({ posCart, removeFromPosCart, a
             const { canAddOneMore, unitsUsedInThisLine } = getStockStatus(item);
 
             return (
-              <div key={`${item.id}-${item.selectedUnit}-${idx}`} className="flex flex-col md:flex-row items-stretch md:items-center justify-between py-2 md:py-3 px-2 md:px-4 rounded-lg md:rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all group animate-in slide-in-from-bottom-1">
+              <div key={`${item.id}-${item.selectedUnit}-${idx}`} className={`flex flex-col md:flex-row items-stretch md:items-center justify-between py-2 md:py-3 px-2 md:px-4 rounded-lg md:rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all group animate-in slide-in-from-bottom-1 ${item.price < 0 ? 'bg-purple-50/50 border-purple-100' : ''}`}>
                 <div className="flex-grow min-w-0 flex items-center gap-2 md:gap-3 mb-2 md:mb-0">
-                  <span className={`text-[7px] md:text-[8px] font-black px-1 md:px-1.5 py-0.5 rounded uppercase shrink-0 ${isBox ? 'bg-blue-600 text-white' : 'bg-teal-50 text-teal-600'}`}>
-                    {isBox ? 'CAJA' : 'UNID'}
+                  <span className={`text-[7px] md:text-[8px] font-black px-1 md:px-1.5 py-0.5 rounded uppercase shrink-0 ${item.price < 0 ? 'bg-purple-600 text-white' : isBox ? 'bg-blue-600 text-white' : 'bg-teal-50 text-teal-600'}`}>
+                    {item.price < 0 ? 'DESC' : isBox ? 'CAJA' : 'UNID'}
                   </span>
                   <div className="min-w-0 flex-grow">
-                    <h4 className="text-[11px] md:text-sm font-black text-slate-800 uppercase truncate leading-none">{item.name}</h4>
-                    <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">Stock: {item.stock} / Usado: {unitsUsedInThisLine}</p>
+                    <h4 className={`text-[11px] md:text-sm font-black uppercase truncate leading-none ${item.price < 0 ? 'text-purple-700' : 'text-slate-800'}`}>{item.name}</h4>
+                    <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{item.price < 0 ? 'Descuento aplicado automáticamente' : `Stock: ${item.stock} / Usado: ${unitsUsedInThisLine}`}</p>
                   </div>
-                  <span className="text-[9px] md:text-[10px] font-bold text-slate-400 shrink-0">(${unitPrice.toFixed(2)})</span>
+                  <span className={`text-[9px] md:text-[10px] font-bold shrink-0 ${item.price < 0 ? 'text-purple-500' : 'text-slate-400'}`}>(${unitPrice.toFixed(2)})</span>
                 </div>
 
                 <div className="flex items-center justify-between md:justify-end gap-4 md:gap-8 shrink-0">
                   {/* Selector de Unidad */}
                   <div className="w-24 flex justify-center">
-                    {hasBoxOption ? (
-                      <button 
-                        onClick={() => toggleUnit(item)}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isBox ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-teal-200 bg-teal-50 text-teal-700'}`}
-                      >
-                        {isBox ? <Package size={12}/> : <Inbox size={12}/>}
-                        {isBox ? `x${item.unitsPerBox}` : 'Unid'}
-                      </button>
+                    {item.price >= 0 ? (
+                      hasBoxOption ? (
+                        <button 
+                          onClick={() => toggleUnit(item)}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isBox ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-teal-200 bg-teal-50 text-teal-700'}`}
+                        >
+                          {isBox ? <Package size={12}/> : <Inbox size={12}/>}
+                          {isBox ? `x${item.unitsPerBox}` : 'Unid'}
+                        </button>
+                      ) : (
+                        <span className="text-[9px] font-black text-slate-300 uppercase">Fijo</span>
+                      )
                     ) : (
-                      <span className="text-[9px] font-black text-slate-300 uppercase">Fijo</span>
+                      <span className="text-[9px] font-black text-purple-300 uppercase italic">Combo</span>
                     )}
                   </div>
 
-                  <div className="flex items-center bg-slate-50 md:bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
-                    <button onClick={() => {
-                      if (item.quantity === 1) {
-                        removeFromPosCart(item.id);
-                      } else {
-                        setPosCart(prev => prev.map((it, i) => i === idx ? {...it, quantity: it.quantity - 1} : it));
-                      }
-                    }} className="p-1.5 md:p-1 text-slate-400 hover:text-red-500 transition-all"><Minus size={14} strokeWidth={3}/></button>
-                    
-                    <span className="px-2 md:px-3 text-[12px] md:text-sm font-black text-slate-800 w-8 md:w-10 text-center">{item.quantity}</span>
-                    
-                    <button 
-                        disabled={!canAddOneMore}
-                        onClick={() => addToPosCart(item, item.selectedUnit)} 
-                        className={`p-1.5 md:p-1 transition-all ${canAddOneMore ? 'text-slate-400 hover:text-teal-600' : 'text-slate-200 cursor-not-allowed'}`}
-                    >
-                      {canAddOneMore ? <Plus size={14} strokeWidth={3}/> : <AlertTriangle size={14} className="text-orange-300"/>}
-                    </button>
-                  </div>
+                  {item.price >= 0 ? (
+                    <div className="flex items-center bg-slate-50 md:bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
+                      <button onClick={() => {
+                        if (item.quantity === 1) {
+                          removeFromPosCart(item.id);
+                        } else {
+                          setPosCart(prev => prev.map((it, i) => i === idx ? {...it, quantity: it.quantity - 1} : it));
+                        }
+                      }} className="p-1.5 md:p-1 text-slate-400 hover:text-red-500 transition-all"><Minus size={14} strokeWidth={3}/></button>
+                      
+                      <span className="px-2 md:px-3 text-[12px] md:text-sm font-black text-slate-800 w-8 md:w-10 text-center">{item.quantity}</span>
+                      
+                      <button 
+                          disabled={!canAddOneMore}
+                          onClick={() => addToPosCart(item, item.selectedUnit)} 
+                          className={`p-1.5 md:p-1 transition-all ${canAddOneMore ? 'text-slate-400 hover:text-teal-600' : 'text-slate-200 cursor-not-allowed'}`}
+                      >
+                        {canAddOneMore ? <Plus size={14} strokeWidth={3}/> : <AlertTriangle size={14} className="text-orange-300"/>}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-24 text-center text-[10px] font-bold text-purple-400 italic">Promoción</div>
+                  )}
                   
                   <div className="w-16 md:w-24 text-right">
-                    <p className="text-[13px] md:text-base font-black text-slate-900 tabular-nums">${(unitPrice * item.quantity).toFixed(2)}</p>
+                    <p className={`text-[13px] md:text-base font-black tabular-nums ${item.price < 0 ? 'text-purple-700' : 'text-slate-900'}`}>${(unitPrice * item.quantity).toFixed(2)}</p>
                   </div>
 
                   <button onClick={() => removeFromPosCart(item.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">

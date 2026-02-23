@@ -59,8 +59,9 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
                     return;
                 }
             }
-            // Si no hay guardada, buscamos la predeterminada
-            const defaultZone = data.find(c => c.name.toLowerCase().includes('cirial')) || data[0];
+            // Para invitados o usuarios sin zona, NO seleccionamos ninguna por defecto 
+            // si queremos obligarlos a elegir, o elegimos la primera si es Machalilla Centro.
+            const defaultZone = data.find(c => c.name.toLowerCase().includes('centro')) || data[0];
             setSelectedCiudadela(defaultZone);
         }
     });

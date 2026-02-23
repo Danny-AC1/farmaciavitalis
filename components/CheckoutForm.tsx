@@ -45,10 +45,12 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         </label>
         <div className="relative">
           <select 
-            className="w-full border-2 border-teal-50 bg-slate-50 rounded-xl p-4 font-black text-slate-800 outline-none focus:border-teal-500 transition-all appearance-none cursor-pointer"
+            required
+            className="w-full border-2 border-teal-100 bg-white rounded-xl p-4 font-black text-slate-800 outline-none focus:border-teal-500 transition-all appearance-none cursor-pointer shadow-sm"
             value={selectedCiudadela?.id || ''}
             onChange={(e) => setSelectedCiudadela(ciudadelas.find(c => c.id === e.target.value) || null)}
           >
+            <option value="" disabled>--- SELECCIONE SU SECTOR ---</option>
             {ciudadelas.map(c => (
               <option key={c.id} value={c.id}>{c.name.toUpperCase()} (Envío: ${c.price.toFixed(2)})</option>
             ))}

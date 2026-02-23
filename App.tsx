@@ -68,10 +68,10 @@ const App: React.FC = () => {
           startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
-          banners={logic.banners} categories={logic.categories} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
+          banners={logic.banners} categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
           displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN' || false}
           handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
-          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onSelectProduct={logic.setSelectedProduct} cart={logic.cart}
+          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} cart={logic.cart}
         />
         <Footer />
       </main>

@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
-import { Product, CartItem, User, Order, POINTS_DISCOUNT_VALUE } from '../types';
-import { addOrderDB, updateStockDB } from '../services/db.ts';
+import { Product, CartItem, User, Order, POINTS_DISCOUNT_VALUE, Bundle } from '../types';
+import { addOrderDB } from '../services/db.orders';
+import { updateStockDB } from '../services/db.products';
 
 export const useAdminPOS = (products: Product[]) => {
     const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -33,6 +34,69 @@ export const useAdminPOS = (products: Product[]) => {
             }
             return [...prev, { ...product, quantity: 1, selectedUnit: unitType }];
         });
+    };
+
+    const addBundleToPosCart = (bundle: Bundle) => {
+        // Verificar stock de todos los productos del combo
+        for (const pid of bundle.productIds) {
+            const p = products.find(x => x.id === pid);
+            if (!p || p.stock <= 0) return alert(`El producto ${p?.name || pid} no tiene stock para este combo.`);
+        }
+
+        // Para simplificar el cálculo de totales y stock, agregamos los productos individualmente
+        // pero aplicamos el descuento del combo al total de la orden.
+        // O mejor, creamos un "item virtual" que represente el combo.
+        
+        // Vamos a agregarlos como items individuales pero con precio 0, 
+        // y agregamos un item "COMBO" con el precio total del combo.
+        // O simplemente agregamos los productos y calculamos la diferencia de precio como descuento.
+        
+        const individualTotal = bundle.productIds.reduce((sum, pid) => {
+            const p = products.find(x => x.id === pid);
+            return sum + (p?.price || 0);
+        }, 0);
+        
+        const bundleDiscount = individualTotal - bundle.price;
+
+        setPosCart(prev => {
+            let newCart = [...prev];
+            bundle.productIds.forEach(pid => {
+                const p = products.find(x => x.id === pid);
+                if (p) {
+                    const exists = newCart.find(item => item.id === p.id && item.selectedUnit === 'UNIT');
+                    if (exists) {
+                        newCart = newCart.map(item => (item.id === p.id && item.selectedUnit === 'UNIT') 
+                            ? { ...item, quantity: item.quantity + 1 } : item
+                        );
+                    } else {
+                        newCart.push({ ...p, quantity: 1, selectedUnit: 'UNIT' });
+                    }
+                }
+            });
+
+            if (bundleDiscount > 0) {
+                const discountId = `discount-${bundle.id}`;
+                const exists = newCart.find(item => item.id === discountId);
+                if (exists) {
+                    newCart = newCart.map(item => item.id === discountId ? { ...item, quantity: item.quantity + 1 } : item);
+                } else {
+                    newCart.push({
+                        id: discountId,
+                        name: `Ahorro: ${bundle.name}`,
+                        description: 'Descuento por combo',
+                        price: -bundleDiscount,
+                        image: 'https://cdn-icons-png.flaticon.com/512/726/726476.png',
+                        category: 'Descuento',
+                        stock: 9999,
+                        quantity: 1,
+                        selectedUnit: 'UNIT'
+                    } as CartItem);
+                }
+            }
+            return newCart;
+        });
+
+        alert(`Combo "${bundle.name}" agregado.`);
     };
 
     const handlePosCheckout = async (customer?: User, pointsRedeemed: number = 0) => {
@@ -78,6 +142,6 @@ export const useAdminPOS = (products: Product[]) => {
     return {
         posCart, setPosCart, posSearch, setPosSearch, posCashReceived, setPosCashReceived,
         posPaymentMethod, setPosPaymentMethod, showPosScanner, setShowPosScanner,
-        showCashClosure, setShowCashClosure, addToPosCart, handlePosCheckout
+        showCashClosure, setShowCashClosure, addToPosCart, addBundleToPosCart, handlePosCheckout
     };
 };

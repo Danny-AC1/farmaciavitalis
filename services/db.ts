@@ -6,3 +6,4 @@ export * from './db.users';
 export * from './db.marketing';
 export * from './db.health';
 export * from './db.admin';
+export * from './db.bundles';

@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { Banner, Expense, Coupon, Supplier, User, SearchLog, StockAlert, Subscription, ServiceBooking } from '../types';
+import { Banner, Expense, Coupon, Supplier, User, SearchLog, StockAlert, Subscription, ServiceBooking, Bundle } from '../types';
 import { 
     streamBanners, streamExpenses, streamCoupons, streamSuppliers, streamUsers, 
-    streamSearchLogs, streamStockAlerts, streamSubscriptions, streamBookings,
+    streamSearchLogs, streamStockAlerts, streamSubscriptions, streamBookings, streamBundles,
     deleteBannerDB, deleteCouponDB, deleteSupplierDB, deleteSubscriptionDB,
     deleteStockAlertDB, deleteBlogPostDB, deleteUserDB, deleteSearchLogDB, deleteBookingDB,
-    deleteOrderDB, deleteExpenseDB
-} from '../services/db.ts';
+    deleteOrderDB, deleteExpenseDB, deleteBundleDB
+} from '../services/db';
 
 export const useAdminData = () => {
     const [banners, setBanners] = useState<Banner[]>([]);
@@ -19,6 +19,7 @@ export const useAdminData = () => {
     const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [bookings, setBookings] = useState<ServiceBooking[]>([]);
+    const [bundles, setBundles] = useState<Bundle[]>([]);
 
     useEffect(() => {
         const unsubs = [
@@ -30,7 +31,8 @@ export const useAdminData = () => {
             streamSearchLogs(setSearchLogs),
             streamStockAlerts(setStockAlerts),
             streamSubscriptions(setSubscriptions),
-            streamBookings(setBookings)
+            streamBookings(setBookings),
+            streamBundles(setBundles)
         ];
         return () => unsubs.forEach(unsub => unsub());
     }, []);
@@ -46,11 +48,12 @@ export const useAdminData = () => {
     const handleDeleteSearchLog = async (id: string) => { await deleteSearchLogDB(id); };
     const handleDeleteBooking = async (id: string) => { if(confirm("¿Eliminar esta cita?")) await deleteBookingDB(id); };
     const handleDeleteExpense = async (id: string) => { if(confirm("¿Eliminar este registro de gasto?")) await deleteExpenseDB(id); };
+    const handleDeleteBundle = async (id: string) => { if(confirm("¿Eliminar este combo?")) await deleteBundleDB(id); };
 
     return {
-        banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings,
+        banners, expenses, coupons, suppliers, users, searchLogs, stockAlerts, subscriptions, bookings, bundles,
         handleDeleteOrder, handleDeleteBanner, handleDeleteCoupon, handleDeleteSupplier, 
         handleDeleteSubscription, handleDeleteStockAlert, handleDeleteBlogPost, 
-        handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking, handleDeleteExpense
+        handleDeleteUser, handleDeleteSearchLog, handleDeleteBooking, handleDeleteExpense, handleDeleteBundle
     };
 };

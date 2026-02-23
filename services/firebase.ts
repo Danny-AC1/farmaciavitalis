@@ -1,5 +1,7 @@
+
 // @ts-ignore: firebase/app types mismatch in some environments
 import { initializeApp } from "firebase/app";
+// @ts-ignore
 import { getFirestore } from "firebase/firestore";
 // @ts-ignore
 import { getAuth } from "firebase/auth";
@@ -18,6 +20,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const firestore = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);

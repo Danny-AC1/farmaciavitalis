@@ -158,6 +158,19 @@ export interface BlogPost {
   author: string;
 }
 
+export interface Bundle {
+  id: string;
+  name: string;
+  description: string;
+  productIds: string[];
+  price: number;
+  image?: string;
+  active: boolean;
+  isUpgrade?: boolean;
+  baseProductId?: string; // Para combos "Upgrade" vinculados a un producto base
+  category?: string; // Ej: "Sintomatología", "Primeros Auxilios"
+}
+
 export interface FamilyMember {
   id: string;
   userId: string;

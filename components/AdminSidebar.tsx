@@ -34,6 +34,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
           title: 'INVENTARIO Y CATÁLOGO',
           items: [
             { id: 'products', label: 'Productos', icon: Package },
+            { id: 'bundles', label: 'Combos / Promos', icon: Grid },
             { id: 'stock_quick', label: 'Stock Rápido', icon: Activity },
             { id: 'categories', label: 'Categorías', icon: Grid },
             { id: 'suppliers', label: 'Proveedores', icon: Truck },

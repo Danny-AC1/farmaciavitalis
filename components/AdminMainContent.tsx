@@ -16,6 +16,7 @@ import AdminSubscriptions from './AdminSubscriptions';
 import AdminStockAlerts from './AdminStockAlerts';
 import AdminGeoStats from './AdminGeoStats';
 import AdminCiudadelas from './AdminCiudadelas';
+import AdminBundles from './AdminBundles';
 
 interface AdminMainContentProps {
     activeTab: string;
@@ -50,6 +51,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                 <AdminPOS 
                     products={props.products} 
                     users={state.users} 
+                    bundles={state.bundles}
                     posCart={state.posCart} 
                     setPosCart={state.setPosCart} 
                     posSearch={state.posSearch} 
@@ -59,6 +61,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     posPaymentMethod={state.posPaymentMethod} 
                     setPosPaymentMethod={state.setPosPaymentMethod} 
                     addToPosCart={state.addToPosCart} 
+                    addBundleToPosCart={state.addBundleToPosCart}
                     removeFromPosCart={(id: string) => state.setPosCart((prev: any[]) => prev.filter(i => i.id !== id))} 
                     handlePosCheckout={state.handlePosCheckout} 
                     setShowScanner={state.setShowPosScanner} 
@@ -115,6 +118,9 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     fileInputRef={productInputRef} 
                 />
             );
+
+        case 'bundles':
+            return <AdminBundles products={props.products} bundles={state.bundles} orders={props.orders} onDelete={state.handleDeleteBundle} />;
 
         case 'stock_quick': return <AdminStockQuick products={props.products} onUpdateStock={state.handleStockUpdate} />;
         

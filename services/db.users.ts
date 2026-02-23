@@ -1,5 +1,5 @@
 
-import { db } from './firebase';
+import { firestore } from './firebase';
 // @ts-ignore
 import { onSnapshot, deleteDoc, doc, query, orderBy, setDoc, getDoc, collection, updateDoc } from 'firebase/firestore';
 import { User } from '../types';
@@ -8,21 +8,21 @@ import { cleanData } from './db.utils';
 const USERS_COLLECTION = 'users';
 
 export const saveUserDB = async (user: User) => {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    const userRef = doc(firestore, USERS_COLLECTION, user.uid);
     await setDoc(userRef, cleanData(user), { merge: true }); 
 };
 
 export const updateUserFieldsDB = async (uid: string, fields: Partial<User>) => {
-    const userRef = doc(db, USERS_COLLECTION, uid);
+    const userRef = doc(firestore, USERS_COLLECTION, uid);
     await updateDoc(userRef, cleanData(fields));
 };
 
 export const deleteUserDB = async (uid: string) => {
-    await deleteDoc(doc(db, USERS_COLLECTION, uid));
+    await deleteDoc(doc(firestore, USERS_COLLECTION, uid));
 };
 
 export const getUserDB = async (uid: string): Promise<User | null> => {
-    const userRef = doc(db, USERS_COLLECTION, uid);
+    const userRef = doc(firestore, USERS_COLLECTION, uid);
     const snap = await getDoc(userRef);
     if (snap.exists()) {
         const data = snap.data();
@@ -32,7 +32,7 @@ export const getUserDB = async (uid: string): Promise<User | null> => {
 };
 
 export const streamUser = (uid: string, callback: (user: User | null) => void) => {
-    const userRef = doc(db, USERS_COLLECTION, uid);
+    const userRef = doc(firestore, USERS_COLLECTION, uid);
     return onSnapshot(userRef, (snap) => {
         if (snap.exists()) {
             const data = snap.data();
@@ -42,7 +42,7 @@ export const streamUser = (uid: string, callback: (user: User | null) => void) =
 };
 
 export const streamUsers = (callback: (users: User[]) => void) => {
-    const q = query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc'));
+    const q = query(collection(firestore, USERS_COLLECTION), orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const users = snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id, points: doc.data().points || 0 } as User));
         callback(users);

@@ -60,22 +60,27 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                       const isBox = item.selectedUnit === 'BOX';
                       const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
                       return (
-                        <li key={`${item.id}-${idx}`} className="py-6 flex">
-                          <img src={item.image} className="h-20 w-20 rounded border object-contain mix-blend-multiply" />
+                        <li key={`${item.id}-${idx}`} className={`py-6 flex ${item.price < 0 ? 'bg-purple-50 rounded-xl px-2' : ''}`}>
+                          <img src={item.image} className="h-20 w-20 rounded border object-contain mix-blend-multiply bg-white" />
                           <div className="ml-4 flex-1 flex flex-col">
                             <div>
                               <div className="flex justify-between text-base font-medium text-gray-900">
-                                <h3 className="line-clamp-1">{item.name}</h3>
-                                <p className="ml-4 shrink-0">${(price * item.quantity).toFixed(2)}</p>
+                                <h3 className={`line-clamp-1 ${item.price < 0 ? 'text-purple-700 font-bold' : ''}`}>{item.name}</h3>
+                                <p className={`ml-4 shrink-0 ${item.price < 0 ? 'text-purple-700' : ''}`}>${(price * item.quantity).toFixed(2)}</p>
                               </div>
                               {isBox && <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-block">Caja x{item.unitsPerBox}</span>}
+                              {item.price < 0 && <span className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-block">Combo Aplicado</span>}
                             </div>
                             <div className="flex-1 flex items-end justify-between text-sm">
-                              <div className="flex items-center border rounded-md">
-                                <button onClick={() => updateQuantity(idx, -1)} className="p-1 hover:bg-gray-100"><Minus className="h-4 w-4" /></button>
-                                <span className="px-3 font-bold">{item.quantity}</span>
-                                <button onClick={() => updateQuantity(idx, 1)} className="p-1 hover:bg-gray-100"><Plus className="h-4 w-4" /></button>
-                              </div>
+                              {item.price >= 0 ? (
+                                <div className="flex items-center border rounded-md">
+                                  <button onClick={() => updateQuantity(idx, -1)} className="p-1 hover:bg-gray-100"><Minus className="h-4 w-4" /></button>
+                                  <span className="px-3 font-bold">{item.quantity}</span>
+                                  <button onClick={() => updateQuantity(idx, 1)} className="p-1 hover:bg-gray-100"><Plus className="h-4 w-4" /></button>
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-purple-400 font-medium italic">Descuento automático</div>
+                              )}
                               <button onClick={() => removeFromCart(idx)} className="text-red-600 font-bold hover:underline">Eliminar</button>
                             </div>
                           </div>
