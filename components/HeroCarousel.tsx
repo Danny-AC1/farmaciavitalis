@@ -62,7 +62,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="w-full overflow-x-auto snap-x snap-mandatory flex rounded-[2.5rem] md:rounded-[3.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] no-scrollbar h-[420px] md:h-[550px] bg-slate-900"
+        className="w-full overflow-x-auto snap-x snap-mandatory flex rounded-[2.5rem] md:rounded-[3rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] no-scrollbar h-[350px] md:h-[450px] bg-slate-900"
       >
         {/* Banners Normales */}
         {banners.map(b => (
@@ -72,22 +72,22 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({
               className="w-full h-full object-cover transition-transform duration-[2000ms] group-hover/slide:scale-110" 
               referrerPolicy="no-referrer" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent flex flex-col justify-end p-8 md:p-20">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent flex flex-col justify-end p-6 md:p-16">
               {b.title && (
                 <div className="max-w-4xl animate-in slide-in-from-bottom-8 duration-1000">
-                  <h3 className="text-white font-black text-3xl md:text-7xl leading-[0.9] mb-4 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] tracking-tighter">
+                  <h3 className="text-white font-black text-2xl md:text-5xl leading-[0.95] mb-4 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] tracking-tighter">
                     {b.title}
                   </h3>
                 </div>
               )}
             </div>
             {isSuperAdmin && (
-              <div className="absolute top-8 right-8 flex gap-2">
+              <div className="absolute top-6 right-6 md:top-8 md:right-8 flex gap-2">
                 <button 
                   onClick={() => handleDeleteBanner(b.id)} 
-                  className="bg-white/10 backdrop-blur-xl p-4 rounded-2xl text-white hover:bg-red-500 transition-all shadow-2xl border border-white/20"
+                  className="bg-white/10 backdrop-blur-xl p-3 md:p-4 rounded-2xl text-white hover:bg-red-500 transition-all shadow-2xl border border-white/20"
                 >
-                  <Trash2 size={22}/>
+                  <Trash2 size={18} className="md:w-[22px] md:h-[22px]"/>
                 </button>
               </div>
             )}
@@ -101,43 +101,43 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({
             return sum + (p?.price || 0);
           }, 0);
           return (
-            <div key={bundle.id} className="snap-center min-w-full relative shrink-0 bg-gradient-to-br from-indigo-600 via-purple-700 to-fuchsia-900 flex items-center p-8 md:p-24 overflow-hidden">
+            <div key={bundle.id} className="snap-center min-w-full relative shrink-0 bg-gradient-to-br from-indigo-600 via-purple-700 to-fuchsia-900 flex items-center p-6 md:p-16 overflow-hidden">
               <div className="relative z-10 w-full md:w-3/5">
-                <div className="flex items-center gap-3 mb-6 md:mb-8">
-                  <span className="bg-yellow-400 text-yellow-950 px-4 py-1.5 rounded-full text-[10px] md:text-sm font-black uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(250,204,21,0.3)]">
+                <div className="flex items-center gap-2 mb-4 md:mb-6">
+                  <span className="bg-yellow-400 text-yellow-950 px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[8px] md:text-xs font-black uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(250,204,21,0.3)]">
                     Combo Vitalis
                   </span>
-                  <div className="h-1 w-12 bg-white/30 rounded-full"></div>
-                  <span className="text-white/80 text-[10px] md:text-sm font-bold uppercase tracking-widest">
-                    Promoción Limitada
+                  <div className="h-0.5 w-8 md:h-1 md:w-12 bg-white/30 rounded-full"></div>
+                  <span className="text-white/80 text-[8px] md:text-xs font-bold uppercase tracking-widest">
+                    Promoción
                   </span>
                 </div>
                 
-                <h3 className="text-white font-black text-4xl md:text-8xl leading-[0.85] mb-6 md:mb-8 tracking-tighter drop-shadow-2xl">
+                <h3 className="text-white font-black text-2xl md:text-5xl leading-[0.9] mb-4 md:mb-6 tracking-tighter drop-shadow-2xl">
                   {bundle.name}
                 </h3>
-                <p className="text-indigo-100 text-sm md:text-2xl mb-8 md:mb-12 line-clamp-3 md:line-clamp-2 opacity-90 max-w-2xl leading-relaxed font-medium">
+                <p className="text-indigo-100 text-[10px] md:text-lg mb-6 md:mb-10 line-clamp-2 md:line-clamp-2 opacity-90 max-w-2xl leading-relaxed font-medium">
                   {bundle.description}
                 </p>
                 
-                <div className="flex items-center gap-6 md:gap-12 mb-6 md:mb-16">
+                <div className="flex items-center gap-4 md:gap-10 mb-6 md:mb-12">
                   <div className="flex flex-col">
-                    <span className="text-indigo-300 text-sm md:text-2xl line-through font-bold opacity-50 mb-1">Antes: ${originalPrice.toFixed(2)}</span>
-                    <span className="text-white text-5xl md:text-9xl font-black tracking-tighter leading-none drop-shadow-2xl">
+                    <span className="text-indigo-300 text-[10px] md:text-lg line-through font-bold opacity-50 mb-0.5">Antes: ${originalPrice.toFixed(2)}</span>
+                    <span className="text-white text-3xl md:text-7xl font-black tracking-tighter leading-none drop-shadow-2xl">
                       ${bundle.price.toFixed(2)}
                     </span>
                   </div>
-                  <div className="bg-white/10 backdrop-blur-2xl border border-white/20 px-6 py-4 md:px-10 md:py-6 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-[0_20px_40px_rgba(0,0,0,0.2)]">
-                    <p className="text-[10px] md:text-sm font-black uppercase opacity-60 tracking-[0.2em] mb-1">Ahorras</p>
-                    <p className="text-2xl md:text-5xl font-black text-yellow-400 tracking-tighter">${(originalPrice - bundle.price).toFixed(2)}</p>
+                  <div className="bg-white/10 backdrop-blur-2xl border border-white/20 px-4 py-3 md:px-8 md:py-4 rounded-[1.5rem] md:rounded-[2rem] text-white shadow-[0_20px_40px_rgba(0,0,0,0.2)]">
+                    <p className="text-[8px] md:text-xs font-black uppercase opacity-60 tracking-[0.2em] mb-0.5">Ahorras</p>
+                    <p className="text-lg md:text-3xl font-black text-yellow-400 tracking-tighter">${(originalPrice - bundle.price).toFixed(2)}</p>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => onAddBundle(bundle)}
-                  className="w-fit bg-white text-indigo-800 px-5 py-2.5 md:px-10 md:py-6 rounded-xl md:rounded-3xl font-black text-[10px] md:text-2xl flex items-center justify-center gap-2 md:gap-4 hover:bg-yellow-400 hover:text-yellow-950 transition-all shadow-xl active:scale-95 group/btn"
+                  className="w-fit bg-white text-indigo-800 px-5 py-2.5 md:px-8 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-lg flex items-center justify-center gap-2 md:gap-3 hover:bg-yellow-400 hover:text-yellow-950 transition-all shadow-xl active:scale-95 group/btn"
                 >
-                  <ShoppingBag className="w-4 h-4 md:w-8 md:h-8 group-hover/btn:scale-110 transition-transform" /> 
+                  <ShoppingBag className="w-4 h-4 md:w-6 md:h-6 group-hover/btn:scale-110 transition-transform" /> 
                   LO QUIERO AHORA
                 </button>
               </div>
