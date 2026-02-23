@@ -1,15 +1,16 @@
 
 import React from 'react';
 import { User } from '../types';
-import { X, LogOut, Mail, Phone, Award, ShieldCheck } from 'lucide-react';
+import { X, LogOut, Mail, Phone, Award, ShieldCheck, RefreshCw } from 'lucide-react';
 import { auth } from '../services/firebase';
 
 interface ProfileModalProps {
   user: User;
   onClose: () => void;
+  onOpenSubscriptions: () => void;
 }
 
-const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
+const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onOpenSubscriptions }) => {
   const handleLogout = () => {
     if (confirm("¿Estás seguro de que deseas cerrar tu sesión?")) {
       auth.signOut();
@@ -71,7 +72,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-100">
+          <div className="pt-6 border-t border-slate-100 space-y-3">
+            <button 
+              onClick={() => { onClose(); onOpenSubscriptions(); }}
+              className="w-full py-4 bg-teal-50 text-teal-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-teal-600 hover:text-white transition-all flex items-center justify-center gap-2 border border-teal-100"
+            >
+              <RefreshCw size={18} /> Mis Suscripciones
+            </button>
+
             <button 
               onClick={handleLogout}
               className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"

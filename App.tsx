@@ -24,6 +24,7 @@ import PrescriptionModal from './components/PrescriptionModal';
 import ServicesModal from './components/ServicesModal';
 import Assistant from './components/Assistant';
 import FamilyHealthModal from './components/FamilyHealthModal';
+import UserSubscriptionsModal from './components/UserSubscriptionsModal';
 import StaffAccessModal from './components/StaffAccessModal';
 import Footer from './components/Footer';
 import NotificationCenter from './components/NotificationCenter';
@@ -113,7 +114,21 @@ const App: React.FC = () => {
       )}
 
       {logic.showAuthModal && <AuthModal onClose={() => logic.setShowAuthModal(false)} onSuccess={() => {}} />}
-      {logic.showProfileModal && logic.currentUser && <ProfileModal user={logic.currentUser} onClose={() => logic.setShowProfileModal(false)} />}
+      {logic.showProfileModal && logic.currentUser && (
+        <ProfileModal 
+          user={logic.currentUser} 
+          onClose={() => logic.setShowProfileModal(false)} 
+          onOpenSubscriptions={() => logic.setShowUserSubscriptionsModal(true)}
+        />
+      )}
+      
+      {logic.showUserSubscriptionsModal && logic.currentUser && (
+        <UserSubscriptionsModal 
+          user={logic.currentUser} 
+          products={logic.products} 
+          onClose={() => logic.setShowUserSubscriptionsModal(false)} 
+        />
+      )}
       
       {logic.activeTab === 'orders' && logic.currentUser && (
         <UserOrdersModal 

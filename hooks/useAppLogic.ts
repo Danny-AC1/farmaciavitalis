@@ -10,6 +10,7 @@ import { useNotifications } from './useNotifications';
 export const useAppLogic = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showUserSubscriptionsModal, setShowUserSubscriptionsModal] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [showStaffAccess, setShowStaffAccess] = useState(false);
   
@@ -68,6 +69,7 @@ export const useAppLogic = () => {
     notifications,
     showAuthModal, setShowAuthModal,
     showProfileModal, setShowProfileModal,
+    showUserSubscriptionsModal, setShowUserSubscriptionsModal,
     showPrescriptionModal, setShowPrescriptionModal,
     showStaffAccess, setShowStaffAccess,
     handleTabChange

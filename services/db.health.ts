@@ -25,6 +25,18 @@ export const streamSubscriptions = (callback: (subs: Subscription[]) => void) =>
     });
 };
 
+export const streamUserSubscriptions = (userId: string, callback: (subs: Subscription[]) => void) => {
+    const q = query(
+        collection(firestore, SUBSCRIPTIONS_COLLECTION), 
+        where('userId', '==', userId),
+        orderBy('nextDelivery', 'asc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Subscription[];
+        callback(subs);
+    });
+};
+
 export const deleteSubscriptionDB = async (id: string) => {
     await deleteDoc(doc(firestore, SUBSCRIPTIONS_COLLECTION, id));
 };
