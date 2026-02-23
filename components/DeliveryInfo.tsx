@@ -30,7 +30,7 @@ const DeliveryInfo: React.FC<DeliveryInfoProps> = ({ isServiceActive }) => {
                     {isServiceActive ? 'Cobertura Total Activa' : 'Cobertura Inactiva'}
                 </span>
                 <span className="text-[8px] font-bold opacity-80 uppercase tracking-tighter leading-tight mt-0.5">
-                    {isServiceActive ? 'Horario: 07:00 AM - 09:00 PM' : 'Iniciamos a las 07:00 AM'}
+                    {isServiceActive ? 'Horario: 08:00 AM - 09:00 PM' : 'Iniciamos a las 08:00 AM'}
                 </span>
             </div>
         </div>

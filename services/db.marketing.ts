@@ -4,6 +4,7 @@ import { firestore } from './firebase';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { Coupon, Banner, BlogPost } from '../types';
 import { cleanData } from './db.utils';
+import { sendNotificationToAll } from './db.notifications';
 
 const COUPONS_COLLECTION = 'coupons';
 const BANNERS_COLLECTION = 'banners';
@@ -15,7 +16,15 @@ export const streamCoupons = (callback: (coupons: Coupon[]) => void) => {
         callback(coupons);
     });
 };
-export const addCouponDB = async (coupon: Coupon) => { const { id, ...data } = coupon; await addDoc(collection(firestore, COUPONS_COLLECTION), cleanData(data)); };
+export const addCouponDB = async (coupon: Coupon) => { 
+    const { id, ...data } = coupon; 
+    await addDoc(collection(firestore, COUPONS_COLLECTION), cleanData(data)); 
+    await sendNotificationToAll({
+        title: '¡Nuevo Cupón Disponible!',
+        message: `Usa el código ${coupon.code} para obtener un descuento en tu próxima compra.`,
+        type: 'PROMOTION'
+    });
+};
 export const deleteCouponDB = async (id: string) => { await deleteDoc(doc(firestore, COUPONS_COLLECTION, id)); };
 
 export const streamBanners = (callback: (banners: Banner[]) => void) => {
@@ -33,5 +42,13 @@ export const streamBlogPosts = (callback: (posts: BlogPost[]) => void) => {
         callback(posts);
     });
 };
-export const addBlogPostDB = async (post: BlogPost) => { const { id, ...data } = post; await addDoc(collection(firestore, BLOG_COLLECTION), cleanData(data)); };
+export const addBlogPostDB = async (post: BlogPost) => { 
+    const { id, ...data } = post; 
+    await addDoc(collection(firestore, BLOG_COLLECTION), cleanData(data)); 
+    await sendNotificationToAll({
+        title: 'Nueva entrada en el Blog',
+        message: `Hemos publicado: "${post.title}". ¡No te lo pierdas!`,
+        type: 'SYSTEM'
+    });
+};
 export const deleteBlogPostDB = async (id: string) => { await deleteDoc(doc(firestore, BLOG_COLLECTION, id)); };

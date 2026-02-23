@@ -26,6 +26,7 @@ import Assistant from './components/Assistant';
 import FamilyHealthModal from './components/FamilyHealthModal';
 import StaffAccessModal from './components/StaffAccessModal';
 import Footer from './components/Footer';
+import NotificationCenter from './components/NotificationCenter';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
@@ -54,6 +55,8 @@ const App: React.FC = () => {
         onAdminClick={() => logic.setShowStaffAccess(true)}
         onLogoClick={() => logic.handleTabChange('home')}
         onUserClick={() => logic.currentUser ? logic.setShowProfileModal(true) : logic.setShowAuthModal(true)}
+        onNotificationClick={() => logic.notifications.toggle()}
+        unreadNotificationsCount={logic.notifications.unreadCount}
         currentUser={logic.currentUser}
         onTabChange={logic.handleTabChange}
       />
@@ -126,6 +129,14 @@ const App: React.FC = () => {
       
       {logic.showPrescriptionModal && <PrescriptionModal onClose={() => logic.setShowPrescriptionModal(false)} />}
       
+      {logic.currentUser && (
+        <NotificationCenter 
+          userId={logic.currentUser.uid} 
+          isOpen={logic.notifications.isOpen} 
+          onClose={() => logic.notifications.setIsOpen(false)} 
+        />
+      )}
+
       {logic.showStaffAccess && (
         <StaffAccessModal 
           onClose={() => logic.setShowStaffAccess(false)} 

@@ -5,6 +5,7 @@ import { useAppCart } from './useAppLogic/useAppCart';
 import { useAppAI } from './useAppLogic/useAppAI';
 import { useAppSearch } from './useAppLogic/useAppSearch';
 import { useAppOrders } from './useAppLogic/useAppOrders';
+import { useNotifications } from './useNotifications';
 
 export const useAppLogic = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -19,6 +20,7 @@ export const useAppLogic = () => {
   const data = useAppData(nav.activeTab, setShowAuthModal);
   const cart = useAppCart();
   const ai = useAppAI(searchTerm, data.products, cart.cart);
+  const notifications = useNotifications(data.currentUser?.uid);
   
   const search = useAppSearch(
     data.products, 
@@ -63,6 +65,7 @@ export const useAppLogic = () => {
     ...ai,
     ...search,
     ...orders,
+    notifications,
     showAuthModal, setShowAuthModal,
     showProfileModal, setShowProfileModal,
     showPrescriptionModal, setShowPrescriptionModal,

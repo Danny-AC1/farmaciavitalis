@@ -47,7 +47,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({
             Bienvenido {currentUser ? `, ${currentUser.displayName.split(' ')[0]}` : 'a Vitalis'}
           </h2>
           <p className="text-teal-100 text-lg md:text-xl opacity-90 leading-relaxed">
-            Tu salud es nuestra prioridad. Encuentra los mejores productos y servicios farmacéuticos en el corazón de Machalilla.
+            Tu salud es nuestra prioridad. Ecuentra los mejores precios en Vitalis.
           </p>
         </div>
         <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-1/4 translate-x-1/4 hidden md:block">
