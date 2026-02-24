@@ -72,7 +72,7 @@ const ServicesModal: React.FC<ServicesModalProps> = ({ user, onClose, onLoginReq
             <div className="bg-teal-600 p-6 text-white flex justify-between items-center shrink-0">
                 <div>
                     <h3 className="font-black text-xl flex items-center gap-2 uppercase tracking-tighter"><Stethoscope className="h-6 w-6"/> Servicios Vitalis</h3>
-                    <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest mt-1">Atención Médica & Prevención</p>
+                    <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest mt-1"></p>
                 </div>
                 <button onClick={onClose} className="hover:bg-white/20 p-2 rounded-full transition-colors"><X className="h-6 w-6"/></button>
             </div>
