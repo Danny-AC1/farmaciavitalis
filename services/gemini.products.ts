@@ -45,7 +45,7 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
         { "suggestedId": "id", "reason": "Frase corta persuasiva" }`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-3.1-pro-preview',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',

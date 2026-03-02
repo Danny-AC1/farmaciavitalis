@@ -21,7 +21,7 @@ const AdminMarketingImageGen: React.FC<AdminMarketingImageGenProps> = ({ product
     setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Crea una imagen publicitaria de alto impacto para una farmacia. 
       Producto: ${product.name}. 
       Categoría: ${product.category}.
