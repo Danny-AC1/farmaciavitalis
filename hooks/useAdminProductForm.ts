@@ -96,7 +96,7 @@ export const useAdminProductForm = (
         prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
         prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, 
         prodBarcode, setProdBarcode, prodExpiry, setProdExpiry, prodSupplier, setProdSupplier,
-        isGenerating, setIsGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
+        isGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
         handleProductSubmit, handleGenerateDescription, handleEditClick, resetForm, handleImageUpload
     };
 };

@@ -3,7 +3,6 @@ import React from 'react';
 import { Sparkles, Loader2, BookOpen, Instagram, MessageCircle, BrainCircuit } from 'lucide-react';
 import { Product } from '../types';
 import AdminPrintableAd from './AdminPrintableAd';
-import AdminMarketingImageGen from './AdminMarketingImageGen';
 
 interface AdminMarketingAIProps {
   products: Product[];
@@ -112,11 +111,6 @@ const AdminMarketingAI: React.FC<AdminMarketingAIProps> = ({
                 {generatedPost}
               </div>
             )}
-
-            <AdminMarketingImageGen 
-              product={products.find(p => p.id === marketingProduct)} 
-              isGeneratingPost={isGenerating}
-            />
           </div>
         </div>
 

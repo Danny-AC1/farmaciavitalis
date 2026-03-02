@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Product, Order, Bundle } from '../types';
 
 export const suggestSymptomBundles = async (products: Product[]): Promise<Partial<Bundle>[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description}) - $${p.price}`).join('\n');
         const prompt = `Actúa como un estratega de marketing farmacéutico. 
@@ -48,7 +48,7 @@ export const suggestSymptomBundles = async (products: Product[]): Promise<Partia
 };
 
 export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Product[]): Promise<Partial<Bundle> | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const candidates = allProducts
             .filter(p => p.id !== baseProduct.id && p.stock > 0)
@@ -90,7 +90,7 @@ export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Pr
 };
 
 export const analyzePredictiveBundles = async (orders: Order[], products: Product[]): Promise<Partial<Bundle>[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         // Simplificar historial para la IA
         const history = orders.slice(-50).map(o => o.items.map(i => i.name).join(', ')).join('\n');

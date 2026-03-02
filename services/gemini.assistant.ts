@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Product } from '../types';
 
 export const createAssistantChat = (products: Product[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const productContext = products.map(p => `- ${p.name}: $${p.price}`).join('\n');
   const systemInstruction = `Eres Vitalis Asistent. Conoces este inventario: ${productContext}. Sé amable y breve.`;
 

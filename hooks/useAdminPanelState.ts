@@ -96,24 +96,24 @@ export const useAdminPanelState = (
 
     // 5. Manejadores de Marketing e IA
     const handleGenerateBlog = async (topic: string) => {
-        productForm.setIsGenerating(true); 
+        productForm.setIsUploadingImage(true); 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Articulo de salud: "${topic}". HTML.` });
             await addBlogPostDB({ id: '', title: topic.toUpperCase(), content: response.text || "", date: new Date().toISOString(), author: "Vitalis Admin" });
             setBlogTopic(''); alert("¡Publicado!");
-        } finally { productForm.setIsGenerating(false); }
+        } finally { productForm.setIsUploadingImage(false); }
     };
 
     const handleGeneratePost = async () => {
         if (!marketingProduct) return alert("Selecciona producto");
         const p = products.find(x => x.id === marketingProduct);
         if (!p) return;
-        productForm.setIsGenerating(true);
+        productForm.setIsUploadingImage(true);
         try {
             const res = await generateSocialPost(p, postPlatform);
             setGeneratedPost(res);
-        } finally { productForm.setIsGenerating(false); }
+        } finally { productForm.setIsUploadingImage(false); }
     };
 
     const handleAddBanner = async (file: File) => {
