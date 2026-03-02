@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer, Trash2, Calendar, Calculator } from 'lucide-react';
+import { ClipboardList, Search, Clock, CheckCircle, Phone, MapPin, Printer, Trash2, Calendar, Calculator, ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminOrdersProps {
@@ -13,6 +13,7 @@ interface AdminOrdersProps {
 const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDeleteOrder, onShowCashClosure }) => {
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL');
   const [search, setSearch] = useState('');
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const filteredOrders = orders.filter(o => {
     const matchesFilter = filter === 'ALL' || o.status === filter;
@@ -20,11 +21,13 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
     return matchesFilter && matchesSearch;
   });
 
-  // Agrupar pedidos por fecha
+  // Agrupar pedidos por fecha local (respetando 00:00 local)
   const groupedOrders = useMemo(() => {
     const groups: Record<string, Order[]> = {};
     filteredOrders.forEach(order => {
-      const dateKey = new Date(order.date).toISOString().split('T')[0];
+      const d = new Date(order.date);
+      // Usar componentes locales para asegurar que el corte es a las 00:00 local
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(order);
     });
@@ -32,7 +35,15 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredOrders]);
 
-  const handleCashClosure = (dateKey: string, dayOrders: Order[]) => {
+  const toggleDay = (dateKey: string) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [dateKey]: !prev[dateKey]
+    }));
+  };
+
+  const handleCashClosure = (e: React.MouseEvent, dateKey: string, dayOrders: Order[]) => {
+    e.stopPropagation(); // Evitar que se cierre el acordeón al hacer clic en el botón
     const delivered = dayOrders.filter(o => o.status === 'DELIVERED');
     const cash = delivered.filter(o => o.paymentMethod === 'CASH').reduce((a, b) => a + b.total, 0);
     const trans = delivered.filter(o => o.paymentMethod === 'TRANSFER').reduce((a, b) => a + b.total, 0);
@@ -192,104 +203,144 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
         </div>
       </div>
 
-      <div className="space-y-12">
-        {groupedOrders.map(([dateKey, dayOrders]) => (
-          <div key={dateKey} className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Calendar size={18} className="text-teal-600" />
-                <h3 className="text-lg font-bold uppercase tracking-wider">
-                  {new Date(dateKey + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </h3>
-                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-xs font-bold">
-                  {dayOrders.length} {dayOrders.length === 1 ? 'pedido' : 'pedidos'}
-                </span>
-              </div>
-              
-              <button 
-                onClick={() => handleCashClosure(dateKey, dayOrders)}
-                className="flex items-center gap-2 bg-teal-50 text-teal-700 px-4 py-2 rounded-xl text-xs font-black hover:bg-teal-100 transition-colors border border-teal-100"
+      <div className="space-y-4">
+        {groupedOrders.map(([dateKey, dayOrders]) => {
+          const isExpanded = expandedDays[dateKey];
+          const totalDay = dayOrders.reduce((sum, o) => sum + o.total, 0);
+          const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
+
+          return (
+            <div key={dateKey} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+              {/* Encabezado del Día (Acordeón) */}
+              <div 
+                onClick={() => toggleDay(dateKey)}
+                className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 cursor-pointer hover:bg-slate-50 transition-colors gap-4"
               >
-                <Calculator size={14} />
-                CORTE DE CAJA ({dateKey})
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {dayOrders.map(order => (
-                <div key={order.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 relative overflow-hidden group">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${order.status === 'DELIVERED' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Orden #{order.id.slice(-6)}</p>
-                        <h4 className="text-xl font-bold text-gray-900">{order.customerName}</h4>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(order.date).toLocaleTimeString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {order.status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-2xl ${isExpanded ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={16} className="text-teal-600" />
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                        {new Date(dateKey + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {dayOrders.length} {dayOrders.length === 1 ? 'pedido' : 'pedidos'}
+                      </span>
+                      {pendingCount > 0 && (
+                        <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">
+                          {pendingCount} PENDIENTES
                         </span>
-                        <p className="text-2xl font-black text-teal-700 mt-2">${order.total.toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <div className="bg-gray-100 p-2 rounded-lg"><Phone size={16}/></div>
-                        <span>{order.customerPhone}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <div className="bg-gray-100 p-2 rounded-lg"><MapPin size={16}/></div>
-                        <span className="truncate">{order.customerAddress}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Detalles del Carrito</p>
-                      <div className="space-y-2">
-                        {order.items.map((item, idx) => {
-                          const isBox = item.selectedUnit === 'BOX';
-                          const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-                          return (
-                            <div key={idx} className="flex justify-between text-xs font-medium text-gray-700">
-                              <span>{item.quantity}x {item.name} {isBox ? `(Caja x${item.unitsPerBox})` : '(Unid)'}</span>
-                              <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      )}
                     </div>
                   </div>
+                </div>
 
-                  <div className="md:w-48 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ventas del Día</p>
+                    <p className="text-xl font-black text-teal-700 flex items-center justify-end gap-1">
+                      <DollarSign size={16} /> {totalDay.toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 w-full md:w-auto">
                     <button 
-                      onClick={() => handlePrintOrder(order)}
-                      className="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-teal-600 transition-colors shadow-sm"
+                      onClick={(e) => handleCashClosure(e, dateKey, dayOrders)}
+                      className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-teal-50 text-teal-700 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-100 transition-colors border border-teal-100"
                     >
-                      <Printer size={14}/> Imprimir Ticket
-                    </button>
-                    {order.status === 'PENDING' && (
-                      <button 
-                        onClick={() => onUpdateStatus(order.id, 'DELIVERED', order)}
-                        className="w-full bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition shadow-sm"
-                      >
-                        <CheckCircle size={14}/> Marcar Entregado
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => onDeleteOrder?.(order.id)}
-                      className="w-full bg-red-50 text-red-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition border border-red-100"
-                    >
-                      <Trash2 size={14}/> Eliminar Registro
+                      <Calculator size={14} />
+                      Corte
                     </button>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Lista de Pedidos (Contenido Expandible) */}
+              {isExpanded && (
+                <div className="p-6 pt-0 border-t border-slate-50 animate-in slide-in-from-top-2 duration-300">
+                  <div className="grid grid-cols-1 gap-4 mt-6">
+                    {dayOrders.map(order => (
+                      <div key={order.id} className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100 hover:shadow-md transition-all flex flex-col md:flex-row gap-6 relative overflow-hidden group">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${order.status === 'DELIVERED' ? 'bg-teal-500' : 'bg-orange-500'}`}></div>
+
+                        <div className="flex-grow">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Orden #{order.id.slice(-6)}</p>
+                              <h4 className="text-xl font-black text-slate-900 uppercase">{order.customerName}</h4>
+                              <p className="text-xs text-slate-500 font-bold flex items-center gap-1 mt-1"><Clock size={12} className="text-teal-500"/> {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'DELIVERED' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'}`}>
+                                {order.status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}
+                              </span>
+                              <p className="text-2xl font-black text-teal-700 mt-2">${order.total.toFixed(2)}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="flex items-center gap-3 text-sm text-slate-600 font-medium">
+                              <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100"><Phone size={16} className="text-teal-500"/></div>
+                              <span>{order.customerPhone}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-slate-600 font-medium">
+                              <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100"><MapPin size={16} className="text-teal-500"/></div>
+                              <span className="truncate">{order.customerAddress}</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-2xl p-4 border border-slate-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Detalles del Carrito</p>
+                            <div className="space-y-2">
+                              {order.items.map((item, idx) => {
+                                const isBox = item.selectedUnit === 'BOX';
+                                const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+                                return (
+                                  <div key={idx} className="flex justify-between text-xs font-bold text-slate-700">
+                                    <span className="uppercase">{item.quantity}x {item.name} {isBox ? `(Caja x${item.unitsPerBox})` : '(Unid)'}</span>
+                                    <span className="text-teal-700">${(priceToUse * item.quantity).toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="md:w-48 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
+                          <button 
+                            onClick={() => handlePrintOrder(order)}
+                            className="w-full bg-slate-900 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-teal-600 transition-all shadow-lg active:scale-95"
+                          >
+                            <Printer size={14}/> Ticket
+                          </button>
+                          {order.status === 'PENDING' && (
+                            <button 
+                              onClick={() => onUpdateStatus(order.id, 'DELIVERED', order)}
+                              className="w-full bg-teal-600 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-teal-700 transition shadow-lg active:scale-95"
+                            >
+                              <CheckCircle size={14}/> Entregar
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => onDeleteOrder?.(order.id)}
+                            className="w-full bg-red-50 text-red-500 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition border border-red-100 active:scale-95"
+                          >
+                            <Trash2 size={14}/> Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {groupedOrders.length === 0 && (
           <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">

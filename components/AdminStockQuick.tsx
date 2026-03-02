@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types';
 import { Search, MessageCircle, Minus, Plus, Check, AlertCircle, ShoppingCart, Printer } from 'lucide-react';
+import AdminProductPriceList from './AdminProductPriceList';
 
 interface AdminStockQuickProps {
   products: Product[];
@@ -139,6 +140,8 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
                     <Printer size={24} className="mb-1.5" />
                     <span className="text-[10px] leading-tight uppercase tracking-widest text-center">Lista<br/>Compra</span>
                 </button>
+
+                <AdminProductPriceList products={products} />
             </div>
           </div>
 
