@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 export const checkInteractions = async (productNames: string[]): Promise<{safe: boolean, message: string}> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     if (productNames.length < 2) return { safe: true, message: "" };
     try {
         const prompt = `Analiza interacciones entre: ${productNames.join(', ')}. Responde JSON {safe, message}.`;

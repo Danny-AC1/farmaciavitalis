@@ -4,7 +4,7 @@ import { Product } from '../types';
 
 // --- BÚSQUEDA POR SÍNTOMAS ---
 export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
         const prompt = `Actúa como un farmacéutico experto. El cliente describe este síntoma: "${symptom}".
@@ -30,7 +30,7 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
 
 // --- VENTA CRUZADA INTELIGENTE ---
 export const getCrossSellSuggestion = async (targetProduct: Product, allProducts: Product[]): Promise<{product: Product | undefined, reason: string}> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
         const candidates = allProducts
             .filter(p => p.id !== targetProduct.id && p.stock > 0)
@@ -77,7 +77,7 @@ export const generateProductDescription = async (
     category: string, 
     tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO' = 'PERSUASIVO'
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const toneInstructions = {
     CLINICO: "Enfoque técnico, basado en evidencia, resalta componentes y farmacocinética de forma seria.",

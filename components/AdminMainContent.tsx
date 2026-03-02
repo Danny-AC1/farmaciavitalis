@@ -4,6 +4,7 @@ import AdminDashboard from './AdminDashboard';
 import AdminPOS from './AdminPOS';
 import AdminProductManagement from './AdminProductManagement';
 import AdminMarketing from './AdminMarketing';
+import AdminMarketingAI from './AdminMarketingAI';
 import AdminOrders from './AdminOrders';
 import AdminSimpleTable from './AdminSimpleTable';
 import AdminDemand from './AdminDemand';
@@ -127,9 +128,23 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         case 'marketing':
             return (
                 <AdminMarketing 
-                    products={props.products} 
                     banners={state.banners} 
                     coupons={state.coupons} 
+                    bannerTitle={state.bannerTitle} 
+                    setBannerTitle={state.setBannerTitle} 
+                    bannerInputRef={bannerInputRef} 
+                    handleAddBanner={state.handleAddBanner} 
+                    onDeleteBanner={state.handleDeleteBanner} 
+                    isUploadingBanner={state.isUploadingBanner} 
+                    onAddCoupon={state.onAddCoupon} 
+                    onDeleteCoupon={state.handleDeleteCoupon} 
+                />
+            );
+
+        case 'marketing_ai':
+            return (
+                <AdminMarketingAI 
+                    products={props.products} 
                     blogTopic={state.blogTopic} 
                     setBlogTopic={state.setBlogTopic} 
                     handleGenerateBlog={() => state.handleGenerateBlog(state.blogTopic)} 
@@ -140,14 +155,6 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     setPostPlatform={state.setPostPlatform} 
                     generatedPost={state.generatedPost} 
                     handleGeneratePost={state.handleGeneratePost} 
-                    bannerTitle={state.bannerTitle} 
-                    setBannerTitle={state.setBannerTitle} 
-                    bannerInputRef={bannerInputRef} 
-                    handleAddBanner={state.handleAddBanner} 
-                    onDeleteBanner={state.handleDeleteBanner} 
-                    isUploadingBanner={state.isUploadingBanner} 
-                    onAddCoupon={state.onAddCoupon} 
-                    onDeleteCoupon={state.handleDeleteCoupon} 
                 />
             );
 
