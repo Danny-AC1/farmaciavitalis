@@ -13,11 +13,13 @@ interface POSCustomerSelectProps {
   setUsePoints: (b: boolean) => void;
   subtotal: number;
   projectedPoints: number;
+  projectedAccumulated: number;
 }
 
 const POSCustomerSelect: React.FC<POSCustomerSelectProps> = ({
   selectedCustomer, customerSearch, setCustomerSearch, customerSearchResults,
-  setSelectedCustomer, setShowUserForm, setUsePoints, subtotal, projectedPoints
+  setSelectedCustomer, setShowUserForm, setUsePoints, subtotal, projectedPoints,
+  projectedAccumulated
 }) => {
   return (
     <div className="flex-grow relative">
@@ -42,7 +44,11 @@ const POSCustomerSelect: React.FC<POSCustomerSelectProps> = ({
               <p className="text-[10px] md:text-xs font-black uppercase text-teal-800 leading-none truncate">{selectedCustomer.displayName}</p>
               <p className="text-[8px] md:text-[9px] font-bold text-teal-600 mt-0.5 uppercase tracking-tighter">
                   {selectedCustomer.cedula} • <span className="text-yellow-600">{selectedCustomer.points} PTS ACTUALES</span>
-                  {Math.floor(subtotal) > 0 && <span className="ml-1 text-slate-400">({projectedPoints} Proyectados)</span>}
+                  {subtotal > 0 && (
+                    <span className="ml-1 text-slate-400">
+                      ({projectedPoints} PTS Proyectados • Faltan ${(1 - projectedAccumulated).toFixed(2)} para +1)
+                    </span>
+                  )}
               </p>
             </div>
           </div>

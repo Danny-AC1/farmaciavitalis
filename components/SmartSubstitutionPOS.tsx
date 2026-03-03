@@ -34,8 +34,13 @@ const SmartSubstitutionPOS: React.FC<SmartSubstitutionPOSProps> = ({
                 
                 const res = await suggestSubstitutes(missingTerm, allProducts);
                 setResult(res);
-            } catch (e) {
-                setError("Error al conectar con el motor de IA.");
+            } catch (e: any) {
+                console.error("Error en SmartSubstitutionPOS:", e);
+                if (e.message?.includes("GEMINI_API_KEY")) {
+                    setError("Error: La clave de API de Gemini no está configurada en el entorno local.");
+                } else {
+                    setError("Error al conectar con el motor de IA. Por favor, intenta de nuevo.");
+                }
             } finally {
                 setIsLoading(false);
             }

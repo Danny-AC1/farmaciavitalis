@@ -41,12 +41,20 @@ export const useAppOrders = (
 
     try {
       await addOrderDB(order);
+
+      // Actualizar puntos y gasto acumulado del cliente
+      const totalSpend = (currentUser.accumulatedSpend || 0) + subtotal;
+      const newPointsEarned = Math.floor(totalSpend);
+      const remainingSpend = totalSpend - newPointsEarned;
+
       await updateUserFieldsDB(currentUser.uid, {
           address: details.address,
           lat: details.lat,
           lng: details.lng,
           deliveryZone: details.deliveryZone,
-          phone: details.phone
+          phone: details.phone,
+          points: (currentUser.points - pointsRedeemed) + newPointsEarned,
+          accumulatedSpend: remainingSpend
       });
 
       for (const item of cart) {

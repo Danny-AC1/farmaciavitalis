@@ -68,6 +68,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onOpenSubscr
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Puntos Acumulados</p>
                 <p className="text-sm font-black text-teal-600">{user.points} PTS</p>
+                {user.accumulatedSpend !== undefined && user.accumulatedSpend > 0 && (
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                    Faltan ${(1 - user.accumulatedSpend).toFixed(2)} para +1 punto
+                  </p>
+                )}
               </div>
             </div>
           </div>

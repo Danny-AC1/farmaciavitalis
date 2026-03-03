@@ -61,6 +61,7 @@ export interface User {
   deliveryZone?: string; // Persistencia de zona
   role: 'USER' | 'ADMIN' | 'CASHIER' | 'DRIVER';
   points: number;
+  accumulatedSpend?: number; // Nuevo: Para rastrear centavos/fracciones que no completan 1 punto
   createdAt: string;
 }
 

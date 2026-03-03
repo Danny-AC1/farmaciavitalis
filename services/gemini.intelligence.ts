@@ -11,8 +11,13 @@ export interface SubstitutionResult {
 }
 
 export const suggestSubstitutes = async (missingProduct: string, allProducts: Product[]): Promise<SubstitutionResult> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error("GEMINI_API_KEY is not defined");
+        }
+        const ai = new GoogleGenAI({ apiKey });
+        
         const inventory = allProducts
             .filter(p => p.stock > 0)
             .map(p => `${p.id}: ${p.name} (${p.description}) - $${p.price}`)
@@ -33,7 +38,7 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
         Responde SOLO el JSON.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -74,8 +79,13 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
 };
 
 export const analyzeMarketOpportunities = async (missedSales: MissedSale[], searchLogs: SearchLog[]): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error("GEMINI_API_KEY is not defined");
+        }
+        const ai = new GoogleGenAI({ apiKey });
+        
         const data = `
         VENTAS PERDIDAS (Falta de stock):
         ${missedSales.map(m => `- ${m.term} (${m.count} veces)`).join('\n')}
@@ -97,7 +107,7 @@ export const analyzeMarketOpportunities = async (missedSales: MissedSale[], sear
         Responde en formato Markdown profesional con emojis.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-3-flash-preview',
             contents: prompt
         });
 

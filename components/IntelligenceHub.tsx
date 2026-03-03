@@ -35,6 +35,13 @@ const IntelligenceHub: React.FC<IntelligenceHubProps> = ({ products }) => {
         try {
             const res = await analyzeMarketOpportunities(missedSales, searchLogs);
             setMarketStudy(res);
+        } catch (e: any) {
+            console.error("Error en IntelligenceHub:", e);
+            if (e.message?.includes("GEMINI_API_KEY")) {
+                setMarketStudy("### ❌ Error de Configuración\nLa clave de API de Gemini no está configurada en tu entorno local. Por favor, asegúrate de tener el archivo `.env` con `GEMINI_API_KEY`.");
+            } else {
+                setMarketStudy("### ❌ Error de Conexión\nHubo un problema al conectar con el motor de IA. Por favor, intenta de nuevo más tarde.");
+            }
         } finally {
             setIsAnalyzing(false);
         }

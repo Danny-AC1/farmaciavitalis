@@ -62,7 +62,17 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       return sum + (price * item.quantity);
   }, 0), [posCart]);
 
-  const projectedPoints = selectedCustomer ? (selectedCustomer.points + Math.floor(subtotal)) : 0;
+  const { projectedPoints, projectedAccumulated } = useMemo(() => {
+    if (!selectedCustomer) return { projectedPoints: 0, projectedAccumulated: 0 };
+    const totalSpend = (selectedCustomer.accumulatedSpend || 0) + subtotal;
+    const newPoints = Math.floor(totalSpend);
+    const remaining = totalSpend - newPoints;
+    return { 
+        projectedPoints: selectedCustomer.points + newPoints,
+        projectedAccumulated: remaining
+    };
+  }, [selectedCustomer, subtotal]);
+
   const canUsePoints = projectedPoints >= POINTS_THRESHOLD;
   const discount = usePoints ? POINTS_DISCOUNT_VALUE : 0;
   const posTotal = Math.max(0, subtotal - discount);
@@ -118,6 +128,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         email: `${regCedula}@vitalis.pos`,
         role: 'USER',
         points: 0,
+        accumulatedSpend: 0,
         createdAt: new Date().toISOString()
     };
     await saveUserDB(userToSave);
@@ -156,6 +167,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               setUsePoints={setUsePoints}
               subtotal={subtotal}
               projectedPoints={projectedPoints}
+              projectedAccumulated={projectedAccumulated}
             />
 
             <div className="flex gap-1 md:gap-2 shrink-0">

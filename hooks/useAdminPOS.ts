@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Product, CartItem, User, Order, POINTS_DISCOUNT_VALUE, Bundle } from '../types';
 import { addOrderDB } from '../services/db.orders';
 import { updateStockDB } from '../services/db.products';
+import { saveUserDB } from '../services/db.users';
 
 export const useAdminPOS = (products: Product[]) => {
     const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -127,6 +128,21 @@ export const useAdminPOS = (products: Product[]) => {
 
         try {
             await addOrderDB(orderData);
+
+            // Actualizar puntos y gasto acumulado del cliente
+            if (customer) {
+                const totalSpend = (customer.accumulatedSpend || 0) + subtotalValue;
+                const newPointsEarned = Math.floor(totalSpend);
+                const remainingSpend = totalSpend - newPointsEarned;
+                
+                const updatedUser: User = {
+                    ...customer,
+                    points: (customer.points - pointsRedeemed) + newPointsEarned,
+                    accumulatedSpend: remainingSpend
+                };
+                await saveUserDB(updatedUser);
+            }
+
             for (const item of posCart) {
                 const orig = products.find(p => p.id === item.id);
                 if (orig) {
