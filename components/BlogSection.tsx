@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { BlogPost } from '../types';
-import { streamBlogPosts, deleteBlogPostDB } from '../services/db';
-import { Sparkles, BookOpen, Trash2, Plus, X, Calendar, User as UserIcon } from 'lucide-react';
+import { streamBlogPosts, deleteBlogPostDB, updateBlogPostDB } from '../services/db';
+import { Sparkles, BookOpen, Trash2, Plus, X, Calendar, User as UserIcon, Edit, Save } from 'lucide-react';
 
 interface BlogSectionProps {
   isAuthorized: boolean;
@@ -12,6 +12,9 @@ interface BlogSectionProps {
 const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPanel }) => {
     const [posts, setPosts] = useState<BlogPost[]>([]);
     const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+    const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editContent, setEditContent] = useState('');
 
     useEffect(() => {
         const unsub = streamBlogPosts((data) => setPosts(data));
@@ -26,6 +29,28 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
             } catch (error) {
                 console.error("Error eliminando post:", error);
             }
+        }
+    };
+
+    const handleEdit = (e: React.MouseEvent, post: BlogPost) => {
+        e.stopPropagation();
+        setEditingPost(post);
+        setEditTitle(post.title);
+        setEditContent(post.content);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingPost) return;
+        try {
+            await updateBlogPostDB(editingPost.id, {
+                title: editTitle,
+                content: editContent
+            });
+            setEditingPost(null);
+            alert("Consejo actualizado correctamente.");
+        } catch (error) {
+            console.error("Error actualizando post:", error);
+            alert("Error al actualizar.");
         }
     };
 
@@ -89,16 +114,78 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
                             </div>
 
                             {isAuthorized && (
-                                <button 
-                                    onClick={(e) => handleDelete(e, post.id)}
-                                    className="absolute top-4 right-4 p-2 bg-red-50 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
-                                    title="Eliminar post"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={(e) => handleEdit(e, post)}
+                                        className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
+                                        title="Editar post"
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => handleDelete(e, post.id)}
+                                        className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+                                        title="Eliminar post"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* MODAL PARA EDITAR POST */}
+            {editingPost && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
+                        <div className="p-6 bg-teal-600 text-white flex justify-between items-center shrink-0">
+                            <h3 className="font-bold text-xl flex items-center gap-3">
+                                <Edit size={24} /> Editar Consejo
+                            </h3>
+                            <button 
+                                onClick={() => setEditingPost(null)}
+                                className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-8 overflow-y-auto flex-grow space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Título del Consejo</label>
+                                <input 
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="w-full bg-gray-50 border-2 border-transparent p-4 rounded-2xl outline-none focus:bg-white focus:border-teal-500 transition-all font-bold text-gray-800"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Contenido (HTML)</label>
+                                <textarea 
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    rows={10}
+                                    className="w-full bg-gray-50 border-2 border-transparent p-4 rounded-2xl outline-none focus:bg-white focus:border-teal-500 transition-all font-medium text-gray-700 font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+                            <button 
+                                onClick={() => setEditingPost(null)}
+                                className="px-6 py-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleSaveEdit}
+                                className="bg-teal-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-teal-700 transition shadow-lg shadow-teal-600/20 flex items-center gap-2"
+                            >
+                                <Save size={18} /> Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

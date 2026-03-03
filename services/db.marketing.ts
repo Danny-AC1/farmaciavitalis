@@ -1,7 +1,7 @@
 
 import { firestore } from './firebase';
 // @ts-ignore
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, updateDoc } from 'firebase/firestore';
 import { Coupon, Banner, BlogPost } from '../types';
 import { cleanData } from './db.utils';
 import { sendNotificationToAll } from './db.notifications';
@@ -52,3 +52,7 @@ export const addBlogPostDB = async (post: BlogPost) => {
     });
 };
 export const deleteBlogPostDB = async (id: string) => { await deleteDoc(doc(firestore, BLOG_COLLECTION, id)); };
+export const updateBlogPostDB = async (id: string, post: Partial<BlogPost>) => { 
+    const { id: _, ...data } = post; 
+    await updateDoc(doc(firestore, BLOG_COLLECTION, id), cleanData(data)); 
+};

@@ -18,6 +18,7 @@ import AdminStockAlerts from './AdminStockAlerts';
 import AdminGeoStats from './AdminGeoStats';
 import AdminCiudadelas from './AdminCiudadelas';
 import AdminBundles from './AdminBundles';
+import IntelligenceHub from './IntelligenceHub';
 
 interface AdminMainContentProps {
     activeTab: string;
@@ -73,6 +74,9 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         
         case 'orders':
             return <AdminOrders orders={props.orders} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} onShowCashClosure={onShowCashClosure} />;
+        
+        case 'intelligence':
+            return <IntelligenceHub products={props.products} />;
         
         case 'products':
             return (

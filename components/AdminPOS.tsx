@@ -10,6 +10,7 @@ import POSProductSearch from './POSProductSearch';
 import POSCartList from './POSCartList';
 import POSFooter from './POSFooter';
 import POSUserModal from './POSUserModal';
+import SmartSubstitutionPOS from './SmartSubstitutionPOS';
 
 interface AdminPOSProps {
   products: Product[];
@@ -46,6 +47,8 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [showUserForm, setShowUserForm] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [substitutionTerm, setSubstitutionTerm] = useState('');
+  const [showSubstitution, setShowSubstitution] = useState(false);
 
   // ESTADOS DEL FORMULARIO DE REGISTRO
   const [regName, setRegName] = useState('');
@@ -66,6 +69,11 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const changeDue = posCashReceived ? parseFloat(posCashReceived) - posTotal : 0;
 
   const handleAddToCartWithUpgradeCheck = (p: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+    if (p.stock <= 0) {
+      setSubstitutionTerm(p.name);
+      setShowSubstitution(true);
+      return;
+    }
     addToPosCart(p, unitType);
     
     // Buscar si hay un combo de upgrade para este producto
@@ -198,6 +206,10 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
             setPosSearch={setPosSearch}
             filteredProducts={filteredProducts}
             addToPosCart={handleAddToCartWithUpgradeCheck}
+            onSearchAlternatives={(term) => {
+              setSubstitutionTerm(term);
+              setShowSubstitution(true);
+            }}
           />
         </div>
       </div>
@@ -292,6 +304,24 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         regPhone={regPhone}
         setRegPhone={setRegPhone}
       />
+
+      {/* MODAL SUSTITUCIÓN INTELIGENTE */}
+      {showSubstitution && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-2xl">
+            <SmartSubstitutionPOS 
+              missingTerm={substitutionTerm}
+              allProducts={products}
+              onSelectAlternative={(p) => {
+                addToPosCart(p, 'UNIT');
+                setShowSubstitution(false);
+                setPosSearch('');
+              }}
+              onClose={() => setShowSubstitution(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

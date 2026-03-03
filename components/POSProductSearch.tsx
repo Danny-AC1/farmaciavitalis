@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Search, Package } from 'lucide-react';
+import { Search, Package, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 
 interface POSProductSearchProps {
@@ -8,10 +8,11 @@ interface POSProductSearchProps {
   setPosSearch: (s: string) => void;
   filteredProducts: Product[];
   addToPosCart: (p: Product, unitType?: 'UNIT' | 'BOX') => void;
+  onSearchAlternatives?: (term: string) => void;
 }
 
 const POSProductSearch: React.FC<POSProductSearchProps> = ({
-  posSearch, setPosSearch, filteredProducts, addToPosCart
+  posSearch, setPosSearch, filteredProducts, addToPosCart, onSearchAlternatives
 }) => {
   return (
     <div className="relative">
@@ -23,7 +24,7 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
         value={posSearch} 
         onChange={e => setPosSearch(e.target.value)} 
       />
-      {filteredProducts.length > 0 && (
+      {posSearch.length >= 3 && (
         <div className="absolute top-full left-0 right-0 z-[90] bg-white border border-slate-200 shadow-2xl rounded-lg md:rounded-xl overflow-hidden mt-1 animate-in zoom-in-95 origin-top max-h-80 overflow-y-auto">
           {filteredProducts.map(p => {
             const hasBox = (p.unitsPerBox ?? 0) > 1;
@@ -48,18 +49,18 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
                 <div className="flex gap-1 md:gap-2 shrink-0">
                   {/* Botón Unidad */}
                   <button 
-                    disabled={!canAddUnit}
                     onClick={() => { addToPosCart(p, 'UNIT'); setPosSearch(''); }}
-                    className={`flex flex-col items-center border px-2 md:px-3 py-1 rounded-lg transition-all group/btn ${canAddUnit ? 'bg-white border-slate-200 hover:border-teal-500 hover:bg-teal-50' : 'bg-gray-50 border-gray-100 opacity-40 cursor-not-allowed'}`}
+                    className={`flex flex-col items-center border px-2 md:px-3 py-1 rounded-lg transition-all group/btn ${canAddUnit ? 'bg-white border-slate-200 hover:border-teal-500 hover:bg-teal-50' : 'bg-rose-50 border-rose-100'}`}
                   >
-                    <span className={`text-[10px] md:text-xs font-black ${canAddUnit ? 'text-teal-600' : 'text-gray-400'}`}>${p.price.toFixed(2)}</span>
-                    <span className="text-[7px] font-black text-slate-300 uppercase group-hover/btn:text-teal-400">Unid.</span>
+                    <span className={`text-[10px] md:text-xs font-black ${canAddUnit ? 'text-teal-600' : 'text-rose-600'}`}>${p.price.toFixed(2)}</span>
+                    <span className={`text-[7px] font-black uppercase ${canAddUnit ? 'text-slate-300 group-hover/btn:text-teal-400' : 'text-rose-400'}`}>
+                        {canAddUnit ? 'Unid.' : 'Sin Stock'}
+                    </span>
                   </button>
 
                   {/* Botón Caja (Si aplica) */}
                   {hasBox && boxPrice > 0 && (
                     <button 
-                      disabled={!canAddBox}
                       onClick={() => { addToPosCart(p, 'BOX'); setPosSearch(''); }}
                       className={`flex flex-col items-center border px-2 md:px-3 py-1 rounded-lg transition-all shadow-sm group/btn ${canAddBox ? 'bg-blue-600 border-blue-600 hover:bg-blue-700' : 'bg-gray-200 border-gray-200 opacity-40 cursor-not-allowed'}`}
                     >
@@ -71,6 +72,15 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
               </div>
             );
           })}
+          
+          {/* Botón de Alternativas IA */}
+          <button 
+            onClick={() => onSearchAlternatives?.(posSearch)}
+            className="w-full p-4 bg-indigo-600 text-white flex items-center justify-center gap-3 hover:bg-indigo-700 transition-colors font-black text-xs uppercase tracking-widest"
+          >
+            <Sparkles size={16}/> 
+            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas IA' : '¿No es lo que buscas? Ver alternativas IA'}
+          </button>
         </div>
       )}
     </div>

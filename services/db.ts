@@ -7,3 +7,4 @@ export * from './db.marketing';
 export * from './db.health';
 export * from './db.admin';
 export * from './db.bundles';
+export * from './db.intelligence';

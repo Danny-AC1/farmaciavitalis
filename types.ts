@@ -113,6 +113,14 @@ export interface SearchLog {
   count: number;
 }
 
+export interface MissedSale {
+  id: string;
+  term: string;
+  date: string;
+  count: number;
+  lastAttemptedAt: string;
+}
+
 export interface Expense {
   id: string;
   description: string;
@@ -195,8 +203,9 @@ export interface MedicationSchedule {
 
 export const AVAILABLE_SERVICES = [
   { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
-  { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 10, description: 'Toma de presión arterial.' },
-  { id: 's3', name: 'Suero', price: 8.00, durationMin: 15, description: 'Puesta de suero.' }
+  { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
+  { id: 's4', name: 'Suero', price: 10.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';

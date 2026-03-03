@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LogOut, LayoutDashboard, Store, Package, ClipboardList, Grid, Truck, TrendingUp, Megaphone, Users, Wallet, CalendarCheck, BellRing, X, Activity, Map, MapPin, Sparkles } from 'lucide-react';
+import { LogOut, LayoutDashboard, Store, Package, ClipboardList, Grid, Truck, TrendingUp, Megaphone, Users, Wallet, CalendarCheck, BellRing, X, Activity, Map, MapPin, Sparkles, BrainCircuit } from 'lucide-react';
 import { User } from '../types';
 
 interface AdminSidebarProps {
@@ -25,7 +25,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'pos', label: 'Punto de Venta', icon: Store },
         { id: 'orders', label: 'Pedidos', icon: ClipboardList },
-        ...(isActuallyAdmin ? [{ id: 'geostats', label: 'Mapa de Ventas', icon: Map }] : []),
+        ...(isActuallyAdmin ? [
+            { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit },
+            { id: 'geostats', label: 'Mapa de Ventas', icon: Map }
+        ] : []),
       ]
     },
     // Solo mostramos estos grupos si es Administrador
