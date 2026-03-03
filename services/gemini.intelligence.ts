@@ -20,22 +20,28 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
         
         const inventory = allProducts
             .filter(p => p.stock > 0)
-            .map(p => `${p.id}: ${p.name} (${p.description}) - $${p.price}`)
+            .map(p => `ID: ${p.id} | Nombre: ${p.name} | Cat: ${p.category} | Desc: ${p.description}`)
             .join('\n');
 
-        const prompt = `Actúa como un experto farmacéutico clínico. 
-        El cliente busca: "${missingProduct}", pero NO hay stock.
-        Analiza el inventario disponible y sugiere alternativas.
+        const prompt = `Actúa como un Farmacéutico Clínico experto con acceso al inventario de Farmacia Vitalis.
         
-        INVENTARIO DISPONIBLE:
+        CONTEXTO:
+        El cliente busca un producto que NO tenemos en stock o no existe en el catálogo: "${missingProduct}".
+        Tu misión es encontrar las mejores alternativas disponibles en nuestro inventario.
+
+        INVENTARIO DISPONIBLE (Solo productos con stock):
         ${inventory}
         
-        REGLAS:
-        1. "generics": Productos con el MISMO principio activo pero diferente marca.
-        2. "therapeuticAlternatives": Diferente principio activo pero MISMA función terapéutica. Explica brevemente por qué sirve (ej: "Mismo efecto analgésico").
-        3. Devuelve un objeto JSON con: generics (array de IDs), therapeuticAlternatives (array de objetos { id, reason }).
+        TAREAS:
+        1. Identifica el principio activo y la familia terapéutica de "${missingProduct}".
+        2. Busca en el INVENTARIO productos que tengan el MISMO principio activo (Genéricos/Bioequivalentes). Agrégalos a "generics".
+        3. Busca productos que, aunque tengan distinto principio activo, pertenezcan a la MISMA FAMILIA TERAPÉUTICA y sirvan para lo mismo. Agrégalos a "therapeuticAlternatives".
         
-        Responde SOLO el JSON.`;
+        REGLAS CRÍTICAS:
+        - Si el cliente busca una marca (ej: Ampibex), sugiere el genérico (ej: Ampicilina) en la sección "generics".
+        - En "therapeuticAlternatives", explica de forma muy breve y profesional por qué es una buena opción (ej: "Misma familia de penicilinas, espectro similar").
+        - Si no encuentras nada que sea realmente seguro sugerir, deja los arrays vacíos.
+        - Devuelve EXCLUSIVAMENTE el formato JSON solicitado.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',

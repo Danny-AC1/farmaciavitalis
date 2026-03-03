@@ -79,7 +79,7 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
             className="w-full p-4 bg-indigo-600 text-white flex items-center justify-center gap-3 hover:bg-indigo-700 transition-colors font-black text-xs uppercase tracking-widest"
           >
             <Sparkles size={16}/> 
-            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas IA' : '¿No es lo que buscas? Ver alternativas IA'}
+            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas' : '¿No es lo que buscas? Ver alternativas IA'}
           </button>
         </div>
       )}
