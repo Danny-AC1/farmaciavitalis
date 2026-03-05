@@ -25,6 +25,15 @@
     ></script>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
     <script>
       tailwind.config = {
         theme: {
@@ -60,6 +69,7 @@
         }
       }
     </script>
+    <link rel="stylesheet" href="/index.css" />
   </head>
   <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>

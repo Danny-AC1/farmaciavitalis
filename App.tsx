@@ -31,6 +31,16 @@ import NotificationCenter from './components/NotificationCenter';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
+  const [showExitToast, setShowExitToast] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleExitToast = () => {
+      setShowExitToast(true);
+      setTimeout(() => setShowExitToast(false), 2000);
+    };
+    window.addEventListener('show-exit-toast', handleExitToast);
+    return () => window.removeEventListener('show-exit-toast', handleExitToast);
+  }, []);
 
   if (logic.view === 'DRIVER_DASHBOARD') {
     return <DriverDashboard orders={logic.orders} onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} />;
@@ -160,6 +170,14 @@ const App: React.FC = () => {
               logic.setView(targetView);
           }} 
         />
+      )}
+
+      {showExitToast && (
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-gray-900/90 text-white px-6 py-3 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm">
+            Presione de nuevo para salir
+          </div>
+        </div>
       )}
     </div>
   );

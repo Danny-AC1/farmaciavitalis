@@ -1,13 +1,14 @@
 import React from 'react';
-import { ArrowLeft, ShoppingBag, Camera, Stethoscope } from 'lucide-react';
+import { ShoppingBag, Camera, Stethoscope } from 'lucide-react';
 import { Banner, Category, Product, CartItem, User, Bundle } from '../types';
 import ProductCard from './ProductCard';
 import BlogSection from './BlogSection';
 import HeroCarousel from './HeroCarousel';
 import DeliveryInfo from './DeliveryInfo';
 import PromotionsSection from './PromotionsSection';
-import CategoryGrid from './CategoryGrid';
 import SearchResults from './SearchResults';
+import ProductSection from './ProductSection';
+import CategoryPills from './CategoryPills';
 
 interface HomeViewProps {
   banners: Banner[];
@@ -54,11 +55,16 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="animate-in fade-in">
+      {!searchTerm && (
+        <CategoryPills 
+          categories={categories}
+          activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
+        />
+      )}
+
       {activeCategory ? (
         <div className="animate-in fade-in">
-          <button onClick={() => setActiveCategory(null)} className="flex items-center text-teal-600 font-bold mb-6 hover:text-teal-800 transition-colors">
-            <ArrowLeft className="h-5 w-5 mr-1" /> Volver a Categorías
-          </button>
           <h3 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
             <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded text-lg mr-3">{categoryName}</span> Productos
           </h3>
@@ -103,15 +109,27 @@ const HomeView: React.FC<HomeViewProps> = ({
           {!searchTerm && (
             <div className="mb-12 flex flex-col sm:flex-row justify-center gap-4">
               <button onClick={onOpenPrescription} className="flex-1 bg-white border-2 border-teal-500 text-teal-700 hover:bg-teal-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Camera className="h-6 w-6" /> Subir Receta Médica</button>
-              <button onClick={onOpenServices} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Stethoscope className="h-6 w-6" /> Servicios</button>
+              <button onClick={onOpenServices} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Stethoscope className="h-6 w-6" /> Consultorio / Servicios</button>
             </div>
           )}
 
-          {!searchTerm && (
-            <CategoryGrid 
-              categories={categories}
-              setActiveCategory={setActiveCategory}
-            />
+          {!searchTerm && !activeCategory && (
+            <div className="space-y-4">
+              {categories.map(category => {
+                const categoryProducts = allProducts.filter(p => p.category === category.name);
+                return (
+                  <ProductSection 
+                    key={category.id}
+                    title={category.name}
+                    products={categoryProducts}
+                    cart={cart}
+                    onAddToCart={onAddToCart}
+                    onSelectProduct={onSelectProduct}
+                    onViewMore={() => setActiveCategory(category.id)}
+                  />
+                );
+              })}
+            </div>
           )}
 
           {searchTerm && (

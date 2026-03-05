@@ -14,10 +14,9 @@ export const useAppLogic = () => {
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [showStaffAccess, setShowStaffAccess] = useState(false);
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
   const nav = useAppNavigation();
+  const { searchTerm, setSearchTerm, activeCategory, setActiveCategory } = nav;
+
   const data = useAppData(nav.activeTab, setShowAuthModal);
   const cart = useAppCart();
   const ai = useAppAI(searchTerm, data.products, cart.cart);
