@@ -80,12 +80,12 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
                     <p className="text-gray-400 text-xs mt-1">Nuestros farmacéuticos están preparando contenido de calidad.</p>
                 </div>
             ) : (
-                <div className="flex overflow-x-auto pb-6 gap-6 snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0">
+                <div className="grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
                     {posts.map((post) => (
                         <div 
                             key={post.id}
                             onClick={() => setSelectedPost(post)}
-                            className="min-w-[85vw] md:min-w-0 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative flex flex-col h-full snap-center"
+                            className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative flex flex-col h-full"
                         >
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="bg-teal-100 p-2 rounded-lg text-teal-600">

@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Product, CartItem } from '../../types';
-import { searchProductsBySymptoms, checkInteractions } from '../../services/gemini';
+import { Product } from '../../types';
+import { searchProductsBySymptoms } from '../../services/gemini';
 
-export const useAppAI = (searchTerm: string, products: Product[], cart: CartItem[]) => {
+export const useAppAI = (searchTerm: string, products: Product[]) => {
   const [isSymptomMode, setIsSymptomMode] = useState(false);
   const [isSearchingAI, setIsSearchingAI] = useState(false);
   const [aiResults, setAiResults] = useState<string[]>([]);
-  const [checkingInteractions, setCheckingInteractions] = useState(false);
-  const [interactionWarning, setInteractionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (isSymptomMode && searchTerm.length > 3) {
@@ -23,20 +21,5 @@ export const useAppAI = (searchTerm: string, products: Product[], cart: CartItem
     }
   }, [searchTerm, isSymptomMode, products]);
 
-  useEffect(() => {
-    if (cart.length >= 2) {
-      const check = async () => {
-        setCheckingInteractions(true);
-        const names = cart.map(i => i.name);
-        const result = await checkInteractions(names);
-        setInteractionWarning(result.safe ? null : result.message);
-        setCheckingInteractions(false);
-      };
-      check();
-    } else {
-      setInteractionWarning(null);
-    }
-  }, [cart]);
-
-  return { isSymptomMode, setIsSymptomMode, isSearchingAI, aiResults, checkingInteractions, interactionWarning };
+  return { isSymptomMode, setIsSymptomMode, isSearchingAI, aiResults };
 };

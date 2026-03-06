@@ -3,7 +3,7 @@ import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { 
   addProductDB, updateProductDB, deleteProductDB, updateStockDB, 
-  addCategoryDB, deleteCategoryDB, addOrderDB, updateOrderStatusDB, deleteBannerDB 
+  addCategoryDB, deleteCategoryDB, addOrderDB, updateOrderStatusDB 
 } from './services/db';
 import { CheckCircle } from 'lucide-react';
 
@@ -83,9 +83,9 @@ const App: React.FC = () => {
           startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
-          banners={logic.banners} categories={logic.categories} bundles={logic.bundles} blogPosts={logic.blogPosts} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
-          displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN' || false}
-          handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
+          categories={logic.categories} bundles={logic.bundles} blogPosts={logic.blogPosts} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
+          displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} 
+          onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
           onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
           onTabChange={logic.handleTabChange} cart={logic.cart}
         />
@@ -97,7 +97,6 @@ const App: React.FC = () => {
       <CartDrawer 
         isOpen={logic.isCartOpen} onClose={() => logic.setIsCartOpen(false)} cart={logic.cart} updateQuantity={logic.updateQuantity} 
         removeFromCart={logic.removeFromCart} subtotal={logic.subtotal} total={logic.totalBase} onCheckout={() => { logic.setIsCartOpen(false); logic.setView('CHECKOUT'); }}
-        checkingInteractions={logic.checkingInteractions} interactionWarning={logic.interactionWarning}
       />
 
       {logic.selectedProduct && (

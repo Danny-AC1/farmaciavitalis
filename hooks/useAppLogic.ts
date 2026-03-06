@@ -19,7 +19,7 @@ export const useAppLogic = () => {
 
   const data = useAppData(nav.activeTab, setShowAuthModal);
   const cart = useAppCart();
-  const ai = useAppAI(searchTerm, data.products, cart.cart);
+  const ai = useAppAI(searchTerm, data.products);
   const notifications = useNotifications(data.currentUser?.uid);
   
   const search = useAppSearch(

@@ -1,8 +1,7 @@
 import React from 'react';
 import { ShoppingBag, Camera, Stethoscope } from 'lucide-react';
-import { Banner, Category, Product, CartItem, User, Bundle, BlogPost } from '../types';
+import { Category, Product, CartItem, Bundle, BlogPost } from '../types';
 import ProductCard from './ProductCard';
-import HeroCarousel from './HeroCarousel';
 import DeliveryInfo from './DeliveryInfo';
 import PromotionsSection from './PromotionsSection';
 import SearchResults from './SearchResults';
@@ -11,7 +10,6 @@ import CategoryPills from './CategoryPills';
 import { Sparkles, ArrowRight } from 'lucide-react';
 
 interface HomeViewProps {
-  banners: Banner[];
   categories: Category[];
   bundles: Bundle[];
   blogPosts: BlogPost[];
@@ -20,10 +18,6 @@ interface HomeViewProps {
   displayedProducts: Product[];
   allProducts: Product[];
   searchTerm: string;
-  currentUser: User | null;
-  isSuperAdmin: boolean;
-  handleDeleteBanner: (id: string) => void;
-  onOpenAdminPanel: () => void;
   onOpenPrescription: () => void;
   onOpenServices: () => void;
   onAddToCart: (p: Product, unit?: 'UNIT' | 'BOX') => void;
@@ -34,8 +28,8 @@ interface HomeViewProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({
-  banners, categories, bundles, blogPosts, activeCategory, setActiveCategory, displayedProducts, allProducts, searchTerm, currentUser, 
-  isSuperAdmin, handleDeleteBanner, onOpenAdminPanel, onOpenPrescription, onOpenServices, onAddToCart, onAddBundle, onSelectProduct, onTabChange, cart
+  categories, bundles, blogPosts, activeCategory, setActiveCategory, displayedProducts, allProducts, searchTerm, 
+  onOpenPrescription, onOpenServices, onAddToCart, onAddBundle, onSelectProduct, onTabChange, cart
 }) => {
   const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name || '' : '';
 
@@ -85,19 +79,6 @@ const HomeView: React.FC<HomeViewProps> = ({
         </div>
       ) : (
         <div className="animate-in fade-in">
-          {!searchTerm && (
-            <HeroCarousel 
-              banners={banners}
-              activeBundles={activeBundles}
-              allProducts={allProducts}
-              isSuperAdmin={isSuperAdmin}
-              handleDeleteBanner={handleDeleteBanner}
-              onOpenAdminPanel={onOpenAdminPanel}
-              onAddBundle={onAddBundle}
-              currentUser={currentUser}
-            />
-          )}
-
           {!searchTerm && <DeliveryInfo isServiceActive={isServiceActive} />}
 
           {!searchTerm && blogPosts.length > 0 && (

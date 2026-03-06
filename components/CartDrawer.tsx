@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, ShieldCheck, Loader2, AlertTriangle, CheckCircle, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { CartItem, DELIVERY_FEE } from '../types';
 
 interface CartDrawerProps {
@@ -12,12 +12,10 @@ interface CartDrawerProps {
   subtotal: number;
   total: number;
   onCheckout: () => void;
-  checkingInteractions: boolean;
-  interactionWarning: string | null;
 }
 
 const CartDrawer: React.FC<CartDrawerProps> = ({
-  isOpen, onClose, cart, updateQuantity, removeFromCart, subtotal, total, onCheckout, checkingInteractions, interactionWarning
+  isOpen, onClose, cart, updateQuantity, removeFromCart, subtotal, total, onCheckout
 }) => {
   if (!isOpen) return null;
 
@@ -32,21 +30,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                 <h2 className="text-lg font-medium text-gray-900">Carrito</h2>
                 <button onClick={onClose} className="text-gray-400 hover:text-gray-500"><X className="h-6 w-6" /></button>
               </div>
-
-              {cart.length >= 2 && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <ShieldCheck className="h-4 w-4 text-teal-600"/><span className="text-xs font-bold text-gray-600 uppercase">Seguridad Farmacéutica</span>
-                  </div>
-                  {checkingInteractions ? (
-                    <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin"/> Analizando interacciones...</div>
-                  ) : interactionWarning ? (
-                    <div className="bg-red-50 p-2 rounded text-xs text-red-700 border border-red-200 flex gap-2"><AlertTriangle className="h-4 w-4 shrink-0"/><span>{interactionWarning}</span></div>
-                  ) : (
-                    <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Combinación segura detectada.</p>
-                  )}
-                </div>
-              )}
 
               <div className="mt-8">
                 {cart.length === 0 ? (
