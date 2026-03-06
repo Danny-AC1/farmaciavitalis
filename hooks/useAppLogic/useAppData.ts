@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Product, Category, Order, User, Banner, Bundle } from '../../types';
+import { Product, Category, Order, User, Banner, Bundle, BlogPost } from '../../types';
 import { 
-  streamProducts, streamCategories, streamOrders, streamBanners, streamUser, streamActiveBundles 
+  streamProducts, streamCategories, streamOrders, streamBanners, streamUser, streamActiveBundles, streamBlogPosts 
 } from '../../services/db';
 import { auth } from '../../services/firebase';
 
@@ -11,6 +11,7 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
   const [orders, setOrders] = useState<Order[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -36,12 +37,13 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
     const unsubOrders = streamOrders(setOrders);
     const unsubBanners = streamBanners(setBanners);
     const unsubBundles = streamActiveBundles(setBundles);
+    const unsubBlog = streamBlogPosts(setBlogPosts);
 
     return () => {
-      unsubAuth(); unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubBundles();
+      unsubAuth(); unsubProducts(); unsubCategories(); unsubOrders(); unsubBanners(); unsubBundles(); unsubBlog();
       if (unsubUser) unsubUser();
     };
   }, [activeTab, setShowAuthModal]);
 
-  return { products, categories, orders, banners, bundles, currentUser };
+  return { products, categories, orders, banners, bundles, blogPosts, currentUser };
 };

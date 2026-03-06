@@ -9,9 +9,10 @@ interface NotificationCenterProps {
   userId: string;
   isOpen: boolean;
   onClose: () => void;
+  onNavigate: (notification: Notification) => void;
 }
 
-const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen, onClose }) => {
+const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen, onClose, onNavigate }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
@@ -82,6 +83,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
                       notification={n} 
                       onRead={markAsRead}
                       onDelete={deleteNotification}
+                      onClick={(notif) => {
+                        if (!notif.read) markAsRead(notif.id);
+                        onNavigate(notif);
+                        onClose();
+                      }}
                     />
                   ))}
                 </div>

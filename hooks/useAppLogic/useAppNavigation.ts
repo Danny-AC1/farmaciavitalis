@@ -13,7 +13,7 @@ export const useAppNavigation = () => {
 
   const initialState = getInitialState();
   const [view, setView] = useState<ViewState>(initialState.view);
-  const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'assistant' | 'health' | 'services'>(initialState.tab);
+  const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'assistant' | 'health' | 'services' | 'wellness'>(initialState.tab);
   const [tempStaffRole, setTempStaffRole] = useState<User['role'] | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(initialState.category);

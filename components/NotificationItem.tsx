@@ -8,9 +8,10 @@ interface NotificationItemProps {
   notification: Notification;
   onRead: (id: string) => void;
   onDelete: (id: string) => void;
+  onClick: (notification: Notification) => void;
 }
 
-const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRead, onDelete }) => {
+const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRead, onDelete, onClick }) => {
   const getIcon = () => {
     switch (notification.type) {
       case 'ORDER_UPDATE': return <Package className="h-5 w-5 text-blue-500" />;
@@ -21,7 +22,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRea
   };
 
   return (
-    <div className={`p-4 border-b border-gray-100 last:border-0 transition-colors ${notification.read ? 'bg-white' : 'bg-teal-50/30'}`}>
+    <div 
+      onClick={() => onClick(notification)}
+      className={`p-4 border-b border-gray-100 last:border-0 transition-colors cursor-pointer hover:bg-gray-50 ${notification.read ? 'bg-white' : 'bg-teal-50/30'}`}
+    >
       <div className="flex gap-3">
         <div className="mt-1 shrink-0">
           {getIcon()}
@@ -41,14 +45,14 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRea
           <div className="flex justify-end gap-3 mt-3">
             {!notification.read && (
               <button 
-                onClick={() => onRead(notification.id)}
+                onClick={(e) => { e.stopPropagation(); onRead(notification.id); }}
                 className="text-[10px] font-bold text-teal-600 flex items-center gap-1 hover:text-teal-700"
               >
                 <Check className="h-3 w-3" /> Marcar como leída
               </button>
             )}
             <button 
-              onClick={() => onDelete(notification.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(notification.id); }}
               className="text-[10px] font-bold text-gray-400 flex items-center gap-1 hover:text-red-500"
             >
               <Trash2 className="h-3 w-3" /> Eliminar

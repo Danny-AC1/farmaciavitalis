@@ -1,19 +1,20 @@
 import React from 'react';
 import { ShoppingBag, Camera, Stethoscope } from 'lucide-react';
-import { Banner, Category, Product, CartItem, User, Bundle } from '../types';
+import { Banner, Category, Product, CartItem, User, Bundle, BlogPost } from '../types';
 import ProductCard from './ProductCard';
-import BlogSection from './BlogSection';
 import HeroCarousel from './HeroCarousel';
 import DeliveryInfo from './DeliveryInfo';
 import PromotionsSection from './PromotionsSection';
 import SearchResults from './SearchResults';
 import ProductSection from './ProductSection';
 import CategoryPills from './CategoryPills';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 interface HomeViewProps {
   banners: Banner[];
   categories: Category[];
   bundles: Bundle[];
+  blogPosts: BlogPost[];
   activeCategory: string | null;
   setActiveCategory: React.Dispatch<React.SetStateAction<string | null>>;
   displayedProducts: Product[];
@@ -28,12 +29,13 @@ interface HomeViewProps {
   onAddToCart: (p: Product, unit?: 'UNIT' | 'BOX') => void;
   onAddBundle: (b: Bundle) => void;
   onSelectProduct: (p: Product | null) => void;
+  onTabChange: (tab: any) => void;
   cart: CartItem[];
 }
 
 const HomeView: React.FC<HomeViewProps> = ({
-  banners, categories, bundles, activeCategory, setActiveCategory, displayedProducts, allProducts, searchTerm, currentUser, 
-  isSuperAdmin, handleDeleteBanner, onOpenAdminPanel, onOpenPrescription, onOpenServices, onAddToCart, onAddBundle, onSelectProduct, cart
+  banners, categories, bundles, blogPosts, activeCategory, setActiveCategory, displayedProducts, allProducts, searchTerm, currentUser, 
+  isSuperAdmin, handleDeleteBanner, onOpenAdminPanel, onOpenPrescription, onOpenServices, onAddToCart, onAddBundle, onSelectProduct, onTabChange, cart
 }) => {
   const categoryName = activeCategory ? categories.find(c => c.id === activeCategory)?.name || '' : '';
 
@@ -98,6 +100,34 @@ const HomeView: React.FC<HomeViewProps> = ({
 
           {!searchTerm && <DeliveryInfo isServiceActive={isServiceActive} />}
 
+          {!searchTerm && blogPosts.length > 0 && (
+            <div className="mb-8 px-1">
+              <div 
+                onClick={() => onTabChange('wellness')}
+                className="bg-gradient-to-br from-teal-600 to-teal-800 rounded-3xl p-6 text-white shadow-xl shadow-teal-900/20 cursor-pointer group relative overflow-hidden"
+              >
+                <div className="absolute -right-10 -top-10 bg-white/10 w-40 h-40 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="h-4 w-4 text-teal-200" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-200">Consejo del Día</span>
+                    </div>
+                    <h4 className="text-xl font-black leading-tight mb-2 group-hover:text-teal-100 transition-colors">
+                      {blogPosts[0].title}
+                    </h4>
+                    <p className="text-teal-50/80 text-sm line-clamp-2 font-medium">
+                      {blogPosts[0].content.replace(/<[^>]*>/g, '').substring(0, 100)}...
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md group-hover:bg-white/30 transition-all">
+                    Leer Bienestar <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {!searchTerm && (
             <PromotionsSection 
               activeBundles={activeBundles}
@@ -141,10 +171,6 @@ const HomeView: React.FC<HomeViewProps> = ({
               onAddToCart={onAddToCart}
               onSelectProduct={onSelectProduct}
             />
-          )}
-
-          {!searchTerm && !activeCategory && (
-            <BlogSection isAuthorized={isSuperAdmin} onOpenAdminPanel={onOpenAdminPanel} />
           )}
         </div>
       )}

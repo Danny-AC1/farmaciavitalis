@@ -1,15 +1,13 @@
 import React from 'react';
-import { Home, ClipboardList, ShoppingCart, HeartPulse, Sparkles } from 'lucide-react';
+import { Home, ClipboardList, HeartPulse, Sparkles, BookOpen } from 'lucide-react';
 
-// Added 'services' to the tab types to align with useAppLogic state and fix TypeScript error in App.tsx
+// Added 'services' and 'wellness' to the tab types to align with useAppLogic state
 interface BottomNavProps {
-  activeTab: 'home' | 'orders' | 'assistant' | 'health' | 'services';
-  cartCount: number;
-  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services') => void;
-  onCartClick: () => void;
+  activeTab: 'home' | 'orders' | 'assistant' | 'health' | 'services' | 'wellness';
+  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services' | 'wellness') => void;
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ activeTab, cartCount, onTabChange, onCartClick }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 md:hidden pb-safe">
       <div className="flex justify-between items-center h-16 px-2">
@@ -50,18 +48,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, cartCount, onTabChange
         </button>
 
         <button 
-          onClick={onCartClick}
-          className="flex flex-col items-center justify-center flex-1 h-full space-y-1 text-gray-400 hover:text-gray-600 relative transition-colors"
+          onClick={() => onTabChange('wellness')}
+          className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeTab === 'wellness' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
         >
-          <div className="relative">
-            <ShoppingCart className="h-5 w-5" />
-            {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full animate-bounce">
-                {cartCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] font-medium">Carrito</span>
+          <BookOpen className={`h-5 w-5 ${activeTab === 'wellness' ? 'fill-current text-teal-600' : ''}`} />
+          <span className="text-[10px] font-medium">Bienestar</span>
         </button>
 
       </div>

@@ -28,6 +28,7 @@ import UserSubscriptionsModal from './components/UserSubscriptionsModal';
 import StaffAccessModal from './components/StaffAccessModal';
 import Footer from './components/Footer';
 import NotificationCenter from './components/NotificationCenter';
+import BlogSection from './components/BlogSection';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
@@ -82,15 +83,16 @@ const App: React.FC = () => {
           startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
-          banners={logic.banners} categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
+          banners={logic.banners} categories={logic.categories} bundles={logic.bundles} blogPosts={logic.blogPosts} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
           displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} currentUser={logic.currentUser} isSuperAdmin={logic.currentUser?.role === 'ADMIN' || false}
           handleDeleteBanner={deleteBannerDB} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
-          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} cart={logic.cart}
+          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
+          onTabChange={logic.handleTabChange} cart={logic.cart}
         />
         <Footer />
       </main>
 
-      <BottomNav activeTab={logic.activeTab} cartCount={logic.cart.length} onTabChange={logic.handleTabChange} onCartClick={() => logic.setIsCartOpen(true)} />
+      <BottomNav activeTab={logic.activeTab} onTabChange={logic.handleTabChange} />
 
       <CartDrawer 
         isOpen={logic.isCartOpen} onClose={() => logic.setIsCartOpen(false)} cart={logic.cart} updateQuantity={logic.updateQuantity} 
@@ -152,6 +154,14 @@ const App: React.FC = () => {
         <FamilyHealthModal user={logic.currentUser} products={logic.products} onClose={() => logic.setActiveTab('home')} onAddToCart={(p) => logic.addToCart(p, 'UNIT')} />
       )}
       
+      {logic.activeTab === 'wellness' && (
+        <div className="fixed inset-0 z-40 bg-gray-50 overflow-y-auto pt-20 pb-20 px-4">
+          <div className="max-w-4xl mx-auto">
+            <BlogSection isAuthorized={logic.currentUser?.role === 'ADMIN'} onOpenAdminPanel={() => logic.setView('ADMIN_DASHBOARD')} />
+          </div>
+        </div>
+      )}
+      
       {logic.showPrescriptionModal && <PrescriptionModal onClose={() => logic.setShowPrescriptionModal(false)} />}
       
       {logic.currentUser && (
@@ -159,6 +169,23 @@ const App: React.FC = () => {
           userId={logic.currentUser.uid} 
           isOpen={logic.notifications.isOpen} 
           onClose={() => logic.notifications.setIsOpen(false)} 
+          onNavigate={(n) => {
+            if (n.link) {
+              if (n.link === '/orders') logic.handleTabChange('orders');
+              else if (n.link === '/health') logic.handleTabChange('health');
+              else if (n.link === '/assistant') logic.handleTabChange('assistant');
+              else if (n.link === '/services') logic.handleTabChange('services');
+              else if (n.link.startsWith('/product/')) {
+                const pid = n.link.split('/').pop();
+                const prod = logic.products.find(p => p.id === pid);
+                if (prod) logic.setSelectedProduct(prod);
+              }
+            } else {
+              // Fallback por tipo
+              if (n.type === 'ORDER_UPDATE') logic.handleTabChange('orders');
+              else if (n.type === 'PROMOTION') logic.handleTabChange('home');
+            }
+          }}
         />
       )}
 

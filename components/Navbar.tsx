@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf, Home, ClipboardList, HeartPulse, Sparkles, Stethoscope, QrCode, Bell } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf, Home, ClipboardList, HeartPulse, Sparkles, Stethoscope, QrCode, Bell, BookOpen } from 'lucide-react';
 import { User } from '../types';
 
 interface NavbarProps {
@@ -12,7 +12,7 @@ interface NavbarProps {
   onNotificationClick: () => void;
   unreadNotificationsCount: number;
   currentUser: User | null;
-  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services') => void;
+  onTabChange: (tab: 'home' | 'orders' | 'assistant' | 'health' | 'services' | 'wellness') => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ 
@@ -70,6 +70,7 @@ const Navbar: React.FC<NavbarProps> = ({
             <div className="hidden md:flex items-center space-x-1 bg-teal-800/30 p-1 rounded-xl backdrop-blur-sm mx-4">
                <NavButton icon={Home} label="Inicio" onClick={() => onTabChange('home')} />
                <NavButton icon={ClipboardList} label="Mis Pedidos" onClick={() => onTabChange('orders')} />
+               <NavButton icon={BookOpen} label="Bienestar" onClick={() => onTabChange('wellness')} />
                <NavButton icon={Stethoscope} label="Servicios" onClick={() => onTabChange('services')} />
                <NavButton icon={HeartPulse} label="Salud Familiar" onClick={() => onTabChange('health')} />
                <NavButton icon={Sparkles} label="Asistente IA" onClick={() => onTabChange('assistant')} />
