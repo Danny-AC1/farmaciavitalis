@@ -175,7 +175,7 @@ const ServicesModal: React.FC<ServicesModalProps> = ({ user, onClose, onLoginReq
 
                         <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-3">
                             <Info className="text-blue-500 shrink-0 mt-0.5" size={16}/>
-                            <p className="text-[10px] font-bold text-blue-600 leading-relaxed uppercase">Tu cita queda sujeta a disponibilidad de consultorio. Te avisaremos pronto.</p>
+                            <p className="text-[10px] font-bold text-blue-600 leading-relaxed uppercase">Tu cita queda sujeta a disponibilidad. Te avisaremos pronto.</p>
                         </div>
 
                         <button disabled={isSubmitting || !selectedServiceId} className="w-full bg-slate-900 text-white py-4.5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl hover:bg-black transition-all disabled:opacity-50 flex justify-center items-center gap-2 active:scale-95 mb-6">
