@@ -10,6 +10,7 @@ interface AdminDashboardProps {
   expenses: Expense[];
   reportPeriod: 'daily' | 'weekly' | 'monthly' | 'yearly';
   setReportPeriod: (p: any) => void;
+  setActiveTab: (tab: string) => void;
   chartData: { name: string, ventas: number }[];
   netProfit: number;
   totalRevenue: number;
@@ -19,7 +20,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  orders, products, reportPeriod, setReportPeriod, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
+  orders, products, reportPeriod, setReportPeriod, setActiveTab, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
 }) => {
   const totalOrdersCount = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
@@ -106,11 +107,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="h-2 w-2 bg-teal-500 rounded-full"></div>
                   <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Historial de Ventas</h3>
               </div>
-              <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      <div className="h-2 w-2 bg-teal-600 rounded-full"></div> Total Periodo
-                  </span>
-              </div>
+              <button 
+                onClick={() => setActiveTab('orders')} 
+                className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:underline"
+              >
+                Ver Historial Completo
+              </button>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

@@ -126,7 +126,7 @@ export interface Expense {
   id: string;
   description: string;
   amount: number;
-  category: 'SERVICES' | 'SALARY' | 'SUPPLIES' | 'OTHER';
+  category: 'SERVICES' | 'SALARY' | 'SUPPLIES' | 'INVENTORY' | 'OTHER';
   date: string;
 }
 
@@ -200,6 +200,28 @@ export interface MedicationSchedule {
   productId?: string;
   lastTaken?: string;
   active: boolean;
+}
+
+export interface CashClosure {
+  id: string;
+  date: string;
+  cashExpected: number;
+  transExpected: number;
+  cashActual: number;
+  transActual: number;
+  difference: number;
+  recordedBy: string;
+  notes?: string;
+}
+
+export interface MonthlyFinance {
+  id: string;
+  month: string; 
+  grossIncome: number;
+  netProfit: number;
+  totalOrders: number;
+  totalExpenses: number;
+  recordedAt: string;
 }
 
 export const AVAILABLE_SERVICES = [

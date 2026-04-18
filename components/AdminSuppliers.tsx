@@ -1,17 +1,21 @@
 
 import React, { useState } from 'react';
-import { Truck, Plus, Trash2, Phone, Mail, User, Search } from 'lucide-react';
-import { Supplier } from '../types';
+import { Truck, Plus, Trash2, Phone, Mail, User, Search, ShoppingBag, X, DollarSign } from 'lucide-react';
+import { Supplier, Expense } from '../types';
 
 interface AdminSuppliersProps {
   suppliers: Supplier[];
   onAdd: (s: Supplier) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onAddPurchase: (e: Expense) => Promise<void>;
 }
 
-const AdminSuppliers: React.FC<AdminSuppliersProps> = ({ suppliers, onAdd, onDelete }) => {
+const AdminSuppliers: React.FC<AdminSuppliersProps> = ({ suppliers, onAdd, onDelete, onAddPurchase }) => {
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [purchaseAmount, setPurchaseAmount] = useState('');
+  const [purchaseNote, setPurchaseNote] = useState('');
   
   // Form state
   const [name, setName] = useState('');
@@ -33,6 +37,23 @@ const AdminSuppliers: React.FC<AdminSuppliersProps> = ({ suppliers, onAdd, onDel
     
     setName(''); setContact(''); setPhone(''); setEmail('');
     setShowForm(false);
+  };
+
+  const handleRegisterPurchase = async () => {
+    if (!selectedSupplier || !purchaseAmount) return;
+    
+    await onAddPurchase({
+        id: `exp_${Date.now()}`,
+        description: `Compra a Proveedor: ${selectedSupplier.name} ${purchaseNote ? `- ${purchaseNote}` : ''}`,
+        amount: parseFloat(purchaseAmount),
+        category: 'INVENTORY',
+        date: new Date().toISOString()
+    });
+    
+    alert('Compra registrada exitosamente como gasto de inventario.');
+    setSelectedSupplier(null);
+    setPurchaseAmount('');
+    setPurchaseNote('');
   };
 
   const filtered = suppliers.filter(s => 
@@ -90,6 +111,52 @@ const AdminSuppliers: React.FC<AdminSuppliersProps> = ({ suppliers, onAdd, onDel
         </div>
       )}
 
+      {/* Modal de Registro de Compra */}
+      {selectedSupplier && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
+                <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+                    <h3 className="text-sm font-bold flex items-center gap-2"><ShoppingBag size={18}/> Registrar Compra: {selectedSupplier.name}</h3>
+                    <button onClick={() => setSelectedSupplier(null)} className="hover:bg-white/10 p-1.5 rounded-full transition-colors"><X size={20}/></button>
+                </div>
+                <div className="p-8 space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto de la Factura ($)</label>
+                        <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input 
+                                type="number" 
+                                className="w-full bg-slate-50 border-2 border-transparent p-3 pl-10 rounded-xl outline-none focus:bg-white focus:border-teal-500 transition-all font-bold text-lg" 
+                                placeholder="0.00"
+                                value={purchaseAmount}
+                                onChange={e => setPurchaseAmount(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumen/Notas (Opcional)</label>
+                        <textarea 
+                            className="w-full bg-slate-50 border-2 border-transparent p-3 rounded-xl outline-none focus:bg-white focus:border-teal-500 transition-all font-bold text-sm" 
+                            placeholder="Ej: Reposición de antibióticos..."
+                            rows={3}
+                            value={purchaseNote}
+                            onChange={e => setPurchaseNote(e.target.value)}
+                        />
+                    </div>
+
+                    <button 
+                        onClick={handleRegisterPurchase}
+                        disabled={!purchaseAmount}
+                        className="w-full bg-teal-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-teal-600/30 hover:bg-teal-700 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        Confirmar y Guardar Gasto
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-4 bg-slate-50/50 border-b flex items-center gap-3">
             <Search className="text-slate-400" size={18}/>
@@ -133,12 +200,21 @@ const AdminSuppliers: React.FC<AdminSuppliersProps> = ({ suppliers, onAdd, onDel
                                 </div>
                             </td>
                             <td className="px-6 py-5 text-right">
-                                <button 
-                                    onClick={() => { if(confirm('¿Eliminar este proveedor?')) onDelete(sup.id); }}
-                                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                                >
-                                    <Trash2 size={18}/>
-                                </button>
+                                <div className="flex justify-end items-center gap-2">
+                                    <button 
+                                        onClick={() => setSelectedSupplier(sup)}
+                                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-1 group/btn"
+                                        title="Registrar Compra"
+                                    >
+                                        <ShoppingBag size={18}/><span className="text-[10px] font-black uppercase opacity-0 group-hover:opacity-100 transition-opacity">Registrar Compra</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => { if(confirm('¿Eliminar este proveedor?')) onDelete(sup.id); }}
+                                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 size={18}/>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}

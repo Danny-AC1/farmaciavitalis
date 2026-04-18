@@ -174,10 +174,15 @@ const App: React.FC = () => {
               else if (n.link === '/health') logic.handleTabChange('health');
               else if (n.link === '/assistant') logic.handleTabChange('assistant');
               else if (n.link === '/services') logic.handleTabChange('services');
+              else if (n.link === '/wellness') logic.handleTabChange('wellness');
+              else if (n.link === '/') logic.handleTabChange('home');
               else if (n.link.startsWith('/product/')) {
                 const pid = n.link.split('/').pop();
                 const prod = logic.products.find(p => p.id === pid);
-                if (prod) logic.setSelectedProduct(prod);
+                if (prod) {
+                  logic.setView('HOME');
+                  logic.setSelectedProduct(prod);
+                }
               }
             } else {
               // Fallback por tipo

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Category } from '../types';
-import { getCategoryStyle } from '../utils/categoryStyles';
+import { getCategoryStyle } from '../utils/CategoryStyles';
 
 interface CategoryGridProps {
   categories: Category[];

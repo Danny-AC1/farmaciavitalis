@@ -51,6 +51,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
             { id: 'marketing', label: 'Promociones', icon: Megaphone },
             { id: 'marketing_ai', label: 'Marketing IA', icon: Sparkles },
             { id: 'users', label: 'Usuarios', icon: Users },
+            { id: 'finances', label: 'Cierres y Registro', icon: Wallet },
             { id: 'expenses', label: 'Gastos (Caja)', icon: Wallet },
             { id: 'subscriptions', label: 'Suscripciones', icon: Activity },
           ]

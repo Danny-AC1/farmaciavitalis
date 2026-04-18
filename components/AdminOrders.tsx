@@ -13,12 +13,21 @@ interface AdminOrdersProps {
 const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDeleteOrder, onShowCashClosure }) => {
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL');
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const filteredOrders = orders.filter(o => {
     const matchesFilter = filter === 'ALL' || o.status === filter;
     const matchesSearch = o.customerName.toLowerCase().includes(search.toLowerCase()) || o.id.includes(search);
-    return matchesFilter && matchesSearch;
+    
+    let matchesDate = true;
+    if (dateFilter) {
+      const d = new Date(o.date);
+      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      matchesDate = localDate === dateFilter;
+    }
+    
+    return matchesFilter && matchesSearch && matchesDate;
   });
 
   // Agrupar pedidos por fecha local (respetando 00:00 local)
@@ -181,25 +190,42 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="text-teal-600"/> Gestión de Pedidos</h2>
         
-        <div className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-grow md:w-64">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <div className="relative flex-grow md:w-48">
             <Search className="absolute left-3 top-2.5 text-gray-400 h-4 w-4" />
             <input 
-              className="w-full border p-2 pl-9 rounded-lg text-sm bg-white" 
-              placeholder="Buscar por cliente o ID..." 
+              className="w-full border p-2 pl-9 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-teal-500" 
+              placeholder="Buscar..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-2.5 text-gray-400 h-4 w-4 pointer-events-none" />
+            <input 
+              type="date"
+              className="border p-2 pl-9 rounded-lg text-sm bg-white font-bold text-gray-600 outline-none focus:ring-2 focus:ring-teal-500 w-full md:w-auto"
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+            />
+          </div>
           <select 
-            className="border p-2 rounded-lg text-sm bg-white font-bold text-gray-600"
+            className="border p-2 rounded-lg text-sm bg-white font-bold text-gray-600 outline-none focus:ring-2 focus:ring-teal-500"
             value={filter}
             onChange={e => setFilter(e.target.value as any)}
           >
-            <option value="ALL">Todos</option>
+            <option value="ALL">Estados</option>
             <option value="PENDING">Pendientes</option>
             <option value="DELIVERED">Entregados</option>
           </select>
+          {dateFilter && (
+            <button 
+                onClick={() => setDateFilter('')}
+                className="bg-red-50 text-red-500 text-[10px] font-black uppercase px-3 py-2 rounded-lg hover:bg-red-100 transition-colors"
+            >
+                Limpiar
+            </button>
+          )}
         </div>
       </div>
 

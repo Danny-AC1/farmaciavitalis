@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { Product, Order, Category } from '../types';
-import { useAdminPanelState } from '../hooks/useAdminPanelState.ts';
+import { useAdminPanelState } from '../hooks/useAdminPanelState';
 
 // Componentes Base
 import AdminSidebar from './AdminSidebar';
@@ -79,8 +79,8 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               <div className={`max-w-[1500px] mx-auto ${isPosActive ? 'p-0 h-full' : 'p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full'}`}>
                 <AdminMainContent 
                     activeTab={state.activeTab} 
-                    props={props} 
-                    state={state} 
+                    props={props as any} 
+                    state={state as any} 
                     productInputRef={productInputRef}
                     bannerInputRef={bannerInputRef}
                     onShowCashClosure={handleShowCustomClosure}
@@ -113,6 +113,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         todayCash={customClosure ? customClosure.cash : state.todayCash}
         todayTrans={customClosure ? customClosure.trans : state.todayTrans}
         customDate={customClosure?.date}
+        onSave={state.handleSaveCashClosure}
       />
     </div>
   );

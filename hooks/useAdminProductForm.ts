@@ -4,12 +4,51 @@ import { Product, Category } from '../types';
 import { generateProductDescription } from '../services/gemini';
 import { uploadImageToStorage } from '../services/db';
 
+export interface AdminProductForm {
+    editingId: string | null;
+    setEditingId: (id: string | null) => void;
+    prodName: string;
+    setProdName: (val: string) => void;
+    prodPrice: string;
+    setProdPrice: (val: string) => void;
+    prodCostPrice: string;
+    setProdCostPrice: (val: string) => void;
+    prodUnitsPerBox: string;
+    setProdUnitsPerBox: (val: string) => void;
+    prodBoxPrice: string;
+    setProdBoxPrice: (val: string) => void;
+    prodPublicBoxPrice: string;
+    setProdPublicBoxPrice: (val: string) => void;
+    prodDesc: string;
+    setProdDesc: (val: string) => void;
+    prodCat: string;
+    setProdCat: (val: string) => void;
+    prodImage: string;
+    setProdImage: (val: string) => void;
+    prodBarcode: string;
+    setProdBarcode: (val: string) => void;
+    prodExpiry: string;
+    setProdExpiry: (val: string) => void;
+    prodSupplier: string;
+    setProdSupplier: (val: string) => void;
+    isGenerating: boolean;
+    setIsGenerating: (val: boolean) => void;
+    isSubmitting: boolean;
+    isUploadingImage: boolean;
+    setIsUploadingImage: (val: boolean) => void;
+    handleProductSubmit: (e: React.FormEvent) => Promise<void>;
+    handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
+    handleEditClick: (p: Product) => void;
+    resetForm: () => void;
+    handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string) => void) => Promise<void>;
+}
+
 export const useAdminProductForm = (
     products: Product[],
     categories: Category[],
     onAddProduct: (p: Product) => Promise<any>,
     onEditProduct: (p: Product) => Promise<void>
-) => {
+): AdminProductForm => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [prodName, setProdName] = useState('');
     const [prodPrice, setProdPrice] = useState('');
@@ -96,7 +135,7 @@ export const useAdminProductForm = (
         prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
         prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, 
         prodBarcode, setProdBarcode, prodExpiry, setProdExpiry, prodSupplier, setProdSupplier,
-        isGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
+        isGenerating, setIsGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
         handleProductSubmit, handleGenerateDescription, handleEditClick, resetForm, handleImageUpload
     };
 };

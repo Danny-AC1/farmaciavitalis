@@ -18,14 +18,15 @@ import AdminStockAlerts from './AdminStockAlerts';
 import AdminGeoStats from './AdminGeoStats';
 import AdminCiudadelas from './AdminCiudadelas';
 import AdminBundles from './AdminBundles';
+import AdminFinances from './AdminFinances';
 import IntelligenceHub from './IntelligenceHub';
 
 interface AdminMainContentProps {
     activeTab: string;
     props: any; // Props del componente padre AdminPanel
     state: any; // Estado extendido del hook useAdminPanelState
-    productInputRef: React.Ref<HTMLInputElement>;
-    bannerInputRef: React.Ref<HTMLInputElement>;
+    productInputRef: React.RefObject<HTMLInputElement>;
+    bannerInputRef: React.RefObject<HTMLInputElement>;
     onShowCashClosure?: (cash: number, trans: number, date: string) => void;
 }
 
@@ -39,6 +40,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     expenses={state.expenses} 
                     reportPeriod={state.reportPeriod} 
                     setReportPeriod={state.setReportPeriod} 
+                    setActiveTab={state.setActiveTab}
                     chartData={state.chartData} 
                     netProfit={state.netProfit} 
                     totalRevenue={state.totalRevenue} 
@@ -163,12 +165,31 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
             );
 
         case 'categories': return <AdminSimpleTable title="Categorías" data={props.categories} onAdd={state.handleCategoryAdd} onDelete={props.onDeleteCategory} />;
-        case 'suppliers': return <AdminSuppliers suppliers={state.suppliers} onAdd={state.handleAddSupplier} onDelete={state.handleDeleteSupplier} />;
+        case 'suppliers': return <AdminSuppliers suppliers={state.suppliers} onAdd={state.handleAddSupplier} onDelete={state.handleDeleteSupplier} onAddPurchase={state.handleAddExpense} />;
         case 'ciudadelas': return <AdminCiudadelas />;
         case 'demand': return <AdminDemand logs={state.searchLogs} onDeleteLog={state.handleDeleteSearchLog} />;
         case 'geostats': return <AdminGeoStats orders={props.orders} />;
         case 'users': return <AdminUsers users={state.users} onUpdateRole={state.handleUpdateUserRole} onUpdateUser={state.handleUpdateUser} onDeleteUser={state.handleDeleteUser} />;
         case 'expenses': return <AdminExpenses expenses={state.expenses} onAdd={state.handleAddExpense} onUpdate={state.handleUpdateExpense} onDelete={state.handleDeleteExpense} />;
+        
+        case 'finances':
+            return (
+                <div className="w-full h-full">
+                    <div className="bg-teal-50 border border-teal-100 p-2 rounded-lg mb-4 text-[10px] font-black text-teal-600 uppercase tracking-widest text-center">
+                        Módulo de Cierres y Registro Activo
+                    </div>
+                    <AdminFinances 
+                        cashClosures={state.cashClosures || []} 
+                        monthlyFinance={state.monthlyFinance || []} 
+                        currentMonthStats={state.monthlyStats || {}} 
+                        currentMonthExpenses={state.currentMonthExpenses || 0} 
+                        netProfit={state.netProfit || 0} 
+                        expenseBreakdown={state.expenseBreakdown || {}}
+                        onRegisterMonthlyFinance={state.handleRegisterMonthlyFinance || (() => {})}
+                    />
+                </div>
+            );
+
         case 'subscriptions': return <AdminSubscriptions subscriptions={state.subscriptions} onProcess={state.handleProcessSubscription} onDelete={state.handleDeleteSubscription} />;
         case 'bookings': return <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} onDelete={state.handleDeleteBooking} />;
         case 'stock_alerts': return <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />;
