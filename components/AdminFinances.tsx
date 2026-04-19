@@ -42,10 +42,20 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
         }
     };
 
-    const renderDailyClosures = () => (
-        <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(cashClosures || []).map((c) => (
+    const renderDailyClosures = () => {
+        const sortedClosures = [...(cashClosures || [])].sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA !== dateB) return dateB - dateA;
+            // Si son del mismo día, usar createdAt si existe
+            if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            return 0;
+        });
+
+        return (
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sortedClosures.map((c) => (
                     <div key={c.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-4">
                             <div>
@@ -68,6 +78,23 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                             </div>
                         </div>
 
+                        {(c.cashLeftForChange !== undefined || c.cashWithdrawn !== undefined) && (
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                {c.cashLeftForChange !== undefined && (
+                                    <div className="bg-blue-50/30 p-1.5 rounded-lg border border-blue-100/30 flex flex-col items-center">
+                                        <span className="text-[7px] font-black text-blue-400 uppercase">Queda Cambio</span>
+                                        <span className="text-[10px] font-bold text-blue-700">${c.cashLeftForChange.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {c.cashWithdrawn !== undefined && (
+                                    <div className="bg-orange-50/30 p-1.5 rounded-lg border border-orange-100/30 flex flex-col items-center">
+                                        <span className="text-[7px] font-black text-orange-400 uppercase">Retirado</span>
+                                        <span className="text-[10px] font-bold text-orange-700">${c.cashWithdrawn.toFixed(2)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {c.notes && (
                             <div className="bg-gray-50 p-2 rounded-lg flex gap-2 mb-3">
                                 <AlertCircle size={12} className="text-gray-400 shrink-0 mt-0.5" />
@@ -89,7 +116,8 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                 </div>
             )}
         </div>
-    );
+        );
+    };
 
     const renderMonthlyYearlySummary = () => {
         // Agrupar por año

@@ -205,12 +205,15 @@ export interface MedicationSchedule {
 export interface CashClosure {
   id: string;
   date: string;
+  createdAt?: string; // Para ordenamiento preciso
   cashExpected: number;
   transExpected: number;
   cashActual: number;
   transActual: number;
   difference: number;
   recordedBy: string;
+  cashLeftForChange?: number; // Dinero que queda para cambio
+  cashWithdrawn?: number;      // Dinero retirado del local
   notes?: string;
 }
 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Calculator, X, Printer, Save } from 'lucide-react';
 import { CashClosure } from '../types';
@@ -14,28 +15,40 @@ interface CashClosureModalProps {
 const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, todayCash, todayTrans, customDate, onSave }) => {
     const [cashActual, setCashActual] = useState<string>(todayCash.toString());
     const [transActual, setTransActual] = useState<string>(todayTrans.toString());
+    const [cashLeft, setCashLeft] = useState<string>('0');
+    const [cashWithdrawn, setCashWithdrawn] = useState<string>('0');
     const [notes, setNotes] = useState('');
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const cActual = parseFloat(cashActual) || 0;
         const tActual = parseFloat(transActual) || 0;
+        const cLeft = parseFloat(cashLeft) || 0;
+        const cWithdrawn = parseFloat(cashWithdrawn) || 0;
         const diff = (cActual + tActual) - (todayCash + todayTrans);
 
-        onSave({
-            id: '',
-            date: customDate || new Date().toISOString().split('T')[0],
-            cashExpected: todayCash,
-            transExpected: todayTrans,
-            cashActual: cActual,
-            transActual: tActual,
-            difference: diff,
-            recordedBy: 'Admin',
-            notes: notes
-        });
-        alert('Corte de caja guardado con éxito.');
-        onClose();
+        try {
+            await onSave({
+                id: '',
+                date: customDate || new Date().toISOString().split('T')[0],
+                createdAt: new Date().toISOString(),
+                cashExpected: todayCash,
+                transExpected: todayTrans,
+                cashActual: cActual,
+                transActual: tActual,
+                cashLeftForChange: cLeft,
+                cashWithdrawn: cWithdrawn,
+                difference: diff,
+                recordedBy: 'Admin',
+                notes: notes
+            });
+            alert('Corte de caja guardado con éxito.');
+            onClose();
+        } catch (error) {
+            console.error("Error al guardar cierre:", error);
+            alert('Error al guardar el cierre. Intente de nuevo.');
+        }
     };
 
     return (
@@ -78,6 +91,29 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-3 rounded-xl">
+                            <label className="text-[10px] font-black text-gray-400 uppercase">Ef. para Cambio</label>
+                            <input 
+                                type="number" 
+                                value={cashLeft} 
+                                onChange={(e) => setCashLeft(e.target.value)} 
+                                className="w-full bg-transparent border-b-2 border-slate-300 font-bold text-lg outline-none focus:border-indigo-500"
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-xl">
+                            <label className="text-[10px] font-black text-gray-400 uppercase">Ef. Retirado</label>
+                            <input 
+                                type="number" 
+                                value={cashWithdrawn} 
+                                onChange={(e) => setCashWithdrawn(e.target.value)} 
+                                className="w-full bg-transparent border-b-2 border-slate-300 font-bold text-lg outline-none focus:border-red-400"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase">Notas del Cierre</label>
                         <textarea 
@@ -110,4 +146,3 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
 };
 
 export default CashClosureModal;
-
