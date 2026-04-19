@@ -74,7 +74,7 @@ export const updateExpenseDB = async (expense: Expense) => {
 };
 
 export const streamExpenses = (callback: (expenses: Expense[]) => void) => {
-    return onSnapshot(query(collection(firestore, EXPENSES_COLLECTION), orderBy('date', 'desc')), (snapshot) => {
+    return onSnapshot(collection(firestore, EXPENSES_COLLECTION), (snapshot) => {
         const expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Expense[];
         callback(expenses);
     });
@@ -88,7 +88,7 @@ export const saveCashClosureDB = async (closure: CashClosure) => {
 };
 
 export const streamCashClosures = (callback: (data: CashClosure[]) => void) => {
-    return onSnapshot(query(collection(firestore, CASH_CLOSURES_COLLECTION), orderBy('date', 'desc'), limit(30)), (snapshot) => {
+    return onSnapshot(collection(firestore, CASH_CLOSURES_COLLECTION), (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as CashClosure[];
         callback(data);
     });
@@ -109,7 +109,7 @@ export const saveMonthlyFinanceDB = async (finance: MonthlyFinance) => {
 };
 
 export const streamMonthlyFinance = (callback: (data: MonthlyFinance[]) => void) => {
-    return onSnapshot(query(collection(firestore, MONTHLY_FINANCE_COLLECTION), orderBy('month', 'desc')), (snapshot) => {
+    return onSnapshot(collection(firestore, MONTHLY_FINANCE_COLLECTION), (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MonthlyFinance[];
         callback(data);
     });

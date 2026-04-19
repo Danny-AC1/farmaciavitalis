@@ -26,7 +26,9 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
         const tActual = parseFloat(transActual) || 0;
         const cLeft = parseFloat(cashLeft) || 0;
         const cWithdrawn = parseFloat(cashWithdrawn) || 0;
-        const diff = (cActual + tActual) - (todayCash + todayTrans);
+        // La diferencia ahora resta el dinero que se deja para cambio del efectivo real
+        // para comparar solo lo generado por ventas contra lo esperado por sistema.
+        const diff = (cActual - cLeft + tActual) - (todayCash + todayTrans);
 
         try {
             await onSave({
@@ -51,6 +53,12 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
         }
     };
 
+    const cActualVal = parseFloat(cashActual) || 0;
+    const tActualVal = parseFloat(transActual) || 0;
+    const cLeftVal = parseFloat(cashLeft) || 0;
+    const totalSugerido = todayCash + cLeftVal;
+    const differenceVal = (cActualVal - cLeftVal + tActualVal) - (todayCash + todayTrans);
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
@@ -59,6 +67,15 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
                     <button onClick={onClose} className="hover:bg-white/10 p-1.5 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 <div className="p-8 space-y-6">
+                    {/* Suma Sugerida (Ventas + Cambio) */}
+                    <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Total Sugerido a Contar</p>
+                            <p className="text-[8px] text-indigo-300 font-bold uppercase">(Efectivo Sistema + Ef. Cambio)</p>
+                        </div>
+                        <p className="text-xl font-black text-indigo-600">${totalSugerido.toFixed(2)}</p>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-gray-50 p-3 rounded-xl">
                             <label className="text-[10px] font-black text-gray-400 uppercase">Efectivo Sistema</label>
@@ -126,8 +143,8 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
 
                     <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center">
                         <span className="text-base font-black text-slate-900">DIFERENCIA TOTAL:</span>
-                        <span className={`text-xl font-black ${(parseFloat(cashActual) + parseFloat(transActual) - (todayCash + todayTrans)) >= 0 ? 'text-teal-600' : 'text-red-600'}`}>
-                            ${(parseFloat(cashActual) + parseFloat(transActual) - (todayCash + todayTrans) || 0).toFixed(2)}
+                        <span className={`text-xl font-black ${differenceVal >= 0 ? 'text-teal-600' : 'text-red-600'}`}>
+                            ${differenceVal.toFixed(2)}
                         </span>
                     </div>
 

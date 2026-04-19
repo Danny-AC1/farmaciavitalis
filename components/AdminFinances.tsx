@@ -44,10 +44,10 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
 
     const renderDailyClosures = () => {
         const sortedClosures = [...(cashClosures || [])].sort((a, b) => {
+            if (!a.date || !b.date) return 0;
             const dateA = new Date(a.date).getTime();
             const dateB = new Date(b.date).getTime();
             if (dateA !== dateB) return dateB - dateA;
-            // Si son del mismo día, usar createdAt si existe
             if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             return 0;
         });
@@ -62,19 +62,19 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                                 <h4 className="font-bold text-gray-900 uppercase text-xs">{safeFormatDate(c.date + 'T12:00:00', 'eeee, d MMMM')}</h4>
                                 <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Cierre por {c.recordedBy}</p>
                             </div>
-                            <div className={`px-2 py-1 rounded-lg text-[9px] font-black ${c.difference >= 0 ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
-                                {c.difference >= 0 ? 'CUADRADO' : 'FALTANTE'}
+                            <div className={`px-2 py-1 rounded-lg text-[9px] font-black ${(c.difference || 0) >= 0 ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
+                                {(c.difference || 0) >= 0 ? 'CUADRADO' : 'FALTANTE'}
                             </div>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-2 mb-4">
                             <div className="bg-gray-50 p-2 rounded-lg text-center">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Efectivo</p>
-                                <p className="text-xs font-bold text-gray-800">${c.cashActual.toFixed(2)}</p>
+                                <p className="text-xs font-bold text-gray-800">${(c.cashActual || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-gray-50 p-2 rounded-lg text-center">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Transf.</p>
-                                <p className="text-xs font-bold text-gray-800">${c.transActual.toFixed(2)}</p>
+                                <p className="text-xs font-bold text-gray-800">${(c.transActual || 0).toFixed(2)}</p>
                             </div>
                         </div>
 
@@ -83,13 +83,13 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                                 {c.cashLeftForChange !== undefined && (
                                     <div className="bg-blue-50/30 p-1.5 rounded-lg border border-blue-100/30 flex flex-col items-center">
                                         <span className="text-[7px] font-black text-blue-400 uppercase">Queda Cambio</span>
-                                        <span className="text-[10px] font-bold text-blue-700">${c.cashLeftForChange.toFixed(2)}</span>
+                                        <span className="text-[10px] font-bold text-blue-700">${(c.cashLeftForChange || 0).toFixed(2)}</span>
                                     </div>
                                 )}
                                 {c.cashWithdrawn !== undefined && (
                                     <div className="bg-orange-50/30 p-1.5 rounded-lg border border-orange-100/30 flex flex-col items-center">
                                         <span className="text-[7px] font-black text-orange-400 uppercase">Retirado</span>
-                                        <span className="text-[10px] font-bold text-orange-700">${c.cashWithdrawn.toFixed(2)}</span>
+                                        <span className="text-[10px] font-bold text-orange-700">${(c.cashWithdrawn || 0).toFixed(2)}</span>
                                     </div>
                                 )}
                             </div>
@@ -104,7 +104,7 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                         
                         <div className="pt-2 border-t border-gray-100 flex justify-between items-center text-[10px]">
                             <span className="text-gray-500 font-bold uppercase">TOTAL REAL:</span>
-                            <span className="font-black text-teal-600 underline decoration-teal-600/30">${(c.cashActual + c.transActual).toFixed(2)}</span>
+                            <span className="font-black text-teal-600 underline decoration-teal-600/30">${((c.cashActual || 0) + (c.transActual || 0)).toFixed(2)}</span>
                         </div>
                     </div>
                 ))}

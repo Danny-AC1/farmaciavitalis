@@ -98,7 +98,7 @@ const AdminExpenses: React.FC<AdminExpensesProps> = ({ expenses, onAdd, onUpdate
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
-                        {expenses.map(exp => (
+                        {expenses.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
                           <tr key={exp.id} className={`hover:bg-gray-50 transition group ${editingId === exp.id ? 'bg-blue-50/50' : ''}`}>
                             <td className="px-6 py-4">
                               <p className="text-[10px] text-gray-400 uppercase font-bold flex items-center gap-1"><Calendar size={10}/> {new Date(exp.date).toLocaleDateString()}</p>
