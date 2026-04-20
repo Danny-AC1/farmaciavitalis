@@ -1,6 +1,10 @@
 
 import { useState, useMemo } from 'react';
 import { 
+    format, startOfWeek, endOfWeek, startOfMonth, startOfYear, parseISO 
+} from 'date-fns';
+import { es } from 'date-fns/locale';
+import { 
     Product, Order, Category, User, Subscription, CashClosure 
 } from '../types';
 import { 
@@ -103,13 +107,30 @@ export const useAdminPanelState = (
         const topCat = Object.entries(categorySales).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Variada';
 
         const historyMap: Record<string, { total: number, timestamp: number }> = {};
-        orders.forEach(o => {
-            const d = new Date(o.date);
-            let key = reportPeriod === 'daily' ? d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) :
-                      reportPeriod === 'monthly' ? d.toLocaleDateString('es-ES', { month: 'long' }) :
-                      d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        deliveredOrders.forEach(o => {
+            const d = parseISO(o.date);
+            let key = "";
+            let timestamp = d.getTime();
 
-            if (!historyMap[key]) historyMap[key] = { total: 0, timestamp: d.getTime() };
+            if (reportPeriod === 'daily') {
+                key = format(d, 'd MMM', { locale: es });
+                timestamp = d.getTime();
+            } else if (reportPeriod === 'weekly') {
+                const start = startOfWeek(d, { weekStartsOn: 1 });
+                const end = endOfWeek(d, { weekStartsOn: 1 });
+                key = `${format(start, 'dd/MM')} - ${format(end, 'dd/MM')}`;
+                timestamp = start.getTime();
+            } else if (reportPeriod === 'monthly') {
+                const monthStart = startOfMonth(d);
+                key = format(monthStart, 'MMMM yyyy', { locale: es });
+                timestamp = monthStart.getTime();
+            } else if (reportPeriod === 'yearly') {
+                const yearStart = startOfYear(d);
+                key = format(yearStart, 'yyyy');
+                timestamp = yearStart.getTime();
+            }
+
+            if (!historyMap[key]) historyMap[key] = { total: 0, timestamp };
             historyMap[key].total += o.total;
         });
 

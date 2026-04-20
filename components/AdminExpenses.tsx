@@ -146,3 +146,5 @@ const AdminExpenses: React.FC<AdminExpensesProps> = ({ expenses, onAdd, onUpdate
 };
 
 export default AdminExpenses;
+
+
