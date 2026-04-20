@@ -96,11 +96,14 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   // FILTROS DE BÚSQUEDA
   const filteredProducts = useMemo(() => {
     if (!posSearch) return [];
+    const searchLower = posSearch.toLowerCase();
     return products.filter(p => 
-      p.name.toLowerCase().includes(posSearch.toLowerCase()) || 
+      p.name.toLowerCase().includes(searchLower) || 
       (p.barcode && p.barcode === posSearch) ||
-      p.category.toLowerCase().includes(posSearch.toLowerCase())
-    ).slice(0, 6);
+      p.category.toLowerCase().includes(searchLower) ||
+      (p.activeIngredient && p.activeIngredient.toLowerCase().includes(searchLower)) ||
+      (p.keywords && p.keywords.toLowerCase().includes(searchLower))
+    ).slice(0, 8); // Aumentado un poco el límite para mostrar alternativas
   }, [products, posSearch]);
 
   const customerSearchResults = useMemo(() => {

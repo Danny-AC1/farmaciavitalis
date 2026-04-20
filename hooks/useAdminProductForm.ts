@@ -31,6 +31,10 @@ export interface AdminProductForm {
     setProdExpiry: (val: string) => void;
     prodSupplier: string;
     setProdSupplier: (val: string) => void;
+    prodActiveIngredient: string;
+    setProdActiveIngredient: (val: string) => void;
+    prodKeywords: string;
+    setProdKeywords: (val: string) => void;
     isGenerating: boolean;
     setIsGenerating: (val: boolean) => void;
     isSubmitting: boolean;
@@ -62,6 +66,8 @@ export const useAdminProductForm = (
     const [prodBarcode, setProdBarcode] = useState('');
     const [prodExpiry, setProdExpiry] = useState('');
     const [prodSupplier, setProdSupplier] = useState('');
+    const [prodActiveIngredient, setProdActiveIngredient] = useState('');
+    const [prodKeywords, setProdKeywords] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -96,7 +102,8 @@ export const useAdminProductForm = (
             category: prodCat || categories[0]?.name || 'Medicamentos',
             stock: editingId ? (products.find(p => p.id === editingId)?.stock || 0) : (prodUnitsPerBox ? parseInt(prodUnitsPerBox) : 0),
             image: prodImage || "https://via.placeholder.com/300",
-            barcode: prodBarcode, expiryDate: prodExpiry, supplierId: prodSupplier
+            barcode: prodBarcode, expiryDate: prodExpiry, supplierId: prodSupplier,
+            activeIngredient: prodActiveIngredient, keywords: prodKeywords
         };
         try {
             if (editingId) await onEditProduct(productData);
@@ -107,8 +114,9 @@ export const useAdminProductForm = (
 
     const resetForm = () => {
         setEditingId(null); setProdName(''); setProdPrice(''); setProdCostPrice(''); setProdUnitsPerBox('');
-        setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage(''); 
+        setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage('');
         setProdBarcode(''); setProdExpiry(''); setProdSupplier('');
+        setProdActiveIngredient(''); setProdKeywords('');
     };
 
     const handleGenerateDescription = async (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => {
@@ -121,20 +129,22 @@ export const useAdminProductForm = (
     };
 
     const handleEditClick = (p: Product) => {
-        setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString()); 
-        setProdCostPrice(p.costPrice?.toString() || ''); setProdUnitsPerBox(p.unitsPerBox?.toString() || ''); 
-        setProdBoxPrice(p.boxPrice?.toString() || ''); setProdPublicBoxPrice(p.publicBoxPrice?.toString() || ''); 
-        setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image); 
+        setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString());
+        setProdCostPrice(p.costPrice?.toString() || ''); setProdUnitsPerBox(p.unitsPerBox?.toString() || '');
+        setProdBoxPrice(p.boxPrice?.toString() || ''); setProdPublicBoxPrice(p.publicBoxPrice?.toString() || '');
+        setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image);
         setProdBarcode(p.barcode || ''); setProdExpiry(p.expiryDate || ''); setProdSupplier(p.supplierId || '');
+        setProdActiveIngredient(p.activeIngredient || ''); setProdKeywords(p.keywords || '');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     return {
-        editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice, 
-        prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox, 
+        editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice,
+        prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox,
         prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
-        prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, 
+        prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage,
         prodBarcode, setProdBarcode, prodExpiry, setProdExpiry, prodSupplier, setProdSupplier,
+        prodActiveIngredient, setProdActiveIngredient, prodKeywords, setProdKeywords,
         isGenerating, setIsGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
         handleProductSubmit, handleGenerateDescription, handleEditClick, resetForm, handleImageUpload
     };

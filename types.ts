@@ -15,6 +15,8 @@ export interface Product {
   expiryDate?: string;
   supplierId?: string;
   requiresPrescription?: boolean;
+  activeIngredient?: string; // Nuevo: Para búsqueda por principio activo
+  keywords?: string; // Nuevo: Para alias comerciales o síntomas (ej: "uvamin, vías urinarias")
 }
 
 export interface Category {

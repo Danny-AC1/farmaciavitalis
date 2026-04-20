@@ -38,12 +38,20 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
               <div key={p.id} className="flex items-center justify-between p-2 md:p-3 hover:bg-teal-50 transition-colors border-b last:border-0 group">
                 <div className="flex items-center gap-2 md:gap-3 min-w-0">
                   <div className="w-8 h-8 bg-slate-50 rounded flex items-center justify-center p-1 shrink-0"><Package size={14} className="text-slate-400"/></div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] md:text-xs font-black text-slate-800 uppercase truncate">{p.name}</p>
-                    <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 5 ? 'text-red-500' : 'text-slate-400'}`}>
-                        {p.category} • STOCK: {p.stock} UNID.
-                    </p>
-                  </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] md:text-xs font-black text-slate-800 uppercase truncate leading-none mb-1">{p.name}</p>
+                      <div className="flex flex-wrap gap-1 items-center">
+                        <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 5 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {p.category} • STOCK: {p.stock}
+                        </p>
+                        {p.activeIngredient?.toLowerCase().includes(posSearch.toLowerCase()) && (
+                          <span className="text-[7px] bg-teal-100 text-teal-700 px-1 rounded font-black uppercase">Principio Activo</span>
+                        )}
+                        {p.keywords?.toLowerCase().includes(posSearch.toLowerCase()) && (
+                          <span className="text-[7px] bg-purple-100 text-purple-700 px-1 rounded font-black uppercase">Relacionado</span>
+                        )}
+                      </div>
+                    </div>
                 </div>
 
                 <div className="flex gap-1 md:gap-2 shrink-0">
@@ -79,7 +87,7 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
             className="w-full p-4 bg-indigo-600 text-white flex items-center justify-center gap-3 hover:bg-indigo-700 transition-colors font-black text-xs uppercase tracking-widest"
           >
             <Sparkles size={16}/> 
-            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas' : '¿No es lo que buscas? Ver alternativas IA'}
+            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas IA' : '¿No es lo que buscas? Ver alternativas IA'}
           </button>
         </div>
       )}

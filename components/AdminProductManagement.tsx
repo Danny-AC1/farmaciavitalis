@@ -21,6 +21,8 @@ interface AdminProductManagementProps {
   prodBarcode: string; setProdBarcode: (s: string) => void;
   prodExpiry: string; setProdExpiry: (s: string) => void;
   prodSupplier: string; setProdSupplier: (s: string) => void;
+  prodActiveIngredient: string; setProdActiveIngredient: (s: string) => void;
+  prodKeywords: string; setProdKeywords: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
@@ -52,6 +54,8 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
             prodBarcode={props.prodBarcode} setProdBarcode={props.setProdBarcode}
             prodExpiry={props.prodExpiry} setProdExpiry={props.setProdExpiry}
             prodSupplier={props.prodSupplier} setProdSupplier={props.setProdSupplier}
+            prodActiveIngredient={props.prodActiveIngredient} setProdActiveIngredient={props.setProdActiveIngredient}
+            prodKeywords={props.prodKeywords} setProdKeywords={props.setProdKeywords}
             handleProductSubmit={props.handleProductSubmit}
             handleGenerateDescription={props.handleGenerateDescription}
             handleImageUpload={props.handleImageUpload}

@@ -17,6 +17,8 @@ interface AdminProductFormProps {
   prodBarcode: string; setProdBarcode: (s: string) => void;
   prodExpiry: string; setProdExpiry: (s: string) => void;
   prodSupplier: string; setProdSupplier: (s: string) => void;
+  prodActiveIngredient: string; setProdActiveIngredient: (s: string) => void;
+  prodKeywords: string; setProdKeywords: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
@@ -63,6 +65,26 @@ const AdminProductForm: React.FC<AdminProductFormProps> = (props) => {
                 <option value="">Seleccionar...</option>
                 {props.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
+            </div>
+          </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-teal-700 uppercase">Principio Activo</label>
+              <input 
+                className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-teal-50/20" 
+                value={props.prodActiveIngredient} 
+                onChange={e => props.setProdActiveIngredient(e.target.value)} 
+                placeholder="Ej: Naproxeno, Amoxicilina..." 
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-purple-700 uppercase">Equivalentes / Palabra Clave</label>
+              <input 
+                className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/20" 
+                value={props.prodKeywords} 
+                onChange={e => props.setProdKeywords(e.target.value)} 
+                placeholder="Ej: uvamin, macrodantina, vías urinarias" 
+              />
             </div>
           </div>
 
