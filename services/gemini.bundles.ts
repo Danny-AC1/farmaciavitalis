@@ -1,10 +1,11 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Product, Order, Bundle } from '../types';
+import { getAiClient } from './gemini.client';
 
 export const suggestSymptomBundles = async (products: Product[]): Promise<Partial<Bundle>[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
+        const ai = getAiClient();
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description}) - $${p.price}`).join('\n');
         const prompt = `Actúa como un estratega de marketing farmacéutico. 
         Analiza este inventario y sugiere 3 COMBOS basados en SINTOMATOLOGÍA (ej: Combo Gripe, Kit Primeros Auxilios, Pack Digestivo).
@@ -20,7 +21,7 @@ export const suggestSymptomBundles = async (products: Product[]): Promise<Partia
         Responde SOLO el JSON.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-flash-latest',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -48,8 +49,8 @@ export const suggestSymptomBundles = async (products: Product[]): Promise<Partia
 };
 
 export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Product[]): Promise<Partial<Bundle> | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
+        const ai = getAiClient();
         const candidates = allProducts
             .filter(p => p.id !== baseProduct.id && p.stock > 0)
             .map(p => `${p.id}: ${p.name} ($${p.price})`);
@@ -67,7 +68,7 @@ export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Pr
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-flash-latest',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -90,8 +91,8 @@ export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Pr
 };
 
 export const analyzePredictiveBundles = async (orders: Order[], products: Product[]): Promise<Partial<Bundle>[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
+        const ai = getAiClient();
         // Simplificar historial para la IA
         const history = orders.slice(-50).map(o => o.items.map(i => i.name).join(', ')).join('\n');
         
@@ -107,7 +108,7 @@ export const analyzePredictiveBundles = async (orders: Order[], products: Produc
         Responde SOLO JSON: [{ name, description, productIds, price, category: "Predictivo" }]`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-flash-latest',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',

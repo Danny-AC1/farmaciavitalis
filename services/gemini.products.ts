@@ -1,11 +1,12 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Product } from '../types';
+import { getAiClient } from './gemini.client';
 
 // --- BÚSQUEDA POR SÍNTOMAS ---
 export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
+        const ai = getAiClient();
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
         const prompt = `Actúa como un farmacéutico experto. El cliente describe este síntoma: "${symptom}".
         Analiza el siguiente inventario y devuelve un array JSON con los IDs de los productos que mejor resuelvan ese síntoma.
@@ -30,8 +31,8 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
 
 // --- VENTA CRUZADA INTELIGENTE ---
 export const getCrossSellSuggestion = async (targetProduct: Product, allProducts: Product[]): Promise<{product: Product | undefined, reason: string}> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
+        const ai = getAiClient();
         const candidates = allProducts
             .filter(p => p.id !== targetProduct.id && p.stock > 0)
             .map(p => `${p.id}: ${p.name} ($${p.price})`);
@@ -77,8 +78,6 @@ export const generateProductDescription = async (
     category: string, 
     tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO' = 'PERSUASIVO'
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
   const toneInstructions = {
     CLINICO: "Enfoque técnico, basado en evidencia, resalta componentes y farmacocinética de forma seria.",
     PERSUASIVO: "Enfoque de ventas, resalta el alivio rápido, la conveniencia y por qué es la mejor opción.",
@@ -100,6 +99,7 @@ export const generateProductDescription = async (
   Estructura esperada: [Beneficio de impacto] + [Uso recomendado] + [Cierre de confianza].`;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-flash-latest',
       contents: prompt,
@@ -111,12 +111,11 @@ export const generateProductDescription = async (
   }
 };
 
-export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    const prompt = `Actúa como un experto farmacéutico. Sugiere una lista de hasta 10 términos (marcas competidoras, genéricos y síntomas) para el producto "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}). Responde SOLO la lista separada por comas.`;
+export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {    
+    const prompt = `Actúa como un experto farmacéutico. Sugiere una lista de hasta 10 términos (marcas competidoras, genéricos y síntomas) para el producto "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}). Responde SOLO la lista separada por comas sin asteriscos.`;
 
     try {
+        const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: "gemini-flash-latest",
             contents: prompt,
@@ -127,6 +126,6 @@ export const generateProductKeywords = async (productName: string, activeIngredi
         return text.trim().replace(/\*/g, '').replace(/^- /, '');
     } catch (error) {
         console.error("Error en generateProductKeywords:", error);
-        throw error; // Lanzamos el error para que el hook lo capture y sepamos qué pasa
+        throw error;
     }
 };

@@ -4,13 +4,19 @@ import {
     Product, Order, Category, User, Subscription, CashClosure 
 } from '../types';
 import { 
-    addSupplierDB, addCouponDB, addExpenseDB, updateBookingStatusDB, 
-    saveUserDB, addOrderDB, updateStockDB, uploadImageToStorage,
-    addBannerDB, addBlogPostDB, updateSubscriptionDB, updateExpenseDB,
+    updateBookingStatusDB, updateSubscriptionDB
+} from '../services/db.health';
+import { saveUserDB } from '../services/db.users';
+import { addOrderDB } from '../services/db.orders';
+import { updateStockDB } from '../services/db.products';
+import { uploadImageToStorage } from '../services/db.utils';
+import { 
+    addSupplierDB, addExpenseDB, updateExpenseDB,
     saveCashClosureDB, saveMonthlyFinanceDB
-} from '../services/db';
+} from '../services/db.admin';
+import { addCouponDB, addBannerDB, addBlogPostDB } from '../services/db.marketing';
 import { generateSocialPost } from '../services/gemini';
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from '../services/gemini.client';
 
 // Importación de los nuevos sub-hooks divididos
 import { useAdminData } from './useAdminData';
@@ -166,10 +172,12 @@ export const useAdminPanelState = (
     const handleGenerateBlog = async (topic: string) => {
         setIsGenerating(true); 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+            const ai = getAiClient();
             const response = await ai.models.generateContent({ model: 'gemini-flash-latest', contents: `Articulo de salud: "${topic}". HTML.` });
             await addBlogPostDB({ id: '', title: topic.toUpperCase(), content: response.text || "", date: new Date().toISOString(), author: "Vitalis Admin" });
             setBlogTopic(''); alert("¡Publicado!");
+        } catch (err: any) {
+            alert(`Error al generar blog: ${err.message}`);
         } finally { setIsGenerating(false); }
     };
 

@@ -1,18 +1,19 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from './gemini.client';
 import { Product } from '../types';
 
 export const createAssistantChat = (products: Product[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const productContext = products.map(p => `- ${p.name}: $${p.price}`).join('\n');
-  const systemInstruction = `Eres Vitalis Asistent. Conoces este inventario: ${productContext}. Sé amable y breve.`;
-
   try {
-    return ai.chats.create({
-      model: 'gemini-3-flash-preview',
+    const ai = getAiClient();
+    const productContext = products.map(p => `- ${p.name}: $${p.price}`).join('\n');
+    const systemInstruction = `Eres Vitalis Asistent. Conoces este inventario: ${productContext}. Sé amable y breve.`;
+
+    return (ai as any).chats.create({
+      model: 'gemini-flash-latest',
       config: { systemInstruction },
     });
   } catch (error) {
+    console.error("Error creating assistant chat:", error);
     return null;
   }
 };

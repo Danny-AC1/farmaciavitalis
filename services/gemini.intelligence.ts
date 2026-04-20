@@ -1,6 +1,7 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Product, MissedSale, SearchLog } from '../types';
+import { getAiClient } from './gemini.client';
 
 export interface SubstitutionResult {
     generics: Product[];
@@ -12,11 +13,7 @@ export interface SubstitutionResult {
 
 export const suggestSubstitutes = async (missingProduct: string, allProducts: Product[]): Promise<SubstitutionResult> => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("GEMINI_API_KEY is not defined");
-        }
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = getAiClient();
         
         const inventory = allProducts
             .filter(p => p.stock > 0)
@@ -86,11 +83,7 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
 
 export const analyzeMarketOpportunities = async (missedSales: MissedSale[], searchLogs: SearchLog[]): Promise<string> => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("GEMINI_API_KEY is not defined");
-        }
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = getAiClient();
         
         const data = `
         VENTAS PERDIDAS (Falta de stock):
