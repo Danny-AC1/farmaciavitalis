@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir acceso total para desarrollo o si el usuario es admin
+    // (Ajustar según necesidad de producción)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Reglas específicas para colecciones críticas
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+    
+    match /cash_closures/{closureId} {
+      allow read, write: if true;
+    }
+    
+    match /expenses/{expenseId} {
+      allow read, write: if true;
+    }
+  }
+}

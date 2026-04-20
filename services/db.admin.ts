@@ -1,7 +1,7 @@
 
 import { firestore } from './firebase';
 // @ts-ignore
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, increment, limit } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, increment, limit, setDoc } from 'firebase/firestore';
 import { Supplier, SearchLog, Expense, Ciudadela, CashClosure, MonthlyFinance } from '../types';
 import { cleanData } from './db.utils';
 
@@ -83,15 +83,35 @@ export const deleteExpenseDB = async (id: string) => { await deleteDoc(doc(fires
 
 // --- CASH CLOSURES ---
 export const saveCashClosureDB = async (closure: CashClosure) => {
-    const { id, ...data } = closure;
-    await addDoc(collection(firestore, CASH_CLOSURES_COLLECTION), cleanData(data));
+    try {
+        const { id, ...data } = closure;
+        const cleaned = cleanData(data);
+        console.log("Saving cash closure data:", cleaned);
+        
+        // Usar un ID predecible para evitar duplicados si se presiona varias veces rápido
+        // pero asegurar que sea lo suficientemente único por milisegundos.
+        const customId = `closure-${data.date}-${Date.now()}`;
+        await setDoc(doc(firestore, CASH_CLOSURES_COLLECTION, customId), cleaned);
+        
+        console.log("Cash closure saved successfully with ID:", customId);
+    } catch (error) {
+        console.error("Critical error in saveCashClosureDB:", error);
+        throw error;
+    }
 };
 
 export const streamCashClosures = (callback: (data: CashClosure[]) => void) => {
-    return onSnapshot(collection(firestore, CASH_CLOSURES_COLLECTION), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as CashClosure[];
-        callback(data);
-    });
+    return onSnapshot(collection(firestore, CASH_CLOSURES_COLLECTION), 
+        (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as CashClosure[];
+            callback(data);
+        },
+        (error) => {
+            console.error("Error streaming cash closures:", error);
+            // Si hay un error, devolvemos una lista vacía para evitar bloqueos
+            callback([]);
+        }
+    );
 };
 
 // --- MONTHLY FINANCE ---

@@ -110,9 +110,20 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                 ))}
             </div>
             {cashClosures.length === 0 && (
-                <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-gray-100 text-center">
-                    <History className="mx-auto text-gray-200 h-10 w-10 mb-3" />
-                    <p className="text-gray-500 font-medium">Aún no hay registros de cierres diarios guardados.</p>
+                <div className="bg-white p-16 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center relative group">
+                    <History className="mx-auto text-slate-100 h-16 w-16 mb-4 animate-in fade-in duration-1000" />
+                    <p className="text-slate-400 font-bold text-lg mb-2">Aún no hay registros de cierres diarios guardados.</p>
+                    <p className="text-slate-300 text-xs uppercase tracking-widest font-black">Sincronización en tiempo real activa</p>
+                    
+                    <div className="mt-8 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <button 
+                           onClick={() => window.location.reload()}
+                           className="bg-teal-600 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-600/20 hover:scale-105 transition-transform"
+                        >
+                           Sincronizar Ahora
+                        </button>
+                        <p className="text-[8px] text-slate-300 uppercase font-bold">Si acabas de registrar un cierre y no aparece, pulsa el botón.</p>
+                    </div>
                 </div>
             )}
         </div>
@@ -287,7 +298,14 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 ml-1">Administración de ingresos, gastos y márgenes de utilidad</p>
                 </div>
 
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto self-stretch md:self-auto">
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto self-stretch md:self-auto gap-1">
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="bg-white p-2 rounded-xl text-slate-400 hover:text-teal-600 transition-colors shadow-sm"
+                        title="Sincronizar Datos"
+                    >
+                        <History size={18} />
+                    </button>
                     <button 
                         onClick={() => setSubTab('daily')}
                         className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subTab === 'daily' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
