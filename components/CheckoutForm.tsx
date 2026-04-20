@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MapPin, ChevronDown, CheckCircle2, MousePointer2 } from 'lucide-react';
+import { MapPin, ChevronDown, CheckCircle2, MousePointer2, Navigation, Loader2 } from 'lucide-react';
 import { CheckoutFormData, Ciudadela } from '../types';
 import LocationPickerModal from './LocationPickerModal';
 
@@ -19,7 +19,25 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   formData, handleInputChange, setFormData, ciudadelas, selectedCiudadela, setSelectedCiudadela, onCancel, onNextStep
 }) => {
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const hasSelectedLocation = formData.lat && formData.lng;
+
+  const handleAutoLocate = () => {
+    if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización");
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData({ ...formData, lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setIsLocating(false);
+      },
+      (err) => {
+        setIsLocating(false);
+        console.error("Geolocation error:", err);
+        alert("No pudimos obtener tu ubicación automáticamente. Por favor, ábrelo en el mapa.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleLocationConfirm = (lat: number, lng: number) => {
     setFormData({ ...formData, lat, lng });
@@ -73,16 +91,27 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
                   Ubicación de Entrega {hasSelectedLocation && <CheckCircle2 size={16} className="text-green-500" />}
                 </h4>
                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                   {hasSelectedLocation ? 'Punto GPS seleccionado correctamente' : 'Ubica tu casa exactamente en el mapa'}
+                   {hasSelectedLocation ? 'Punto GPS fijado correctamente' : '¿Cómo quieres ubicar tu entrega?'}
                 </p>
             </div>
-            <button 
-                type="button" 
-                onClick={() => setShowMapPicker(true)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.1em] transition-all shadow-lg active:scale-95 ${hasSelectedLocation ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
-            >
-                <MousePointer2 size={16}/> {hasSelectedLocation ? 'CAMBIAR UBICACIÓN' : 'ABRIR MAPA'}
-            </button>
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <button 
+                    type="button" 
+                    onClick={handleAutoLocate}
+                    disabled={isLocating}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all shadow-md active:scale-95 border-2 ${hasSelectedLocation ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-teal-600 border-teal-100'}`}
+                >
+                    {isLocating ? <Loader2 size={16} className="animate-spin text-teal-600" /> : <Navigation size={16}/>} 
+                    {hasSelectedLocation ? 'RE-DETECTAR GPS' : 'MI UBICACIÓN GPS'}
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setShowMapPicker(true)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all shadow-lg active:scale-95 ${hasSelectedLocation ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
+                >
+                    <MousePointer2 size={16}/> {hasSelectedLocation ? 'AJUSTAR EN MAPA' : 'ELEGIR EN MAPA'}
+                </button>
+            </div>
         </div>
 
         {hasSelectedLocation && (

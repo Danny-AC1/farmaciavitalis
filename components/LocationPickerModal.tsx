@@ -21,12 +21,12 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
   const mapContainerId = "fullscreen-picker-map";
 
   useEffect(() => {
-    // @ts-ignore
-    const L = window.L;
+    // Fix: Cast window.L to any to avoid 'unknown' type errors for Leaflet methods like map, tileLayer, divIcon, and marker
+    const L = (window as any).L;
     if (!L) return;
 
     if (!mapRef.current) {
-      // 1. Inicializar Mapa con soporte para el máximo detalle de Google
+      // ... init map ...
       mapRef.current = L.map(mapContainerId, {
         zoomControl: false,
         attributionControl: false,
@@ -34,7 +34,15 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
         maxZoom: 20
       }).setView([currentCoords.lat, currentCoords.lng], 18);
 
+      // Auto-locar si no hay ubicación previa
+      if (!initialLat || !initialLng) {
+          setTimeout(() => {
+              handleGetLocation();
+          }, 500);
+      }
+
       // 2. INTEGRACIÓN DIRECTA CON GOOGLE MAPS (Híbrido: Satélite + Etiquetas)
+      // Fix: Use cast any to access tileLayer property on global Leaflet object
       L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         maxZoom: 20,
@@ -42,6 +50,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
       }).addTo(mapRef.current);
 
       // 3. Crear Icono Personalizado Vitalis
+      // Fix: Use cast any to access divIcon property on global Leaflet object
       const customIcon = L.divIcon({
         className: 'custom-leaflet-pin',
         html: `<div class="pin-wrapper">
@@ -53,6 +62,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
       });
 
       // 4. Crear Marcador Arrastrable sobre Google Maps
+      // Fix: Use cast any to access marker property on global Leaflet object
       markerRef.current = L.marker([currentCoords.lat, currentCoords.lng], {
         draggable: true,
         icon: customIcon,
@@ -103,7 +113,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
                 <div>
                     <h3 className="font-black text-[10px] uppercase tracking-widest text-blue-700 leading-none">Google Maps Engine</h3>
                     <p className="text-[8px] text-slate-500 font-bold uppercase mt-1 flex items-center gap-1">
-                      <Info size={10} className="text-blue-500"/> Arrastra el pin verde hasta tu casa
+                      <Info size={10} className="text-blue-500"/> Busca tu casa con precisión
                     </p>
                 </div>
             </div>
