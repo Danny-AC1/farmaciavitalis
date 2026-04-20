@@ -114,23 +114,19 @@ export const generateProductDescription = async (
 export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
+    const prompt = `Actúa como un experto farmacéutico. Sugiere una lista de hasta 10 términos (marcas competidoras, genéricos y síntomas) para el producto "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}). Responde SOLO la lista separada por comas.`;
+
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: `Sugiere equivalentes y palabras clave para:
-            Nombre: "${productName}"
-            Principio Activo: "${activeIngredient || 'No especificado'}"`,
-            config: {
-                systemInstruction: "Actúa como un catálogo farmacéutico experto. Genera una lista de hasta 10 términos que incluyan marcas comerciales competidoras famosas con el mismo uso, nombres genéricos equivalentes y síntomas que trata el medicamento. Responde SOLO la lista separada por comas, sin introducciones ni asteriscos.",
-                temperature: 0.7,
-            }
+            model: "gemini-flash-latest",
+            contents: prompt,
         });
         
         const text = response.text;
         if (!text) return "";
-        return text.trim().replace(/\*/g, '');
+        return text.trim().replace(/\*/g, '').replace(/^- /, '');
     } catch (error) {
-        console.error("Error generating keywords:", error);
-        return "";
+        console.error("Error en generateProductKeywords:", error);
+        throw error; // Lanzamos el error para que el hook lo capture y sepamos qué pasa
     }
 };

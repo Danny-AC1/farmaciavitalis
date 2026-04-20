@@ -142,7 +142,8 @@ export const useAdminProductForm = (
             setProdKeywords(keywords);
         } catch (err) {
             console.error("Error en handleGenerateKeywords:", err);
-            alert("Error al conectar con el servicio de IA.");
+            const msg = err instanceof Error ? err.message : "Error desconocido";
+            alert(`Error al conectar con el servicio de IA: ${msg}`);
         } finally { 
             setIsGenerating(false); 
         }
