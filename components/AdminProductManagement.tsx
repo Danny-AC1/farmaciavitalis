@@ -25,6 +25,7 @@ interface AdminProductManagementProps {
   prodKeywords: string; setProdKeywords: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
+  handleGenerateKeywords: () => Promise<void>;
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
@@ -58,6 +59,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
             prodKeywords={props.prodKeywords} setProdKeywords={props.setProdKeywords}
             handleProductSubmit={props.handleProductSubmit}
             handleGenerateDescription={props.handleGenerateDescription}
+            handleGenerateKeywords={props.handleGenerateKeywords}
             handleImageUpload={props.handleImageUpload}
             setShowProductScanner={props.setShowProductScanner}
             resetProductForm={props.resetProductForm}

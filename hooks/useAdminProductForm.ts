@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Product, Category } from '../types';
-import { generateProductDescription } from '../services/gemini';
+import { generateProductDescription, generateProductKeywords } from '../services/gemini';
 import { uploadImageToStorage } from '../services/db';
 
 export interface AdminProductForm {
@@ -42,6 +42,7 @@ export interface AdminProductForm {
     setIsUploadingImage: (val: boolean) => void;
     handleProductSubmit: (e: React.FormEvent) => Promise<void>;
     handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
+    handleGenerateKeywords: () => Promise<void>;
     handleEditClick: (p: Product) => void;
     resetForm: () => void;
     handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string) => void) => Promise<void>;
@@ -114,13 +115,13 @@ export const useAdminProductForm = (
 
     const resetForm = () => {
         setEditingId(null); setProdName(''); setProdPrice(''); setProdCostPrice(''); setProdUnitsPerBox('');
-        setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage('');
+        setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage(''); 
         setProdBarcode(''); setProdExpiry(''); setProdSupplier('');
         setProdActiveIngredient(''); setProdKeywords('');
     };
 
     const handleGenerateDescription = async (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => {
-        if (!prodName) return alert("Escribe el nombre");
+        if (!prodName) return alert("Escribe el nombre del producto primero");
         setIsGenerating(true);
         try {
             const desc = await generateProductDescription(prodName, prodCat || 'Medicamentos', tone);
@@ -128,24 +129,33 @@ export const useAdminProductForm = (
         } finally { setIsGenerating(false); }
     };
 
+    const handleGenerateKeywords = async () => {
+        if (!prodName) return alert("Escribe el nombre del producto para generar equivalentes");
+        setIsGenerating(true);
+        try {
+            const keywords = await generateProductKeywords(prodName, prodActiveIngredient);
+            setProdKeywords(keywords);
+        } finally { setIsGenerating(false); }
+    };
+
     const handleEditClick = (p: Product) => {
-        setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString());
-        setProdCostPrice(p.costPrice?.toString() || ''); setProdUnitsPerBox(p.unitsPerBox?.toString() || '');
-        setProdBoxPrice(p.boxPrice?.toString() || ''); setProdPublicBoxPrice(p.publicBoxPrice?.toString() || '');
-        setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image);
+        setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString()); 
+        setProdCostPrice(p.costPrice?.toString() || ''); setProdUnitsPerBox(p.unitsPerBox?.toString() || ''); 
+        setProdBoxPrice(p.boxPrice?.toString() || ''); setProdPublicBoxPrice(p.publicBoxPrice?.toString() || ''); 
+        setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image); 
         setProdBarcode(p.barcode || ''); setProdExpiry(p.expiryDate || ''); setProdSupplier(p.supplierId || '');
         setProdActiveIngredient(p.activeIngredient || ''); setProdKeywords(p.keywords || '');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     return {
-        editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice,
-        prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox,
+        editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice, 
+        prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox, 
         prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
-        prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage,
+        prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, 
         prodBarcode, setProdBarcode, prodExpiry, setProdExpiry, prodSupplier, setProdSupplier,
         prodActiveIngredient, setProdActiveIngredient, prodKeywords, setProdKeywords,
         isGenerating, setIsGenerating, isSubmitting, isUploadingImage, setIsUploadingImage,
-        handleProductSubmit, handleGenerateDescription, handleEditClick, resetForm, handleImageUpload
+        handleProductSubmit, handleGenerateDescription, handleGenerateKeywords, handleEditClick, resetForm, handleImageUpload
     };
 };

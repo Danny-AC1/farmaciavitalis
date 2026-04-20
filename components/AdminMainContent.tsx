@@ -117,6 +117,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     setProdKeywords={state.setProdKeywords}
                     handleProductSubmit={state.handleProductSubmit} 
                     handleGenerateDescription={state.handleGenerateDescription} 
+                    handleGenerateKeywords={state.handleGenerateKeywords}
                     handleImageUpload={state.handleImageUpload} 
                     setShowProductScanner={state.setShowPosScanner} 
                     handleEditClick={state.handleEditClick} 

@@ -4,7 +4,7 @@ import { Product } from '../types';
 
 // --- BÚSQUEDA POR SÍNTOMAS ---
 export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
         const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
         const prompt = `Actúa como un farmacéutico experto. El cliente describe este síntoma: "${symptom}".
@@ -14,7 +14,7 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
         Responde SOLO el array JSON de strings. Si ninguno sirve, responde [].`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-flash-latest',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -30,7 +30,7 @@ export const searchProductsBySymptoms = async (symptom: string, products: Produc
 
 // --- VENTA CRUZADA INTELIGENTE ---
 export const getCrossSellSuggestion = async (targetProduct: Product, allProducts: Product[]): Promise<{product: Product | undefined, reason: string}> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
         const candidates = allProducts
             .filter(p => p.id !== targetProduct.id && p.stock > 0)
@@ -45,7 +45,7 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
         { "suggestedId": "id", "reason": "Frase corta persuasiva" }`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-3.1-pro-preview',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -77,7 +77,7 @@ export const generateProductDescription = async (
     category: string, 
     tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO' = 'PERSUASIVO'
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const toneInstructions = {
     CLINICO: "Enfoque técnico, basado en evidencia, resalta componentes y farmacocinética de forma seria.",
@@ -101,7 +101,7 @@ export const generateProductDescription = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-flash-latest',
       contents: prompt,
     });
     return response.text?.trim() || "No se pudo generar la descripción.";
@@ -109,4 +109,26 @@ export const generateProductDescription = async (
     console.error(error);
     return "Error generando descripción.";
   }
+};
+
+export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const prompt = `Actúa como un experto farmacéutico. Necesito extraer palabras clave para un buscador de farmacia que ayude a encontrar alternativas si no hay stock del producto original.
+    PRODUCTO: "${productName}"
+    PRINCIPIO ACTIVO: "${activeIngredient || 'No especificado'}"
+    
+    TAREA: Genera una lista de marcas comerciales competidoras famosas que tengan el mismo uso, nombres genéricos equivalentes y síntomas que este medicamento trata.
+    EJEMPLO para "Apronax": "naproxeno, dolpy, anaprox, dolor de muela, inflamación, artritis".
+    RESPUESTA: Solo devuelve las palabras clave separadas por comas. Máximo 10 términos. No añadas explicaciones ni introducciones.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-flash-latest',
+            contents: prompt,
+        });
+        return response.text?.trim().replace(/\*/g, '') || "";
+    } catch (error) {
+        console.error("Error generating keywords:", error);
+        return "";
+    }
 };

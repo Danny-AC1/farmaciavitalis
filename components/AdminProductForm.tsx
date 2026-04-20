@@ -21,6 +21,7 @@ interface AdminProductFormProps {
   prodKeywords: string; setProdKeywords: (s: string) => void;
   handleProductSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleGenerateDescription: (tone: 'CLINICO' | 'PERSUASIVO' | 'CERCANO') => Promise<void>;
+  handleGenerateKeywords: () => Promise<void>;
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
   setShowProductScanner: (b: boolean) => void;
   resetProductForm: () => void;
@@ -78,7 +79,19 @@ const AdminProductForm: React.FC<AdminProductFormProps> = (props) => {
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-purple-700 uppercase">Equivalentes / Palabra Clave</label>
+              <label className="text-xs font-bold text-purple-700 uppercase flex items-center justify-between">
+                Equivalentes / Palabra Clave
+                <button 
+                  type="button" 
+                  onClick={() => props.handleGenerateKeywords()}
+                  disabled={props.isGenerating || !props.prodName}
+                  className="text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1 group disabled:opacity-50"
+                  title="Sugerir con IA"
+                >
+                  {props.isGenerating ? <Loader2 size={10} className="animate-spin text-purple-400" /> : <Sparkles size={10} className="group-hover:animate-pulse" />}
+                  <span className="text-[8px] font-black tracking-tighter">SUGERIR IA</span>
+                </button>
+              </label>
               <input 
                 className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/20" 
                 value={props.prodKeywords} 
