@@ -46,14 +46,21 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         <div className="relative">
           <select 
             required
-            className="w-full border-2 border-teal-100 bg-white rounded-xl p-4 font-black text-slate-800 outline-none focus:border-teal-500 transition-all appearance-none cursor-pointer shadow-sm"
+            className="w-full border-2 border-teal-100 bg-white rounded-xl p-4 font-black text-slate-800 outline-none focus:border-teal-500 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50"
             value={selectedCiudadela?.id || ''}
             onChange={(e) => setSelectedCiudadela(ciudadelas.find(c => c.id === e.target.value) || null)}
+            disabled={ciudadelas.length === 0}
           >
-            <option value="" disabled>--- SELECCIONE SU SECTOR ---</option>
-            {ciudadelas.map(c => (
-              <option key={c.id} value={c.id}>{c.name.toUpperCase()} (Envío: ${c.price.toFixed(2)})</option>
-            ))}
+            {ciudadelas.length === 0 ? (
+              <option value="">Cargando sectores...</option>
+            ) : (
+              <>
+                <option value="" disabled>--- SELECCIONE SU SECTOR ---</option>
+                {ciudadelas.map(c => (
+                  <option key={c.id} value={c.id}>{c.name.toUpperCase()} (Envío: ${c.price.toFixed(2)})</option>
+                ))}
+              </>
+            )}
           </select>
           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-600 pointer-events-none" size={20}/>
         </div>

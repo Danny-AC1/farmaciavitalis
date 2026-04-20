@@ -36,6 +36,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
   const [discountAmount, setDiscountAmount] = useState(0);
 
   useEffect(() => {
+    // Sincronizar datos iniciales si hay usuario
     if (currentUser) {
         setFormData(prev => ({ 
           ...prev, 
@@ -47,11 +48,13 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
           deliveryZone: currentUser.deliveryZone || prev.deliveryZone
         }));
     }
+
+    // Estas suscripciones deben estar SIEMPRE activas, incluso para invitados
     const unsubCoupons = streamCoupons(setCoupons);
     const unsubCiudadelas = streamCiudadelas((data) => {
         setCiudadelas(data);
         if (data.length > 0) {
-            // Si el usuario tiene una zona guardada, la buscamos y la seleccionamos
+            // 1. Prioridad: Lo que el usuario ya tenga guardado
             if (currentUser?.deliveryZone) {
                 const savedZone = data.find(c => c.name === currentUser.deliveryZone);
                 if (savedZone) {
@@ -59,14 +62,17 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
                     return;
                 }
             }
-            // Para invitados o usuarios sin zona, NO seleccionamos ninguna por defecto 
-            // si queremos obligarlos a elegir, o elegimos la primera si es Machalilla Centro.
+            // 2. Si no hay selección previa o es invitado, buscamos "Centro" o la primera
             const defaultZone = data.find(c => c.name.toLowerCase().includes('centro')) || data[0];
             setSelectedCiudadela(defaultZone);
         }
     });
-    return () => { unsubCoupons(); unsubCiudadelas(); };
-  }, [currentUser]);
+
+    return () => { 
+        unsubCoupons(); 
+        unsubCiudadelas(); 
+    };
+  }, [currentUser]); 
 
   useEffect(() => {
       let d = 0;

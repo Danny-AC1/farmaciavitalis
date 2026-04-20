@@ -7,15 +7,10 @@ export const useAppOrders = (
   subtotal: number, 
   products: Product[],
   setCart: (v: CartItem[]) => void,
-  setView: (v: any) => void,
-  setShowAuthModal: (v: boolean) => void
+  setView: (v: any) => void
 ) => {
   const handleConfirmOrder = async (details: CheckoutFormData, discount: number, pointsRedeemed: number) => {
-    if (!currentUser) {
-      setShowAuthModal(true);
-      return;
-    }
-
+    // Ya no bloqueamos a los invitados, permitimos pedidos sin login
     const orderId = `WEB-${Date.now()}`;
     const finalTotal = subtotal + details.deliveryFee - discount;
     const order: Order = {
@@ -34,7 +29,7 @@ export const useAppOrders = (
       status: 'PENDING',
       source: 'ONLINE',
       date: new Date().toISOString(),
-      userId: currentUser.uid,
+      userId: currentUser?.uid || 'GUEST', // Usamos 'GUEST' si no hay usuario
       lat: details.lat,
       lng: details.lng
     };
@@ -42,20 +37,22 @@ export const useAppOrders = (
     try {
       await addOrderDB(order);
 
-      // Actualizar puntos y gasto acumulado del cliente
-      const totalSpend = (currentUser.accumulatedSpend || 0) + subtotal;
-      const newPointsEarned = Math.floor(totalSpend);
-      const remainingSpend = totalSpend - newPointsEarned;
+      // Solo actualizamos puntos y campos de usuario si hay un usuario logueado
+      if (currentUser) {
+          const totalSpend = (currentUser.accumulatedSpend || 0) + subtotal;
+          const newPointsEarned = Math.floor(totalSpend);
+          const remainingSpend = totalSpend - newPointsEarned;
 
-      await updateUserFieldsDB(currentUser.uid, {
-          address: details.address,
-          lat: details.lat,
-          lng: details.lng,
-          deliveryZone: details.deliveryZone,
-          phone: details.phone,
-          points: (currentUser.points - pointsRedeemed) + newPointsEarned,
-          accumulatedSpend: remainingSpend
-      });
+          await updateUserFieldsDB(currentUser.uid, {
+              address: details.address,
+              lat: details.lat,
+              lng: details.lng,
+              deliveryZone: details.deliveryZone,
+              phone: details.phone,
+              points: (currentUser.points - pointsRedeemed) + newPointsEarned,
+              accumulatedSpend: remainingSpend
+          });
+      }
 
       for (const item of cart) {
         const orig = products.find(p => p.id === item.id);

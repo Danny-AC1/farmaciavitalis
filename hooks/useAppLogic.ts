@@ -40,8 +40,7 @@ export const useAppLogic = () => {
     cart.subtotal, 
     data.products, 
     cart.setCart, 
-    nav.setView, 
-    setShowAuthModal
+    nav.setView
   );
 
   const handleTabChange = (tab: any) => {
