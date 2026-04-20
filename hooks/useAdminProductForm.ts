@@ -132,10 +132,20 @@ export const useAdminProductForm = (
     const handleGenerateKeywords = async () => {
         if (!prodName) return alert("Escribe el nombre del producto para generar equivalentes");
         setIsGenerating(true);
+        console.log("Iniciando generación de palabras clave para:", prodName, "con principio:", prodActiveIngredient);
         try {
             const keywords = await generateProductKeywords(prodName, prodActiveIngredient);
+            console.log("Palabras clave recibidas:", keywords);
+            if (!keywords) {
+                alert("La IA no pudo generar sugerencias. Prueba escribiendo el nombre más completo.");
+            }
             setProdKeywords(keywords);
-        } finally { setIsGenerating(false); }
+        } catch (err) {
+            console.error("Error en handleGenerateKeywords:", err);
+            alert("Error al conectar con el servicio de IA.");
+        } finally { 
+            setIsGenerating(false); 
+        }
     };
 
     const handleEditClick = (p: Product) => {

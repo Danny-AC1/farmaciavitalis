@@ -113,20 +113,22 @@ export const generateProductDescription = async (
 
 export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const prompt = `Actúa como un experto farmacéutico. Necesito extraer palabras clave para un buscador de farmacia que ayude a encontrar alternativas si no hay stock del producto original.
-    PRODUCTO: "${productName}"
-    PRINCIPIO ACTIVO: "${activeIngredient || 'No especificado'}"
     
-    TAREA: Genera una lista de marcas comerciales competidoras famosas que tengan el mismo uso, nombres genéricos equivalentes y síntomas que este medicamento trata.
-    EJEMPLO para "Apronax": "naproxeno, dolpy, anaprox, dolor de muela, inflamación, artritis".
-    RESPUESTA: Solo devuelve las palabras clave separadas por comas. Máximo 10 términos. No añadas explicaciones ni introducciones.`;
-
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
-            contents: prompt,
+            model: "gemini-3-flash-preview",
+            contents: `Sugiere equivalentes y palabras clave para:
+            Nombre: "${productName}"
+            Principio Activo: "${activeIngredient || 'No especificado'}"`,
+            config: {
+                systemInstruction: "Actúa como un catálogo farmacéutico experto. Genera una lista de hasta 10 términos que incluyan marcas comerciales competidoras famosas con el mismo uso, nombres genéricos equivalentes y síntomas que trata el medicamento. Responde SOLO la lista separada por comas, sin introducciones ni asteriscos.",
+                temperature: 0.7,
+            }
         });
-        return response.text?.trim().replace(/\*/g, '') || "";
+        
+        const text = response.text;
+        if (!text) return "";
+        return text.trim().replace(/\*/g, '');
     } catch (error) {
         console.error("Error generating keywords:", error);
         return "";
