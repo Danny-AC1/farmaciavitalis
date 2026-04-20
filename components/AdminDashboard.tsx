@@ -13,14 +13,16 @@ interface AdminDashboardProps {
   setActiveTab: (tab: string) => void;
   chartData: { name: string, ventas: number }[];
   netProfit: number;
+  netProfitExcludingInventory: number;
   totalRevenue: number;
+  monthlyGross: number;
   profitableProducts: { name: string, profit: number, quantity: number }[];
   topCategory?: string;
   currentUserRole?: User['role'];
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  orders, products, reportPeriod, setReportPeriod, setActiveTab, chartData, netProfit, totalRevenue, profitableProducts, topCategory, currentUserRole
+  orders, products, reportPeriod, setReportPeriod, setActiveTab, chartData, netProfit, netProfitExcludingInventory, totalRevenue, monthlyGross, profitableProducts, topCategory, currentUserRole
 }) => {
   const totalOrdersCount = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
@@ -61,8 +63,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="h-12 w-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 mb-4">
                   <DollarSign size={24} />
               </div>
-              <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ingresos Brutos</span>
-              <p className="text-2xl font-black text-slate-800 mt-1">${totalRevenue.toFixed(2)}</p>
+              <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ingresos Brutos (Mes)</span>
+              <p className="text-2xl font-black text-slate-800 mt-1">${monthlyGross.toFixed(2)}</p>
+              <p className="text-[9px] text-slate-400 font-bold mt-1">Histórico: ${totalRevenue.toFixed(2)}</p>
               {potentialRevenue > 0 && (
                 <p className="text-[10px] text-orange-500 font-bold mt-1 flex items-center gap-1">
                     <Clock size={10}/> +${potentialRevenue.toFixed(2)} por cobrar
@@ -76,9 +79,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-4 backdrop-blur-md">
                         <TrendingUp size={24} />
                     </div>
-                    <span className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">Utilidad Neta Real</span>
-                    <p className="text-2xl font-black mt-1">${netProfit.toFixed(2)}</p>
-                    <p className="text-[10px] text-emerald-100/60 mt-2">Deducidos gastos y costos de compra</p>
+                    <span className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">Utilidad Operativa Real</span>
+                    <p className="text-2xl font-black mt-1">${netProfitExcludingInventory.toFixed(2)}</p>
+                    <p className="text-[9px] text-emerald-100/60 mt-2 font-bold tracking-tight">Sin descontar compras de stock</p>
+                    <p className="text-[8px] text-emerald-200/40 mt-0.5">Neta Total: ${netProfit.toFixed(2)}</p>
                 </div>
                 <Wallet size={120} className="absolute -right-8 -bottom-8 opacity-10 rotate-12" />
             </div>
@@ -89,7 +93,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <Package size={24} />
               </div>
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ítems Registrados</span>
-              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} SKU</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} Productos</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">

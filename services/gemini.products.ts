@@ -112,7 +112,12 @@ export const generateProductDescription = async (
 };
 
 export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {    
-    const prompt = `Actúa como un experto farmacéutico. Sugiere una lista de hasta 10 términos (marcas competidoras, genéricos y síntomas) para el producto "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}). Responde SOLO la lista separada por comas sin asteriscos.`;
+    const prompt = `Actúa como un experto farmacéutico. El producto es "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}).
+    Sugiere una lista de hasta 15 términos que incluyan:
+    1. NOMBRES COMERCIALES EQUIVALENTES (Prioridad: marcas de la competencia que tengan el mismo efecto o principio activo).
+    2. USOS Y SÍNTOMAS (¿Para qué sirve? ej: "dolor de cabeza", "infección", "gripe").
+    Asegúrate de que la mayoría sean nombres comerciales, pero incluye 4 o 5 términos sobre para qué sirve el medicamento.
+    Responde SOLO la lista separada por comas, sin explicaciones ni asteriscos.`;
 
     try {
         const ai = getAiClient();

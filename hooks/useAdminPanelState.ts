@@ -145,7 +145,13 @@ export const useAdminPanelState = (
         return acc;
     }, {} as Record<string, number>);
 
+    const inventoryExpenses = currentMonthExpensesList
+        .filter(e => e.category === 'INVENTORY')
+        .reduce((a, b) => a + b.amount, 0);
+
     const netProfit = monthlyStats.currentMonthGP - currentMonthExpenses;
+    const netProfitExcludingInventory = monthlyStats.currentMonthGP - (currentMonthExpenses - inventoryExpenses);
+    
     const todayOrders = orders.filter(o => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString());
     const todayCash = todayOrders.filter(o => o.paymentMethod === 'CASH').reduce((a, b) => a + b.total, 0);
     const todayTrans = todayOrders.filter(o => o.paymentMethod === 'TRANSFER').reduce((a, b) => a + b.total, 0);
@@ -233,7 +239,7 @@ export const useAdminPanelState = (
         blogTopic, setBlogTopic, marketingProduct, setMarketingProduct, postPlatform, setPostPlatform,
         generatedPost, bannerTitle, setBannerTitle, isUploadingBanner,
         // Finanzas
-        chartData, profitableProducts, topCategory, totalRevenue, netProfit, todayCash, todayTrans, expenseBreakdown,
+        chartData, profitableProducts, topCategory, totalRevenue, netProfit, netProfitExcludingInventory, todayCash, todayTrans, expenseBreakdown,
         monthlyStats, currentMonthExpenses,
         // Handlers Directos y Redireccionamientos
         handleAddBanner, 
