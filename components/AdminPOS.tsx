@@ -49,6 +49,15 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [substitutionTerm, setSubstitutionTerm] = useState('');
   const [showSubstitution, setShowSubstitution] = useState(false);
+  const [lastScanned, setLastScanned] = useState<string | null>(null);
+
+  // EFECTO PARA LIMPIAR EL FEEDBACK DEL SCANNER
+  React.useEffect(() => {
+    if (lastScanned) {
+        const timer = setTimeout(() => setLastScanned(null), 3000);
+        return () => clearTimeout(timer);
+    }
+  }, [lastScanned]);
 
   // ESTADOS DEL FORMULARIO DE REGISTRO
   const [regName, setRegName] = useState('');
@@ -85,6 +94,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       return;
     }
     addToPosCart(p, unitType);
+    setLastScanned(p.name);
     
     // Buscar si hay un combo de upgrade para este producto
     const upgrade = bundles.find(b => b.active && b.isUpgrade && b.baseProductId === p.id);
@@ -156,6 +166,15 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative font-sans">
       
       {/* 1. PANEL SUPERIOR (Buscadores) */}
+      {lastScanned && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-4">
+              <div className="bg-teal-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 font-bold text-xs ring-4 ring-teal-600/20">
+                  <ScanBarcode size={16} className="animate-pulse" />
+                  <span>AGREGADO: <span className="uppercase">{lastScanned}</span></span>
+              </div>
+          </div>
+      )}
+
       <div className="bg-white border-b border-slate-200 p-2 md:p-4 shrink-0 shadow-sm z-20">
         <div className="max-w-[1600px] mx-auto space-y-2 md:space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">

@@ -10,14 +10,32 @@ interface CashClosureModalProps {
     todayTrans: number;
     customDate?: string;
     onSave: (closure: CashClosure) => void;
+    initialClosure?: CashClosure | null;
 }
 
-const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, todayCash, todayTrans, customDate, onSave }) => {
-    const [cashActual, setCashActual] = useState<string>(todayCash.toString());
-    const [transActual, setTransActual] = useState<string>(todayTrans.toString());
-    const [cashLeft, setCashLeft] = useState<string>('0');
-    const [cashWithdrawn, setCashWithdrawn] = useState<string>('0');
-    const [notes, setNotes] = useState('');
+const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, todayCash, todayTrans, customDate, onSave, initialClosure }) => {
+    const [cashActual, setCashActual] = useState<string>(initialClosure ? initialClosure.cashActual?.toString() || '0' : todayCash.toString());
+    const [transActual, setTransActual] = useState<string>(initialClosure ? initialClosure.transActual?.toString() || '0' : todayTrans.toString());
+    const [cashLeft, setCashLeft] = useState<string>(initialClosure ? initialClosure.cashLeftForChange?.toString() || '0' : '0');
+    const [cashWithdrawn, setCashWithdrawn] = useState<string>(initialClosure ? initialClosure.cashWithdrawn?.toString() || '0' : '0');
+    const [notes, setNotes] = useState(initialClosure?.notes || '');
+
+    // Resetear estados cuando cambia initialClosure
+    React.useEffect(() => {
+        if (initialClosure) {
+            setCashActual(initialClosure.cashActual?.toString() || '0');
+            setTransActual(initialClosure.transActual?.toString() || '0');
+            setCashLeft(initialClosure.cashLeftForChange?.toString() || '0');
+            setCashWithdrawn(initialClosure.cashWithdrawn?.toString() || '0');
+            setNotes(initialClosure.notes || '');
+        } else {
+            setCashActual(todayCash.toString());
+            setTransActual(todayTrans.toString());
+            setCashLeft('0');
+            setCashWithdrawn('0');
+            setNotes('');
+        }
+    }, [initialClosure, todayCash, todayTrans, isOpen]);
 
     if (!isOpen) return null;
 
@@ -26,30 +44,33 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
         const tActual = parseFloat(transActual) || 0;
         const cLeft = parseFloat(cashLeft) || 0;
         const cWithdrawn = parseFloat(cashWithdrawn) || 0;
-        // La diferencia ahora resta el dinero que se deja para cambio del efectivo real
-        // para comparar solo lo generado por ventas contra lo esperado por sistema.
-        const diff = (cActual - cLeft + tActual) - (todayCash + todayTrans);
+        
+        // Mantener datos originales si es edición
+        const cashExp = initialClosure ? initialClosure.cashExpected || 0 : todayCash;
+        const transExp = initialClosure ? initialClosure.transExpected || 0 : todayTrans;
+
+        const diff = (cActual - cLeft + tActual) - (cashExp + transExp);
 
         try {
             await onSave({
-                id: '',
-                date: customDate || new Date().toISOString().split('T')[0],
-                createdAt: new Date().toISOString(),
-                cashExpected: todayCash,
-                transExpected: todayTrans,
+                id: initialClosure?.id || '',
+                date: initialClosure?.date || customDate || new Date().toISOString().split('T')[0],
+                createdAt: initialClosure?.createdAt || new Date().toISOString(),
+                cashExpected: cashExp,
+                transExpected: transExp,
                 cashActual: cActual,
                 transActual: tActual,
                 cashLeftForChange: cLeft,
                 cashWithdrawn: cWithdrawn,
                 difference: diff,
-                recordedBy: 'Admin',
+                recordedBy: initialClosure?.recordedBy || 'Admin',
                 notes: notes
             });
-            alert('Corte de caja guardado con éxito.');
+            alert(initialClosure ? '¡Cierre de caja actualizado!' : '¡Corte de caja guardado con éxito!');
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error al guardar cierre:", error);
-            alert('Error al guardar el cierre. Intente de nuevo.');
+            alert(`Error al guardar: ${error.message}`);
         }
     };
 

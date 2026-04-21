@@ -1,7 +1,8 @@
 
 import React, { useRef } from 'react';
-import { Product, Order, Category } from '../types';
+import { Product, Order, Category, CashClosure } from '../types';
 import { useAdminPanelState } from '../hooks/useAdminPanelState';
+import { useUSBScanner } from '../hooks/useUSBScanner';
 
 // Componentes Base
 import AdminSidebar from './AdminSidebar';
@@ -36,12 +37,52 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado para corte de caja personalizado
-  const [customClosure, setCustomClosure] = React.useState<{cash: number, trans: number, date: string} | null>(null);
+  // Escáner USB Global para el POS
+  useUSBScanner((code) => {
+    if (state.activeTab === 'pos') {
+        const p = props.products.find(x => x.barcode === code);
+        if (p) {
+            state.addToPosCart(p);
+            // Podríamos añadir una notificación sutil aquí
+        } else {
+            alert(`Producto con código "${code}" no encontrado.`);
+        }
+    } else if (state.activeTab === 'products') {
+        // Si estamos en productos, seteamos el código en el estado del formulario
+        state.setProdBarcode(code);
+        // Opcional: feedback visual
+        console.log("Código escaneado para catálogo:", code);
+    }
+  }, true); // Activo globalmente para mayor fluidez
 
-  const handleShowCustomClosure = (cash: number, trans: number, date: string) => {
-    setCustomClosure({ cash, trans, date });
+  // Estado para corte de caja personalizado / edición
+  const [customClosure, setCustomClosure] = React.useState<{cash: number, trans: number, date: string, closure?: CashClosure | null} | null>(null);
+
+  const handleShowCustomClosure = (cash: number, trans: number, date: string, closure?: CashClosure) => {
+    setCustomClosure({ cash, trans, date, closure });
     state.setShowCashClosure(true);
+  };
+
+  const handleEditClosure = (closure: CashClosure) => {
+    setCustomClosure({ 
+        cash: closure.cashExpected || 0, 
+        trans: closure.transExpected || 0, 
+        date: closure.date || '',
+        closure: closure 
+    });
+    state.setShowCashClosure(true);
+  };
+
+  const handleSaveWrapper = async (closure: CashClosure) => {
+    if (customClosure?.closure) {
+        // En lugar de import dinámico que puede fallar en algunos entornos, 
+        // podrías simplemente llamar a una función del servicio que ya está disponible
+        // pero preferimos mantener la consistencia con el flujo del estado
+        const { updateCashClosureDB } = await import('../services/db.admin');
+        await updateCashClosureDB(closure);
+    } else {
+        await state.handleSaveCashClosure(closure);
+    }
   };
 
   // Filtros para el Header
@@ -84,6 +125,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     productInputRef={productInputRef}
                     bannerInputRef={bannerInputRef}
                     onShowCashClosure={handleShowCustomClosure}
+                    onEditClosure={handleEditClosure}
                 />
               </div>
           </div>
@@ -113,7 +155,8 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         todayCash={customClosure ? customClosure.cash : state.todayCash}
         todayTrans={customClosure ? customClosure.trans : state.todayTrans}
         customDate={customClosure?.date}
-        onSave={state.handleSaveCashClosure}
+        onSave={handleSaveWrapper}
+        initialClosure={customClosure?.closure}
       />
     </div>
   );

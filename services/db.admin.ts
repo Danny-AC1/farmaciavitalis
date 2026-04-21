@@ -88,30 +88,58 @@ export const saveCashClosureDB = async (closure: CashClosure) => {
         const cleaned = cleanData(data);
         console.log("Saving cash closure data:", cleaned);
         
-        // Usar un ID predecible para evitar duplicados si se presiona varias veces rápido
-        // pero asegurar que sea lo suficientemente único por milisegundos.
-        const customId = `closure-${data.date}-${Date.now()}`;
-        await setDoc(doc(firestore, CASH_CLOSURES_COLLECTION, customId), cleaned);
+        const docRef = await addDoc(collection(firestore, CASH_CLOSURES_COLLECTION), cleaned);
+        // Guardar el ID dentro del documento para consistencia
+        await updateDoc(docRef, { id: docRef.id });
         
-        console.log("Cash closure saved successfully with ID:", customId);
+        console.log("Cash closure saved successfully with Firestore ID:", docRef.id);
     } catch (error) {
         console.error("Critical error in saveCashClosureDB:", error);
         throw error;
     }
 };
 
+export const updateCashClosureDB = async (closure: CashClosure) => {
+    if (!closure.id) throw new Error("ID de cierre requerido para actualizar");
+    const { id, ...data } = closure;
+    await updateDoc(doc(firestore, CASH_CLOSURES_COLLECTION, id), cleanData(data));
+};
+
+export const deleteCashClosureDB = async (id: string) => {
+    await deleteDoc(doc(firestore, CASH_CLOSURES_COLLECTION, id));
+};
+
 export const streamCashClosures = (callback: (data: CashClosure[]) => void) => {
-    return onSnapshot(collection(firestore, CASH_CLOSURES_COLLECTION), 
+    // Escuchar la colección completa. El ordenamiento se hace en el frontend para evitar 
+    // problemas de índices en proyectos recién configurados.
+    const q = collection(firestore, CASH_CLOSURES_COLLECTION);
+    
+    return onSnapshot(q, 
         (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as CashClosure[];
+            console.log(`Cash closures updated: ${data.length} records found in '${CASH_CLOSURES_COLLECTION}'.`);
             callback(data);
         },
         (error) => {
             console.error("Error streaming cash closures:", error);
-            // Si hay un error, devolvemos una lista vacía para evitar bloqueos
             callback([]);
         }
     );
+};
+
+// Función de diagnóstico para diagnóstico manual
+export const diagnosticFetchClosures = async () => {
+    try {
+        console.log("Iniciando diagnóstico de lectura directa para:", CASH_CLOSURES_COLLECTION);
+        const q = collection(firestore, CASH_CLOSURES_COLLECTION);
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log("Respuesta de diagnóstico:", data.length, "documentos encontrados.");
+        return { success: true, count: data.length, data };
+    } catch (error: any) {
+        console.error("Fallo de diagnóstico en Firestore:", error);
+        return { success: false, error: error.message || "Error desconocido", code: error.code };
+    }
 };
 
 // --- MONTHLY FINANCE ---

@@ -28,9 +28,10 @@ interface AdminMainContentProps {
     productInputRef: React.RefObject<HTMLInputElement>;
     bannerInputRef: React.RefObject<HTMLInputElement>;
     onShowCashClosure?: (cash: number, trans: number, date: string) => void;
+    onEditClosure?: (closure: any) => void;
 }
 
-const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef, onShowCashClosure }) => {
+const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef, onShowCashClosure, onEditClosure }) => {
     switch (activeTab) {
         case 'dashboard':
             return (
@@ -193,6 +194,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                         netProfit={state.netProfit || 0} 
                         expenseBreakdown={state.expenseBreakdown || {}}
                         onRegisterMonthlyFinance={state.handleRegisterMonthlyFinance || (() => {})}
+                        onEditClosure={onEditClosure}
                     />
                 </div>
             );

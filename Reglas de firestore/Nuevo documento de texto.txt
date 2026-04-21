@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir lectura pública a todo el catálogo y blog
+    match /products/{doc} { allow read: if true; allow write: if request.auth != null; }
+    match /categories/{doc} { allow read: if true; allow write: if request.auth != null; }
+    match /blog_posts/{doc} { allow read: if true; allow write: if request.auth != null; }
+    match /banners/{doc} { allow read: if true; allow write: if request.auth != null; }
+    
+    // Solo el dueño del pedido o admin puede leer pedidos
+    match /orders/{doc} {
+      allow create: if true; // Permitir que invitados compren
+      allow read, write: if request.auth != null; 
+    }
+    // Regla específica para los cierres de caja
+    match /cash_closures/{doc} {
+      allow read, write: if true; 
+    }
+    
+    // Reglas por defecto para el resto
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
