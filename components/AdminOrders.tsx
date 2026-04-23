@@ -114,20 +114,18 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
         <body>
           <div class="text-center bold header-main">FARMACIA VITALIS</div>
           <div class="text-center uppercase" style="font-size: 8px;">Tu Salud Al Día</div>
-          <div class="text-center" style="font-size: 8px;">Machalilla, Ecuador</div>
-          <div class="text-center" style="font-size: 8px;">TEL: 0998506160</div>
+          <div class="text-center" style="font-size: 8px;">Machalilla-Manabi-Ecuador</div>
+          <div class="text-center" style="font-size: 8px;">TEL: 0998506160/0996255918</div>
           
           <div class="divider"></div>
           
           <div class="bold">ORDEN: #${order.id.slice(-8)}</div>
           <div>FECHA: ${new Date(order.date).toLocaleString()}</div>
-          <div>MODO: ${order.source || 'VENTA'}</div>
           
           <div class="divider"></div>
           
           <div class="bold">CLIENTE:</div>
           <div class="uppercase">${order.customerName}</div>
-          <div style="font-size: 9px;">DIR: ${order.customerAddress.substring(0, 30)}</div>
           
           <div class="divider"></div>
           
