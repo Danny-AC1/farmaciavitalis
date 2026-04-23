@@ -77,7 +77,7 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
     const cActualVal = parseFloat(cashActual) || 0;
     const tActualVal = parseFloat(transActual) || 0;
     const cLeftVal = parseFloat(cashLeft) || 0;
-    const totalSugerido = todayCash + cLeftVal;
+    const totalSugerido = todayCash + todayTrans + cLeftVal;
     const handlePrint = () => {
         const cashExp = initialClosure ? initialClosure.cashExpected || 0 : todayCash;
         const transExp = initialClosure ? initialClosure.transExpected || 0 : todayTrans;
@@ -192,9 +192,17 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
                     <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
                         <div>
                             <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Total Sugerido a Contar</p>
-                            <p className="text-[8px] text-indigo-300 font-bold uppercase">(Efectivo Sistema + Ef. Cambio)</p>
+                            <p className="text-[8px] text-indigo-300 font-bold uppercase">(Efectivo + Transferencias + Cambio)</p>
                         </div>
                         <p className="text-xl font-black text-indigo-600">${totalSugerido.toFixed(2)}</p>
+                    </div>
+
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Ventas (Sistema)</p>
+                            <p className="text-[8px] text-slate-300 font-bold uppercase">(Efectivo + Transferencias)</p>
+                        </div>
+                        <p className="text-lg font-black text-slate-700">${(todayCash + todayTrans).toFixed(2)}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
