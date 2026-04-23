@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, CheckCircle2, Navigation, Loader2, Info, Map as MapIcon } from 'lucide-react';
+import { X, CheckCircle2, Navigation, Search, Menu, UtensilsCrossed, Hotel, HeartPulse, Bus, MapPin, Layers, Plus, Minus } from 'lucide-react';
 
 interface LocationPickerModalProps {
   initialLat?: number;
@@ -10,6 +10,13 @@ interface LocationPickerModalProps {
 
 const MACHALILLA_CENTER: [number, number] = [-1.4836, -80.7733];
 
+const categories = [
+    { id: 'restaurants', label: 'Restaurantes', icon: UtensilsCrossed },
+    { id: 'hotels', label: 'Hoteles', icon: Hotel },
+    { id: 'pharmacy', label: 'Farma', icon: HeartPulse },
+    { id: 'transport', label: 'Transporte público', icon: Bus },
+];
+
 const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, initialLng, onConfirm, onClose }) => {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -18,58 +25,45 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
     lng: initialLng || MACHALILLA_CENTER[1] 
   });
   const [isLocating, setIsLocating] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const mapContainerId = "fullscreen-picker-map";
 
   useEffect(() => {
-    // Fix: Cast window.L to any to avoid 'unknown' type errors for Leaflet methods like map, tileLayer, divIcon, and marker
     const L = (window as any).L;
     if (!L) return;
 
     if (!mapRef.current) {
-      // ... init map ...
       mapRef.current = L.map(mapContainerId, {
         zoomControl: false,
         attributionControl: false,
         tap: false,
         maxZoom: 20
-      }).setView([currentCoords.lat, currentCoords.lng], 18);
+      }).setView([currentCoords.lat, currentCoords.lng], 17);
 
-      // Auto-locar si no hay ubicación previa
-      if (!initialLat || !initialLng) {
-          setTimeout(() => {
-              handleGetLocation();
-          }, 500);
-      }
-
-      // 2. INTEGRACIÓN DIRECTA CON GOOGLE MAPS (Híbrido: Satélite + Etiquetas)
-      // Fix: Use cast any to access tileLayer property on global Leaflet object
-      L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      // Usar Google Maps Roadmap (Vista de calle estándar)
+      L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         maxZoom: 20,
         attribution: 'Map data © Google'
       }).addTo(mapRef.current);
 
-      // 3. Crear Icono Personalizado Vitalis
-      // Fix: Use cast any to access divIcon property on global Leaflet object
+      // Marcador Estilo Google Maps (Círculo azul/verde con halo blanco)
       const customIcon = L.divIcon({
-        className: 'custom-leaflet-pin',
-        html: `<div class="pin-wrapper">
-                 <div class="pin-main"></div>
-                 <div class="pin-shadow"></div>
+        className: 'google-style-marker',
+        html: `<div class="marker-container">
+                 <div class="marker-halo"></div>
+                 <div class="marker-dot"></div>
                </div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40]
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
       });
 
-      // 4. Crear Marcador Arrastrable sobre Google Maps
-      // Fix: Use cast any to access marker property on global Leaflet object
       markerRef.current = L.marker([currentCoords.lat, currentCoords.lng], {
         draggable: true,
         icon: customIcon,
         zIndexOffset: 1000
       }).addTo(mapRef.current);
 
-      // 5. Sincronización de coordenadas al mover
       const updateCoords = (e: any) => {
         const pos = e.target.getLatLng();
         setCurrentCoords({ lat: pos.lat, lng: pos.lng });
@@ -77,6 +71,16 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
 
       markerRef.current.on('drag', updateCoords);
       markerRef.current.on('dragend', updateCoords);
+      
+      // Click en el mapa para mover marcador
+      mapRef.current.on('click', (e: any) => {
+          markerRef.current.setLatLng(e.latlng);
+          setCurrentCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+      });
+
+      if (!initialLat || !initialLng) {
+          setTimeout(handleGetLocation, 500);
+      }
     }
 
     document.body.style.overflow = 'hidden';
@@ -90,7 +94,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
       (pos) => {
         const { latitude, longitude } = pos.coords;
         if (mapRef.current && markerRef.current) {
-          mapRef.current.flyTo([latitude, longitude], 19);
+          mapRef.current.flyTo([latitude, longitude], 18);
           markerRef.current.setLatLng([latitude, longitude]);
           setCurrentCoords({ lat: latitude, lng: longitude });
         }
@@ -101,117 +105,135 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ initialLat, i
     );
   };
 
+  const zoomIn = () => mapRef.current?.zoomIn();
+  const zoomOut = () => mapRef.current?.zoomOut();
+
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300">
-      {/* Header flotante optimizado para Google Maps */}
-      <div className="absolute top-0 left-0 right-0 z-[1001] p-4 pointer-events-none">
-        <div className="max-w-md mx-auto flex justify-between items-start">
-            <div className="bg-white/95 backdrop-blur-md text-slate-900 px-4 py-3 rounded-[1.2rem] shadow-2xl pointer-events-auto border border-slate-200 flex items-center gap-3">
-                <div className="bg-blue-600 p-2 rounded-xl">
-                  <MapIcon size={18} className="text-white" />
-                </div>
-                <div>
-                    <h3 className="font-black text-[10px] uppercase tracking-widest text-blue-700 leading-none">Google Maps Engine</h3>
-                    <p className="text-[8px] text-slate-500 font-bold uppercase mt-1 flex items-center gap-1">
-                      <Info size={10} className="text-blue-500"/> Busca tu casa con precisión
-                    </p>
+    <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-300 overflow-hidden">
+      {/* Controles Flotantes Superiores (Google Maps Look) */}
+      <div className="absolute top-0 left-0 right-0 z-[1001] px-3 pt-4 pointer-events-none space-y-3">
+        {/* Barra de Búsqueda */}
+        <div className="max-w-xl mx-auto flex items-center gap-2 pointer-events-auto">
+            <div className="bg-white flex-grow flex items-center px-4 py-3 rounded-full shadow-lg border border-gray-100 animate-in slide-in-from-top duration-500">
+                <Menu size={20} className="text-gray-500 mr-3 shrink-0" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar en Google Maps" 
+                    className="w-full bg-transparent outline-none text-sm font-medium text-gray-700" 
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                />
+                <div className="flex items-center gap-3 ml-2 shrink-0">
+                    <Search size={20} className="text-gray-500 cursor-pointer" />
+                    <div className="w-[1px] h-6 bg-gray-200"></div>
+                    <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold">D</div>
                 </div>
             </div>
             <button 
                 onClick={onClose}
-                className="bg-white text-slate-900 p-3 rounded-xl shadow-2xl pointer-events-auto hover:bg-slate-50 active:scale-90 transition-all border border-slate-100"
+                className="bg-white text-gray-600 p-3.5 rounded-full shadow-lg pointer-events-auto active:scale-90 transition-all border border-gray-100 shrink-0"
             >
                 <X size={20} />
             </button>
         </div>
+
+        {/* Categorías Rapidas */}
+        <div className="max-w-xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide pointer-events-auto pb-4 px-1">
+            {categories.map((cat) => (
+                <button key={cat.id} className="flex items-center gap-1.5 bg-white px-4 py-2 rounded-full shadow-md border border-gray-50 shrink-0 hover:bg-gray-50 transition-colors">
+                    <cat.icon size={14} className="text-blue-500" />
+                    <span className="text-[11px] font-bold text-gray-600">{cat.label}</span>
+                </button>
+            ))}
+        </div>
       </div>
 
-      {/* Contenedor del Mapa (Google Maps) */}
+      {/* Contenedor del Mapa */}
       <div id={mapContainerId} className="flex-grow w-full relative z-0"></div>
 
-      {/* Footer de confirmación REDUCIDO */}
-      <div className="p-4 bg-white border-t border-slate-100 flex flex-col items-center gap-3 z-[1001] shadow-[0_-10px_30px_rgba(0,0,0,0.1)]">
-          <div className="flex items-center gap-3 w-full max-w-md">
-             <div className="flex-grow">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5 ml-1">Precisión GPS Vitalis</p>
-                <p className="text-[11px] font-bold text-slate-700 tabular-nums bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 shadow-inner">
-                  {currentCoords.lat.toFixed(6)}, {currentCoords.lng.toFixed(6)}
-                </p>
-             </div>
-             <button 
-                onClick={handleGetLocation}
-                disabled={isLocating}
-                className="bg-slate-100 text-blue-600 p-3 rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-inner border border-slate-200"
-                title="Mi ubicación actual"
-              >
-                {isLocating ? <Loader2 size={20} className="animate-spin" /> : <Navigation size={20} />}
-              </button>
+      {/* Controles Flotantes Laterales */}
+      <div className="absolute right-4 bottom-52 z-[1001] flex flex-col gap-2 pointer-events-none">
+          <div className="flex flex-col bg-white rounded-lg shadow-xl pointer-events-auto overflow-hidden border border-gray-100">
+              <button onClick={zoomIn} className="p-2.5 hover:bg-gray-50 border-b border-gray-100"><Plus size={18} className="text-gray-600" /></button>
+              <button onClick={zoomOut} className="p-2.5 hover:bg-gray-50"><Minus size={18} className="text-gray-600" /></button>
           </div>
-          
+          <button className="bg-white p-2.5 rounded-lg shadow-xl pointer-events-auto border border-gray-100"><Layers size={18} className="text-gray-600" /></button>
           <button 
-            onClick={() => onConfirm(currentCoords.lat, currentCoords.lng)}
-            className="w-full max-w-md bg-teal-600 text-white py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.15em] shadow-[0_8px_20px_rgba(13,148,136,0.25)] flex items-center justify-center gap-2 hover:bg-teal-700 active:scale-95 transition-all border-2 border-white"
+            onClick={handleGetLocation}
+            className={`bg-white p-3 rounded-full shadow-xl pointer-events-auto border border-gray-100 transition-all active:scale-90 ${isLocating ? 'animate-pulse text-blue-600' : 'text-gray-600'}`}
           >
-            <CheckCircle2 size={20} /> CONFIRMAR UBICACIÓN
+            <Navigation size={22} className={isLocating ? 'fill-blue-600' : ''} />
           </button>
       </div>
 
+      {/* Confirmación - Estilo Card Inferior */}
+      <div className="absolute bottom-6 left-4 right-4 z-[1001] pointer-events-none">
+          <div className="max-w-md mx-auto bg-white rounded-3xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.2)] pointer-events-auto border border-gray-100 space-y-4">
+              <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 bg-teal-600 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-teal-600/20">
+                      <MapPin size={22} />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                      <h4 className="text-sm font-black text-gray-800 uppercase tracking-tight">Establecer Ubicación</h4>
+                      <p className="text-[11px] text-gray-500 font-bold leading-tight truncate mt-0.5">
+                        {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
+                      </p>
+                      <p className="text-[10px] text-teal-600 font-black uppercase mt-1 flex items-center gap-1">
+                          <CheckCircle2 size={12}/> Ubicación Seleccionada
+                      </p>
+                  </div>
+              </div>
+              
+              <button 
+                onClick={() => onConfirm(currentCoords.lat, currentCoords.lng)}
+                className="w-full bg-teal-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-teal-600/30 hover:bg-teal-700 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                CONFIRMAR ENTREGA AQUÍ
+              </button>
+          </div>
+      </div>
+
       <style>{`
-        /* Mejorar visualización de Google Maps */
-        .leaflet-tile-container {
-            filter: contrast(1.05) brightness(1.02);
+        .google-style-marker {
+            background: none !important;
+            border: none !important;
         }
-        .custom-leaflet-pin {
-          background: none !important;
-          border: none !important;
+        .marker-container {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
         }
-        .pin-wrapper {
-          position: relative;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
+        .marker-halo {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            z-index: 1;
         }
-        .pin-main {
-          width: 36px;
-          height: 36px;
-          background-color: #0d9488;
-          border: 4px solid white;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-          position: relative;
-          z-index: 2;
+        .marker-dot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #0d9488;
+            border-radius: 50%;
+            z-index: 2;
+            border: 2px solid white;
         }
-        .pin-main::after {
-          content: '';
-          position: absolute;
-          width: 10px;
-          height: 10px;
-          background: white;
-          border-radius: 50%;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
+        .marker-container:hover .marker-halo {
+            transform: scale(1.2);
+            background: #ccfbf1;
         }
-        .pin-shadow {
-          position: absolute;
-          width: 12px;
-          height: 4px;
-          background: rgba(0,0,0,0.4);
-          border-radius: 50%;
-          bottom: -2px;
-          left: 50%;
-          transform: translateX(-50%);
-          filter: blur(2px);
+        .leaflet-container { 
+            width: 100%; 
+            height: 100%; 
+            cursor: crosshair !important; 
+            background: #f8fafc !important; 
         }
-        .leaflet-marker-draggable.leaflet-marker-dragging .pin-main {
-          transform: rotate(-45deg) scale(1.4) translateY(-18px);
-          box-shadow: 0 35px 50px rgba(0,0,0,0.6);
-          background-color: #14b8a6;
-        }
-        .leaflet-container { width: 100%; height: 100%; cursor: crosshair !important; background: #000 !important; }
       `}</style>
     </div>
   );
