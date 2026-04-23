@@ -91,22 +91,23 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
               width: 48mm; 
               padding: 2mm; 
               margin: 0; 
-              font-size: 10px;
+              font-size: 11px;
               color: #000;
-              line-height: 1.2;
+              line-height: 1.1;
             }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
-            .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 4px 0; }
-            .header-main { font-size: 14px; margin-bottom: 2px; }
-            .item-row { margin-bottom: 5px; }
-            .item-details { display: flex; justify-content: space-between; font-size: 9px; }
+            .bold { font-weight: 900; }
+            .divider { border-top: 1px dashed #000; margin: 5px 0; }
+            .header-main { font-size: 16px; margin-bottom: 2px; font-weight: 900; }
+            .item-row { margin-bottom: 6px; }
+            .item-details { display: flex; justify-content: space-between; font-size: 10px; }
             .totals-row { display: flex; justify-content: space-between; margin: 1px 0; }
-            .total-final { font-size: 13px; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px; }
-            .mt-1 { margin-top: 4px; }
-            .mt-2 { margin-top: 8px; }
-            .footer { margin-top: 15px; font-size: 8px; font-style: italic; }
+            .total-final { font-size: 14px; border-top: 2px solid #000; padding-top: 3px; margin-top: 4px; font-weight: 900; }
+            .mt-1 { margin-top: 5px; }
+            .mt-2 { margin-top: 10px; }
+            .footer { margin-top: 15px; font-size: 9px; font-style: italic; }
+            .uppercase { text-transform: uppercase; }
           </style>
         </head>
         <body>

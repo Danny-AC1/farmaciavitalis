@@ -103,16 +103,17 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
                             width: 48mm; 
                             padding: 2mm; 
                             margin: 0; 
-                            font-size: 10px;
+                            font-size: 11px;
                             color: #000;
-                            line-height: 1.2;
+                            line-height: 1.1;
                         }
                         .text-center { text-align: center; }
-                        .bold { font-weight: bold; }
+                        .bold { font-weight: 900; }
                         .divider { border-top: 1px dashed #000; margin: 5px 0; }
-                        .header { font-size: 12px; margin-bottom: 5px; }
+                        .header { font-size: 14px; margin-bottom: 5px; font-weight: 900; }
                         .row { display: flex; justify-content: space-between; margin: 2px 0; }
-                        .total-row { border-top: 1px solid #000; padding-top: 2px; margin-top: 5px; font-weight: bold; }
+                        .total-row { border-top: 1px solid #000; padding-top: 2px; margin-top: 5px; font-weight: 900; font-size: 12px; }
+                        .uppercase { text-transform: uppercase; }
                     </style>
                 </head>
                 <body>
