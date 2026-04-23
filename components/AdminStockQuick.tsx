@@ -64,8 +64,9 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
         return alert("No hay productos con bajo stock para la lista de compras.");
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    const printFrame = document.createElement('iframe');
+    printFrame.style.display = 'none';
+    document.body.appendChild(printFrame);
 
     const itemsHtml = lowStockProducts.map(p => `
       <tr>
@@ -75,7 +76,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
       </tr>
     `).join('');
 
-    printWindow.document.write(`
+    const content = `
       <html>
         <head>
           <title>Lista de Compras - Vitalis</title>
@@ -88,7 +89,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
             .footer { margin-top: 30px; font-size: 11px; text-align: center; color: #999; }
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           <h2>LISTA DE COMPRA / REPOSICIÓN</h2>
           <div class="date">Farmacia Vitalis - Generado: ${new Date().toLocaleString()}</div>
           <table>
@@ -106,8 +107,21 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
           <div class="footer">Este documento es para control interno de inventario.</div>
         </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (frameDoc) {
+      frameDoc.open();
+      frameDoc.write(content);
+      frameDoc.close();
+      setTimeout(() => {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printFrame);
+        }, 1000);
+      }, 500);
+    }
   };
 
   return (

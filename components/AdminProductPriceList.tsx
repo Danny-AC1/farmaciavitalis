@@ -13,8 +13,9 @@ const AdminProductPriceList: React.FC<AdminProductPriceListProps> = ({ products 
       return alert("No hay productos en el catálogo para imprimir.");
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    const printFrame = document.createElement('iframe');
+    printFrame.style.display = 'none';
+    document.body.appendChild(printFrame);
 
     const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -25,7 +26,7 @@ const AdminProductPriceList: React.FC<AdminProductPriceListProps> = ({ products 
       </tr>
     `).join('');
 
-    printWindow.document.write(`
+    const content = `
       <html>
         <head>
           <title>Lista de Precios - Vitalis</title>
@@ -41,7 +42,7 @@ const AdminProductPriceList: React.FC<AdminProductPriceListProps> = ({ products 
             .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           <div class="header">
             <h2>Lista de Precios Vitalis</h2>
             <div class="info">Machalilla, Ecuador • Generado: ${new Date().toLocaleString()}</div>
@@ -81,8 +82,21 @@ const AdminProductPriceList: React.FC<AdminProductPriceListProps> = ({ products 
           </div>
         </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (frameDoc) {
+      frameDoc.open();
+      frameDoc.write(content);
+      frameDoc.close();
+      setTimeout(() => {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printFrame);
+        }, 1000);
+      }, 500);
+    }
   };
 
   return (

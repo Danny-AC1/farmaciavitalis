@@ -60,9 +60,6 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
   };
 
   const handlePrintOrder = (order: Order) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     const itemsHtml = order.items.map(item => {
       const isBox = item.selectedUnit === 'BOX';
       const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
@@ -79,15 +76,19 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
       `;
     }).join('');
 
-    printWindow.document.write(`
+    const printFrame = document.createElement('iframe');
+    printFrame.style.display = 'none';
+    document.body.appendChild(printFrame);
+
+    const content = `
       <html>
         <head>
-          <title>VITALIS TICKET - ${order.id.slice(-6)}</title>
+          <title>TICKET - ${order.id.slice(-6)}</title>
           <style>
             @page { margin: 0; }
             body { 
               font-family: 'Courier New', Courier, monospace; 
-              width: 58mm; 
+              width: 48mm; 
               padding: 2mm; 
               margin: 0; 
               font-size: 10px;
@@ -108,11 +109,11 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
             .footer { margin-top: 15px; font-size: 8px; font-style: italic; }
           </style>
         </head>
-        <body onload="window.print(); window.close();">
+        <body>
           <div class="text-center bold header-main">FARMACIA VITALIS</div>
-          <div class="text-center uppercase">Tu Salud Al Día</div>
-          <div class="text-center">Machalilla, Ecuador</div>
-          <div class="text-center">TEL: 0998506160</div>
+          <div class="text-center uppercase" style="font-size: 8px;">Tu Salud Al Día</div>
+          <div class="text-center" style="font-size: 8px;">Machalilla, Ecuador</div>
+          <div class="text-center" style="font-size: 8px;">TEL: 0998506160</div>
           
           <div class="divider"></div>
           
@@ -124,7 +125,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
           
           <div class="bold">CLIENTE:</div>
           <div class="uppercase">${order.customerName}</div>
-          <div>DIR: ${order.customerAddress.substring(0, 30)}</div>
+          <div style="font-size: 9px;">DIR: ${order.customerAddress.substring(0, 30)}</div>
           
           <div class="divider"></div>
           
@@ -179,10 +180,24 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onUpdateStatus, onDel
             ¡GRACIAS POR SU PREFERENCIA!<br>
             vitalis.ec
           </div>
+          <div style="height: 10mm;"></div>
         </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (frameDoc) {
+      frameDoc.open();
+      frameDoc.write(content);
+      frameDoc.close();
+      setTimeout(() => {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printFrame);
+        }, 1000);
+      }, 500);
+    }
   };
 
   return (

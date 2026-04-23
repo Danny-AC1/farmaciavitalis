@@ -78,6 +78,104 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
     const tActualVal = parseFloat(transActual) || 0;
     const cLeftVal = parseFloat(cashLeft) || 0;
     const totalSugerido = todayCash + cLeftVal;
+    const handlePrint = () => {
+        const cashExp = initialClosure ? initialClosure.cashExpected || 0 : todayCash;
+        const transExp = initialClosure ? initialClosure.transExpected || 0 : todayTrans;
+        const cActualVal = parseFloat(cashActual) || 0;
+        const tActualVal = parseFloat(transActual) || 0;
+        const cLeftVal = parseFloat(cashLeft) || 0;
+        const cWithdrawnVal = parseFloat(cashWithdrawn) || 0;
+        const diff = (cActualVal - cLeftVal + tActualVal) - (cashExp + transExp);
+        const recordedBy = initialClosure?.recordedBy || 'Admin';
+        const dateStr = initialClosure?.date || customDate || new Date().toLocaleString();
+
+        const printFrame = document.createElement('iframe');
+        printFrame.style.display = 'none';
+        document.body.appendChild(printFrame);
+
+        const content = `
+            <html>
+                <head>
+                    <style>
+                        @page { margin: 0; }
+                        body { 
+                            font-family: 'Courier New', Courier, monospace; 
+                            width: 48mm; 
+                            padding: 2mm; 
+                            margin: 0; 
+                            font-size: 10px;
+                            color: #000;
+                            line-height: 1.2;
+                        }
+                        .text-center { text-align: center; }
+                        .bold { font-weight: bold; }
+                        .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                        .header { font-size: 12px; margin-bottom: 5px; }
+                        .row { display: flex; justify-content: space-between; margin: 2px 0; }
+                        .total-row { border-top: 1px solid #000; padding-top: 2px; margin-top: 5px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="text-center bold header">CIERRE DE CAJA</div>
+                    <div class="text-center bold">FARMACIA VITALIS</div>
+                    <div class="divider"></div>
+                    <div class="row"><span>FECHA:</span> <span>${dateStr}</span></div>
+                    <div class="row"><span>USUARIO:</span> <span>${recordedBy}</span></div>
+                    <div class="divider"></div>
+                    
+                    <div class="bold uppercase">DATOS SISTEMA:</div>
+                    <div class="row"><span>EFECTIVO:</span> <span>$${cashExp.toFixed(2)}</span></div>
+                    <div class="row"><span>TRANSF:</span> <span>$${transExp.toFixed(2)}</span></div>
+                    <div class="row bold"><span>TOTAL SIST:</span> <span>$${(cashExp + transExp).toFixed(2)}</span></div>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="bold uppercase">DATOS CONTADOS:</div>
+                    <div class="row"><span>EF. REAL:</span> <span>$${cActualVal.toFixed(2)}</span></div>
+                    <div class="row"><span>TR. REAL:</span> <span>$${tActualVal.toFixed(2)}</span></div>
+                    <div class="row"><span>F. CAMBIO:</span> <span>-$${cLeftVal.toFixed(2)}</span></div>
+                    <div class="row"><span>RETIRADO:</span> <span>-$${cWithdrawnVal.toFixed(2)}</span></div>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="row bold total-row">
+                        <span>AUDITADO:</span>
+                        <span>$${(cActualVal - cLeftVal + tActualVal).toFixed(2)}</span>
+                    </div>
+                    <div class="row bold" style="font-size: 11px;">
+                        <span>DIFERENCIA:</span>
+                        <span>$${diff.toFixed(2)}</span>
+                    </div>
+                    
+                    <div class="divider"></div>
+                    <div class="bold">NOTAS:</div>
+                    <div style="font-size: 9px;">${notes || 'Sin notas'}</div>
+                    
+                    <div class="divider"></div>
+                    <div class="text-center" style="font-size: 8px; margin-top: 10px;">
+                        AUDITORIA FINANCIERA VITALIS<br>
+                        ${new Date().toLocaleString()}
+                    </div>
+                    <div style="height: 10mm;"></div>
+                </body>
+            </html>
+        `;
+
+        const frameDoc = printFrame.contentWindow?.document;
+        if (frameDoc) {
+            frameDoc.open();
+            frameDoc.write(content);
+            frameDoc.close();
+            setTimeout(() => {
+                printFrame.contentWindow?.focus();
+                printFrame.contentWindow?.print();
+                setTimeout(() => {
+                    document.body.removeChild(printFrame);
+                }, 1000);
+            }, 500);
+        }
+    };
+
     const differenceVal = (cActualVal - cLeftVal + tActualVal) - (todayCash + todayTrans);
 
     return (
@@ -170,7 +268,7 @@ const CashClosureModal: React.FC<CashClosureModalProps> = ({ isOpen, onClose, to
                     </div>
 
                     <div className="flex gap-3">
-                        <button onClick={() => window.print()} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all">
+                        <button onClick={handlePrint} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all">
                             <Printer size={18}/> Imprimir
                         </button>
                         <button onClick={handleSave} className="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20">
