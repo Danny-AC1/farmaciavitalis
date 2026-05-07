@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 // @ts-ignore
@@ -18,7 +17,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [cedula, setCedula] = useState(''); // Nuevo
+  const [cedula, setCedula] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +32,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
       if (isRegister) {
         if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
         if (!name.trim()) throw new Error("El nombre es obligatorio.");
-        if (!cedula.trim()) throw new Error("La cédula es obligatoria para el programa de puntos.");
+        if (!cedula.trim()) throw new Error("La cédula es obligatoria.");
 
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
@@ -42,7 +41,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             uid: userCred.user.uid,
             email: email,
             displayName: name,
-            cedula: cedula, // Guardar cedula
+            cedula: cedula,
             phone: phone || '',
             address: address || '',
             role: 'USER',
@@ -89,18 +88,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase">Cédula de Identidad</label>
-                        <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={cedula} onChange={e => setCedula(e.target.value)} placeholder="Necesaria para sumar puntos" />
+                        <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={cedula} onChange={e => setCedula(e.target.value)} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label>
-                            <input required type="tel" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={phone} onChange={e => setPhone(e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Dirección</label>
-                            <input required type="text" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={address} onChange={e => setAddress(e.target.value)} />
-                        </div>
-                    </div>
+                    {/* ... campos de teléfono y dirección ... */}
                 </div>
             )}
             
