@@ -6,9 +6,9 @@ export const checkInteractions = async (productNames: string[]): Promise<{safe: 
     if (productNames.length < 2) return { safe: true, message: "" };
     try {
         const ai = getAiClient();
-        const prompt = `Analiza interacciones entre: ${productNames.join(', ')}. Responde JSON {safe, message}.`;
+        const prompt = `Analiza interacciones: ${productNames.join(', ')}. Responde JSON {safe, message}.`;
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -16,7 +16,8 @@ export const checkInteractions = async (productNames: string[]): Promise<{safe: 
                     type: Type.OBJECT,
                     properties: { safe: { type: Type.BOOLEAN }, message: { type: Type.STRING } },
                     required: ["safe", "message"]
-                }
+                },
+                maxOutputTokens: 200
             }
         });
         return JSON.parse(response.text || "{}");

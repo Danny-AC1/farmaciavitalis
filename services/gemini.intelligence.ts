@@ -17,31 +17,19 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
         
         const inventory = allProducts
             .filter(p => p.stock > 0)
-            .map(p => `ID: ${p.id} | Nombre: ${p.name} | Cat: ${p.category} | Desc: ${p.description}`)
+            .slice(0, 40)
+            .map(p => `ID: ${p.id} | Nombre: ${p.name} | Cat: ${p.category}`)
             .join('\n');
 
-        const prompt = `Actúa como un Farmacéutico Clínico experto con acceso al inventario de Farmacia Vitalis.
-        
-        CONTEXTO:
-        El cliente busca un producto que NO tenemos en stock o no existe en el catálogo: "${missingProduct}".
-        Tu misión es encontrar las mejores alternativas disponibles en nuestro inventario.
-
-        INVENTARIO DISPONIBLE (Solo productos con stock):
+        const prompt = `Farmacéutico: busca alternativas para "${missingProduct}".
+        INVENTARIO (Solo disponibles):
         ${inventory}
-        
-        TAREAS:
-        1. Identifica el principio activo y la familia terapéutica de "${missingProduct}".
-        2. Busca en el INVENTARIO productos que tengan el MISMO principio activo (Genéricos/Bioequivalentes). Agrégalos a "generics".
-        3. Busca productos que, aunque tengan distinto principio activo, pertenezcan a la MISMA FAMILIA TERAPÉUTICA y sirvan para lo mismo. Agrégalos a "therapeuticAlternatives".
-        
-        REGLAS CRÍTICAS:
-        - Si el cliente busca una marca (ej: Ampibex), sugiere el genérico (ej: Ampicilina) en la sección "generics".
-        - En "therapeuticAlternatives", explica de forma muy breve y profesional por qué es una buena opción (ej: "Misma familia de penicilinas, espectro similar").
-        - Si no encuentras nada que sea realmente seguro sugerir, deja los arrays vacíos.
-        - Devuelve EXCLUSIVAMENTE el formato JSON solicitado.`;
+        1. Sugiere genéricos en "generics".
+        2. Sugiere alternativas terapéuticas en "therapeuticAlternatives".
+        Responde SOLO JSON.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -62,7 +50,8 @@ export const suggestSubstitutes = async (missingProduct: string, allProducts: Pr
                         }
                     },
                     required: ["generics", "therapeuticAlternatives"]
-                }
+                },
+                maxOutputTokens: 500
             }
         });
 
@@ -106,8 +95,9 @@ export const analyzeMarketOpportunities = async (missedSales: MissedSale[], sear
         Responde en formato Markdown profesional con emojis.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt
+            model: 'gemini-1.5-flash-8b',
+            contents: prompt,
+            config: { maxOutputTokens: 600 }
         });
 
         return response.text || "No hay suficientes datos para un análisis profundo aún.";

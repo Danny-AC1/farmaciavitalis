@@ -7,19 +7,20 @@ import { getAiClient } from './gemini.client';
 export const searchProductsBySymptoms = async (symptom: string, products: Product[]): Promise<string[]> => {
     try {
         const ai = getAiClient();
-        const inventory = products.map(p => `${p.id}: ${p.name} (${p.description})`).join('\n');
-        const prompt = `Actúa como un farmacéutico experto. El cliente describe este síntoma: "${symptom}".
-        Analiza el siguiente inventario y devuelve un array JSON con los IDs de los productos que mejor resuelvan ese síntoma.
-        INVENTARIO:
+        // Limit context: only name and ID, no description unless absolutely necessary, and limit to top 50
+        const inventory = products.slice(0, 50).map(p => `${p.id}: ${p.name}`).join('\n');
+        const prompt = `Actúa como un farmacéutico. Síntoma: "${symptom}".
+        IDs de productos para resolverlo:
         ${inventory}
-        Responde SOLO el array JSON de strings. Si ninguno sirve, responde [].`;
+        Responde SOLO el array JSON de IDs. Si ninguno sirve, [].`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
-                responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
+                responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
+                maxOutputTokens: 150
             }
         });
         return JSON.parse(response.text || "[]");
@@ -39,14 +40,14 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
 
         if (candidates.length === 0) return { product: undefined, reason: "" };
 
-        const prompt = `Un cliente está comprando "${targetProduct.name}" (${targetProduct.category}).
+        const prompt = `Cliente compra "${targetProduct.name}".
         CANDIDATOS:
-        ${candidates.join('\n')}
-        Elige EL MEJOR producto complementario. Responde SOLO JSON:
-        { "suggestedId": "id", "reason": "Frase corta persuasiva" }`;
+        ${candidates.slice(0, 30).join('\n')}
+        Elige producto complementario. Responde JSON:
+        { "suggestedId": "id", "reason": "Frase corta" }`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3.1-pro-preview',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -57,7 +58,8 @@ export const getCrossSellSuggestion = async (targetProduct: Product, allProducts
                         reason: { type: Type.STRING }
                     },
                     required: ["suggestedId", "reason"]
-                }
+                },
+                maxOutputTokens: 100
             }
         });
 
@@ -101,8 +103,9 @@ export const generateProductDescription = async (
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-latest',
+      model: 'gemini-1.5-flash-8b',
       contents: prompt,
+      config: { maxOutputTokens: 150 }
     });
     return response.text?.trim() || "No se pudo generar la descripción.";
   } catch (error: any) {
@@ -113,17 +116,18 @@ export const generateProductDescription = async (
 
 export const generateProductKeywords = async (productName: string, activeIngredient?: string): Promise<string> => {    
     const prompt = `Actúa como un experto farmacéutico. El producto es "${productName}" (Principio Activo: ${activeIngredient || 'No especificado'}).
-    Sugiere una lista de hasta 15 términos que incluyan:
+    Sugiere una lista de hasta 12 términos que incluyan:
     1. NOMBRES COMERCIALES EQUIVALENTES (Prioridad: marcas de la competencia que tengan el mismo efecto o principio activo).
     2. USOS Y SÍNTOMAS (¿Para qué sirve? ej: "dolor de cabeza", "infección", "gripe").
-    Asegúrate de que la mayoría sean nombres comerciales, pero incluye 4 o 5 términos sobre para qué sirve el medicamento.
+    Asegúrate de que la mayoría sean nombres comerciales, pero incluye 3 o 4 términos sobre para qué sirve el medicamento.
     Responde SOLO la lista separada por comas, sin explicaciones ni asteriscos.`;
 
     try {
         const ai = getAiClient();
         const response = await ai.models.generateContent({
-            model: "gemini-flash-latest",
+            model: "gemini-1.5-flash-8b",
             contents: prompt,
+            config: { maxOutputTokens: 200 }
         });
         
         const text = response.text;

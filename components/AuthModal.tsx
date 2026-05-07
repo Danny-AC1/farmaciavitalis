@@ -5,6 +5,7 @@ import { auth } from '../services/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { saveUserDB } from '../services/db';
 import { X, LogIn, UserPlus, Loader2 } from 'lucide-react';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -13,6 +14,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -67,12 +69,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
         <div className="bg-teal-600 p-4 flex justify-between items-center text-white">
-          <h3 className="font-bold text-lg">{isRegister ? 'Crear Cuenta Vitalis' : 'Iniciar Sesión'}</h3>
+          <h3 className="font-bold text-lg">
+            {showForgotPassword ? 'Recuperar Acceso' : (isRegister ? 'Crear Cuenta Vitalis' : 'Iniciar Sesión')}
+          </h3>
           <button onClick={onClose}><X /></button>
         </div>
         
         <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {showForgotPassword ? (
+              <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+            ) : (
+              <>
+                <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
                 <div className="space-y-4 animate-in slide-in-from-top-2">
                     <div>
@@ -103,6 +111,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Contraseña</label>
                 <input required type="password" className="w-full border-b border-gray-300 focus:border-teal-500 outline-none py-1 transition-colors" value={password} onChange={e => setPassword(e.target.value)} />
+                {!isRegister && (
+                  <div className="flex justify-end mt-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-[10px] font-bold text-teal-600 hover:text-teal-700 uppercase tracking-tighter"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                )}
             </div>
 
             {error && <p className="text-red-500 text-sm text-center bg-red-50 p-2 rounded border border-red-100">{error}</p>}
@@ -118,6 +137,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                     {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate gratis'}
                 </button>
             </div>
+          </>
+        )}
         </div>
       </div>
     </div>

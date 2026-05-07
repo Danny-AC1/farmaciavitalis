@@ -6,22 +6,14 @@ import { getAiClient } from './gemini.client';
 export const suggestSymptomBundles = async (products: Product[]): Promise<Partial<Bundle>[]> => {
     try {
         const ai = getAiClient();
-        const inventory = products.map(p => `${p.id}: ${p.name} (${p.description}) - $${p.price}`).join('\n');
-        const prompt = `Actúa como un estratega de marketing farmacéutico. 
-        Analiza este inventario y sugiere 3 COMBOS basados en SINTOMATOLOGÍA (ej: Combo Gripe, Kit Primeros Auxilios, Pack Digestivo).
-        
-        INVENTARIO:
+        // Limit context for bundles
+        const inventory = products.slice(0, 30).map(p => `${p.id}: ${p.name}`).join('\n');
+        const prompt = `Sugiere 3 combos de salud (Gripe, Digestivo, etc) usando estos IDs:
         ${inventory}
-        
-        REGLAS:
-        1. Cada combo debe tener entre 2 y 3 productos.
-        2. El precio del combo debe ser un 10-15% menor a la suma de los individuales.
-        3. Devuelve un array JSON de objetos con: name, description, productIds (array de IDs), price, category.
-        
-        Responde SOLO el JSON.`;
+        Responde array JSON: [{name, description, productIds, price, category}]. Precio 10% descuento.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -38,7 +30,8 @@ export const suggestSymptomBundles = async (products: Product[]): Promise<Partia
                         },
                         required: ["name", "description", "productIds", "price", "category"]
                     }
-                }
+                },
+                maxOutputTokens: 600
             }
         });
         return JSON.parse(response.text || "[]");
@@ -53,22 +46,17 @@ export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Pr
         const ai = getAiClient();
         const candidates = allProducts
             .filter(p => p.id !== baseProduct.id && p.stock > 0)
-            .map(p => `${p.id}: ${p.name} ($${p.price})`);
+            .slice(0, 20)
+            .map(p => `${p.id}: ${p.name}`);
 
-        const prompt = `El cliente está comprando "${baseProduct.name}" ($${baseProduct.price}).
-        Sugiere un COMBO UPGRADE agregando UN producto adicional que complemente perfectamente al principal.
-        
+        const prompt = `Cliente compra "${baseProduct.name}".
         CANDIDATOS:
         ${candidates.join('\n')}
-        
-        REGLAS:
-        1. El combo debe llamarse "Tratamiento Completo ${baseProduct.name}" o algo similar.
-        2. El precio total debe ser atractivo (ej: base + adicional - 10%).
-        3. Responde SOLO JSON: { name, description, productIds: [baseId, extraId], price }.
+        Sugiere COMBO UPGRADE (base + 1 extra). Responde JSON: { name, description, productIds: [baseId, extraId], price }.
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -81,7 +69,8 @@ export const suggestUpgradeBundle = async (baseProduct: Product, allProducts: Pr
                         price: { type: Type.NUMBER }
                     },
                     required: ["name", "description", "productIds", "price"]
-                }
+                },
+                maxOutputTokens: 250
             }
         });
         return JSON.parse(response.text || "null");
@@ -94,21 +83,17 @@ export const analyzePredictiveBundles = async (orders: Order[], products: Produc
     try {
         const ai = getAiClient();
         // Simplificar historial para la IA
-        const history = orders.slice(-50).map(o => o.items.map(i => i.name).join(', ')).join('\n');
+        const history = orders.slice(-20).map(o => o.items.slice(0, 3).map(i => i.name).join(', ')).join('\n');
         
-        const prompt = `Analiza este historial de pedidos recientes y detecta patrones de compra (productos que se compran juntos).
-        Sugiere 2 COMBOS PREDICTIVOS basados en estos datos.
-        
+        const prompt = `Analiza patrones de compra y sugiere 2 COMBOS PREDICTIVOS.
         HISTORIAL:
         ${history}
-        
-        INVENTARIO DISPONIBLE (IDs):
-        ${products.map(p => `${p.id}: ${p.name}`).join('\n')}
-        
-        Responde SOLO JSON: [{ name, description, productIds, price, category: "Predictivo" }]`;
+        DISPONIBLES:
+        ${products.slice(0, 30).map(p => `${p.id}: ${p.name}`).join('\n')}
+        Responde array JSON: [{ name, description, productIds, price, category: "Predictivo" }]`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-1.5-flash-8b',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -125,7 +110,8 @@ export const analyzePredictiveBundles = async (orders: Order[], products: Produc
                         },
                         required: ["name", "description", "productIds", "price", "category"]
                     }
-                }
+                },
+                maxOutputTokens: 500
             }
         });
         return JSON.parse(response.text || "[]");
