@@ -20,6 +20,7 @@ import AdminCiudadelas from './AdminCiudadelas';
 import AdminBundles from './AdminBundles';
 import AdminFinances from './AdminFinances';
 import IntelligenceHub from './IntelligenceHub';
+import AdminExtensionSuite from './AdminExtensionSuite';
 
 interface AdminMainContentProps {
     activeTab: string;
@@ -202,6 +203,8 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         case 'subscriptions': return <AdminSubscriptions subscriptions={state.subscriptions} onProcess={state.handleProcessSubscription} onDelete={state.handleDeleteSubscription} />;
         case 'bookings': return <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} onDelete={state.handleDeleteBooking} />;
         case 'stock_alerts': return <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />;
+        case 'extension_suite':
+            return <AdminExtensionSuite setActiveTab={state.setActiveTab} products={props.products} suppliers={state.suppliers} />;
         
         default: return null;
     }

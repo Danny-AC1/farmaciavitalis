@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { LayoutDashboard, DollarSign, Wallet, ShoppingCart, TrendingUp, Package, Sparkles, Clock } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wallet, ShoppingCart, TrendingUp, Package, Sparkles, Clock, Cpu, ArrowRight } from 'lucide-react';
 import { Order, Product, Expense, User } from '../types';
 
 interface AdminDashboardProps {
@@ -58,6 +58,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
       </div>
 
+      {/* Acceso directo a la Nueva Extensión / Suite Gerencial */}
+      <div 
+        onClick={() => setActiveTab('extension_suite')}
+        className="bg-gradient-to-r from-slate-900 to-teal-900 p-5 rounded-[2rem] border border-slate-800 shadow-xl text-white cursor-pointer group hover:shadow-teal-950/20 hover:scale-[1.005] active:scale-95 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="h-11 w-11 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-2xl flex items-center justify-center shrink-0">
+            <Cpu size={20} className="animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-black tracking-widest text-teal-400 uppercase">FARMACIA VITALIS</span>
+              <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></span>
+              <span className="text-[9px] font-black tracking-widest text-[#94a3b8] uppercase">NUEVA EXTENSIÓN</span>
+            </div>
+            <h3 className="font-extrabold text-sm md:text-base tracking-tight text-white mt-0.5 group-hover:text-teal-300 transition-colors">
+              Suite Gerencial Pro & Administración Avanzada
+            </h3>
+            <p className="text-xs text-slate-400 font-medium">
+              Explora la nueva extensión de administración exclusiva con módulos de control diseñados a la medida.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-center bg-teal-500 hover:bg-teal-600 text-slate-900 font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow-md">
+          Ingresar a la Suite
+          <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="h-12 w-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 mb-4">
@@ -93,7 +122,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <Package size={24} />
               </div>
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ítems Registrados</span>
-              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} Productos</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{products.length} SKU</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
