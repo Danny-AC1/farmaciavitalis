@@ -170,15 +170,21 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
 
   // Formatear texto para WhatsApp/Distribuidor y copiarlo al portapapeles
   const copyToClipboard = () => {
-    if (processedProducts.length === 0) return;
+    // Filtrar productos con cantidad a comprar mayor a cero
+    const productsWithQty = processedProducts.filter(p => (purchaseQuantities[p.id] || 0) > 0);
+    
+    if (productsWithQty.length === 0) {
+      alert("No hay productos con cantidades mayores a 0 para generar la orden.");
+      return;
+    }
 
     let text = `📦 *ORDEN DE COMPRA GENERADA - FARMACIA VITALIS*\n`;
     text += `Fecha: ${new Date().toLocaleDateString('es-ES')} | Productos con Stock Crítico (<= 1)\n`;
     text += `=========================================\n\n`;
 
     // Agrupar por proveedor en la copia del texto para mayor orden del distribuidor
-    const groupedBySupplier: Record<string, typeof processedProducts> = {};
-    processedProducts.forEach(p => {
+    const groupedBySupplier: Record<string, typeof productsWithQty> = {};
+    productsWithQty.forEach(p => {
       const supplierName = p.supplierId ? (suppliersMap[p.supplierId]?.name || 'Sin Proveedor Asignado') : 'Sin Proveedor Asignado';
       if (!groupedBySupplier[supplierName]) {
         groupedBySupplier[supplierName] = [];
@@ -464,11 +470,13 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                   {processedProducts.map((p) => {
                     const sup = p.supplierId ? suppliersMap[p.supplierId] : undefined;
                     const stockIsZero = p.stock === 0;
+                    const qtyToOrder = purchaseQuantities[p.id] || 0;
+                    const hasQty = qtyToOrder > 0;
                     
                     return (
                       <tr 
                         key={p.id} 
-                        className="hover:bg-slate-50/40 transition-colors group print:break-inside-avoid print:hover:bg-transparent"
+                        className={`hover:bg-slate-50/40 transition-colors group print:break-inside-avoid print:hover:bg-transparent ${!hasQty ? 'print:hidden' : ''}`}
                       >
                         {/* Celda del Producto */}
                         <td className="p-4">
@@ -501,7 +509,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                           <div className="flex items-center gap-1.5">
                             <span className={`h-2 w-2 rounded-full ${stockIsZero ? 'bg-rose-500 animate-ping' : 'bg-amber-400'}`}></span>
                             <span className={`text-xs font-black ${stockIsZero ? 'text-rose-600' : 'text-amber-600'}`}>
-                              {p.stock}
+                              {p.stock} uds.
                             </span>
                           </div>
                         </td>
@@ -563,6 +571,20 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                   })}
                 </tbody>
               </table>
+
+              {/* Pie de página exclusivo para impresión (PDF) */}
+              {totalPurchaseCost > 0 && (
+                <div className="hidden print:flex justify-end items-center mt-6 border-t border-slate-500 pt-3 text-right">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500 block">
+                      Gasto Comercial Estimado
+                    </span>
+                    <span className="text-base font-black text-slate-950 font-mono block">
+                      Total: ${totalPurchaseCost.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
