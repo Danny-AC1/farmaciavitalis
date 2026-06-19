@@ -494,7 +494,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                             </div>
                           ) : (
                             <span className="text-[11px] font-semibold text-slate-400/80 italic block">
-                              Sin Proveedor Asignado
+                               Proveedor Asignado
                             </span>
                           )}
                         </td>
