@@ -113,13 +113,26 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
     return result;
   }, [lowStockProducts, searchTerm, selectedSupplierId, selectedCategory, sortBy, sortOrder, suppliersMap]);
 
-  // Cuenta rápida de desgloses de stock
-  const stats = useMemo(() => {
+  // Cuenta rápida de desgloses de stock y estimación de costos de compra
+  const { stats, totalPurchaseCost } = useMemo(() => {
     const total = lowStockProducts.length;
     const outOfStock = lowStockProducts.filter(p => p.stock === 0).length;
     const criticalStock = lowStockProducts.filter(p => p.stock === 1).length;
-    return { total, outOfStock, criticalStock };
-  }, [lowStockProducts]);
+    
+    let cost = 0;
+    lowStockProducts.forEach(p => {
+      const qty = purchaseQuantities[p.id] || 0;
+      if (qty > 0) {
+        // Se toma el precio de costo (costPrice) como de mayor jerarquía; si falta, usamos el precio normal de venta (price)
+        cost += qty * (p.costPrice || p.price || 0);
+      }
+    });
+
+    return { 
+      stats: { total, outOfStock, criticalStock },
+      totalPurchaseCost: cost
+    };
+  }, [lowStockProducts, purchaseQuantities]);
 
   // Cambiar sentido del ordenamiento o el campo
   const handleSort = (field: 'name' | 'stock' | 'category' | 'supplier') => {
@@ -176,12 +189,16 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
     Object.entries(groupedBySupplier).forEach(([supplierName, items]) => {
       text += `🏢 *PROVEEDOR: ${supplierName.toUpperCase()}*\n`;
       items.forEach(item => {
-        const qty = purchaseQuantities[item.id] !== undefined ? purchaseQuantities[item.id] : '';
-        const qtyString = qty ? ` -> Cantidad Sugerida: ${qty} uds.` : '';
-        text += `- ${item.name} [Categoría: ${item.category}] (Stock Actual: ${item.stock} uds.)${qtyString}\n`;
+        const qty = purchaseQuantities[item.id] || 0;
+        text += `- ${item.name}: ${qty} uds.\n`;
       });
       text += `-----------------------------------------\n\n`;
     });
+
+    if (totalPurchaseCost > 0) {
+      text += `💰 *GASTO TOTAL ESTIMADO:* $${totalPurchaseCost.toFixed(2)}\n`;
+      text += `=========================================\n`;
+    }
 
     navigator.clipboard.writeText(text).then(() => {
       setCopiedNotification(true);
@@ -243,7 +260,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
       )}
 
       {/* Tarjetas de Estadísticas Mini */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="h-10 w-10 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center font-bold">
             {stats.total}
@@ -271,6 +288,16 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
           <div>
             <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider block">Última Unidad (Stock 1)</span>
             <span className="text-lg font-black text-slate-800 block">En Alerta Máxima</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-[2rem] border-l-2 border-r border-y border-l-teal-500 border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="h-10 w-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold font-mono text-center">
+            ${totalPurchaseCost.toFixed(2)}
+          </div>
+          <div>
+            <span className="text-[10px] text-teal-600 font-bold uppercase tracking-wider block">Gasto Estimado (Costo)</span>
+            <span className="text-lg font-black text-slate-800 block">Total de Compra</span>
           </div>
         </div>
       </div>
@@ -406,7 +433,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                     </th>
                     <th 
                       onClick={() => handleSort('category')}
-                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors"
+                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors print:hidden"
                     >
                       <span className="flex items-center gap-1">
                         Categoría {sortBy === 'category' && (sortOrder === 'asc' ? '▲' : '▼')}
@@ -414,7 +441,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                     </th>
                     <th 
                       onClick={() => handleSort('stock')}
-                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors"
+                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors print:hidden"
                     >
                       <span className="flex items-center gap-1">
                         Stock {sortBy === 'stock' && (sortOrder === 'asc' ? '▲' : '▼')}
@@ -422,7 +449,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                     </th>
                     <th 
                       onClick={() => handleSort('supplier')}
-                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors"
+                      className="p-4 text-[10px] font-black text-slate-500 tracking-wider uppercase cursor-pointer select-none hover:bg-slate-100/80 transition-colors print:hidden"
                     >
                       <span className="flex items-center gap-1">
                         Proveedor {sortBy === 'supplier' && (sortOrder === 'asc' ? '▲' : '▼')}
@@ -450,12 +477,12 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                               {p.name}
                             </span>
                             {p.expiryDate && (
-                              <span className="text-[10px] font-semibold text-slate-400 block font-mono">
+                              <span className="text-[10px] font-semibold text-slate-400 block font-mono print:hidden">
                                 Caducidad: {new Date(p.expiryDate).toLocaleDateString('es-ES')}
                               </span>
                             )}
                             {p.activeIngredient && (
-                              <span className="text-[10px] italic font-medium text-slate-400/90 block">
+                              <span className="text-[10px] italic font-medium text-slate-400/90 block print:hidden">
                                 PA: {p.activeIngredient}
                               </span>
                             )}
@@ -463,24 +490,24 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                         </td>
 
                         {/* Celda de Categoría */}
-                        <td className="p-4">
+                        <td className="p-4 print:hidden">
                           <span className="inline-flex px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10.5px] font-extrabold text-slate-600 tracking-wide">
                             {p.category}
                           </span>
                         </td>
 
                         {/* Celda de Stock */}
-                        <td className="p-4">
+                        <td className="p-4 print:hidden">
                           <div className="flex items-center gap-1.5">
                             <span className={`h-2 w-2 rounded-full ${stockIsZero ? 'bg-rose-500 animate-ping' : 'bg-amber-400'}`}></span>
                             <span className={`text-xs font-black ${stockIsZero ? 'text-rose-600' : 'text-amber-600'}`}>
-                              {p.stock} uds.
+                              {p.stock}
                             </span>
                           </div>
                         </td>
 
                         {/* Celda del Proveedor */}
-                        <td className="p-4">
+                        <td className="p-4 print:hidden">
                           {sup ? (
                             <div className="space-y-0.5">
                               <span className="text-xs font-bold text-slate-700 block">
@@ -494,7 +521,7 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
                             </div>
                           ) : (
                             <span className="text-[11px] font-semibold text-slate-400/80 italic block">
-                               Proveedor Asignado
+                              Sin Proveedor Asignado
                             </span>
                           )}
                         </td>
