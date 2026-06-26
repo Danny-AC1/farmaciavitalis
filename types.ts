@@ -232,7 +232,8 @@ export interface MonthlyFinance {
 export const AVAILABLE_SERVICES = [
   { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
   { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
-  { id: 's4', name: 'Suero', price: 8.00, durationMin: 15, description: 'Puesta de suero.' }
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
+  { id: 's4', name: 'Suero', price: 10.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
@@ -246,3 +247,65 @@ export const DELIVERY_CITY = "Machalilla";
 export const DELIVERY_FEE = 0.00;
 export const POINTS_THRESHOLD = 500;
 export const POINTS_DISCOUNT_VALUE = 5.00;
+
+export interface CreditTicket {
+  id: string;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  items: CartItem[];
+  subtotal: number;
+  total: number;
+  date: string;
+  status: 'PENDIENTE' | 'PAGADO';
+}
+
+export interface TreasurySession {
+  id: string;
+  status: 'OPEN' | 'CLOSED';
+  openedBy: string;
+  openedAt: string;
+  closedAt?: string;
+  closedBy?: string;
+  initialCash: number;
+  expectedCash?: number;
+  actualCash?: number;
+  discrepancy?: number;
+  notes?: string;
+  blindArqueo?: {
+    bills100?: number;
+    bills50?: number;
+    bills20?: number;
+    bills10?: number;
+    bills5?: number;
+    bills1?: number;
+    coins050?: number;
+    coins025?: number;
+    coins010?: number;
+    coins005?: number;
+    coins001?: number;
+  };
+}
+
+export interface TreasuryTransaction {
+  id: string;
+  sessionId: string;
+  type: 'EGRESO' | 'INGRESO_EXTRA' | 'RETIRO_PARCIAL';
+  category: 'SUMINISTROS' | 'SERVICIOS' | 'REPARTO' | 'COMPRAS' | 'OTROS';
+  amount: number;
+  concept: string;
+  beneficiary?: string;
+  date: string;
+  performedBy: string;
+}
+
+export interface TreasuryDeposit {
+  id: string;
+  sessionId: string;
+  bankName: string;
+  referenceNumber: string;
+  amount: number;
+  date: string;
+  status: 'CONCILIADO' | 'PENDIENTE';
+  notes?: string;
+}

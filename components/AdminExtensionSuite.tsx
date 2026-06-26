@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent } from 'lucide-react';
+import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins } from 'lucide-react';
 import { Product, Supplier } from '../types';
 import AdminShoppingList from './AdminShoppingList';
 import AdminDiscounts from './AdminDiscounts';
+import AdminCredits from './AdminCredits';
+import AdminTreasury from './AdminTreasury';
 
 interface AdminExtensionSuiteProps {
   setActiveTab: (tab: string) => void;
@@ -11,7 +13,7 @@ interface AdminExtensionSuiteProps {
 }
 
 const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, suppliers }) => {
-  const [subTab, setSubTab] = useState<'hub' | 'shopping_list' | 'discounts'>('discounts'); // Mostrar por defecto la pestaña de descuentos solicitada
+  const [subTab, setSubTab] = useState<'hub' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('discounts'); // Mostrar por defecto la pestaña de descuentos solicitada
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -85,6 +87,34 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
         </button>
 
         <button
+          onClick={() => setSubTab('credits')}
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+            subTab === 'credits'
+              ? 'border-teal-500 text-teal-600 font-black'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Coins size={14} />
+            Medicamento Fiado (Créditos)
+          </span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('treasury')}
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+            subTab === 'treasury'
+              ? 'border-teal-500 text-teal-600 font-black'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Landmark size={14} />
+            Tesorería Avanzada
+          </span>
+        </button>
+
+        <button
           onClick={() => setSubTab('hub')}
           className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
             subTab === 'hub'
@@ -108,6 +138,16 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
         /* Vista de la Funcionalidad Real: Lista de Compras */
         <div className="space-y-6">
           <AdminShoppingList products={products} suppliers={suppliers} />
+        </div>
+      ) : subTab === 'credits' ? (
+        /* Vista de la Funcionalidad Real: Medicamento Fiado / Créditos */
+        <div className="space-y-6">
+          <AdminCredits products={products} />
+        </div>
+      ) : subTab === 'treasury' ? (
+        /* Vista de la Funcionalidad Real: Tesorería Avanzada */
+        <div className="space-y-6">
+          <AdminTreasury products={products} />
         </div>
       ) : (
         /* Vista del Catálogo de Ideas */
