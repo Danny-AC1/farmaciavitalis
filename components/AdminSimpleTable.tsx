@@ -19,6 +19,13 @@ const AdminSimpleTable: React.FC<AdminSimpleTableProps> = ({ title, data, onAdd,
     setNewItem('');
   };
 
+  const handleDelete = (id: string, name: string) => {
+    const itemName = name || 'este elemento';
+    if (window.confirm(`¿Estás seguro de que deseas eliminar "${itemName}"? Esta acción no se puede deshacer.`)) {
+      onDelete(id);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in">
       <div className="p-6 border-b border-gray-50 flex justify-between items-center">
@@ -26,7 +33,7 @@ const AdminSimpleTable: React.FC<AdminSimpleTableProps> = ({ title, data, onAdd,
         <form onSubmit={handleAdd} className="flex gap-2">
           <input 
             className="border p-2 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-teal-500 outline-none" 
-            placeholder={`Nueva ${title.toLowerCase()}...`}
+            placeholder={`Nueva ${title.toLowerCase() === 'categorías' ? 'categoría' : title.toLowerCase()}...`}
             value={newItem}
             onChange={e => setNewItem(e.target.value)}
           />
@@ -46,7 +53,7 @@ const AdminSimpleTable: React.FC<AdminSimpleTableProps> = ({ title, data, onAdd,
               <tr key={item.id} className="hover:bg-gray-50 transition">
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name || item.code || item.id}</td>
                 <td className="px-6 py-4 text-right">
-                  <button onClick={() => onDelete(item.id)} className="text-red-400 hover:text-red-600 transition p-2"><Trash2 size={18}/></button>
+                  <button onClick={() => handleDelete(item.id, item.name || item.code || item.id)} className="text-red-400 hover:text-red-600 transition p-2"><Trash2 size={18}/></button>
                 </td>
               </tr>
             ))}
