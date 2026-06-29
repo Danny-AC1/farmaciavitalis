@@ -22,7 +22,7 @@ import ProfileModal from './components/ProfileModal';
 import UserOrdersModal from './components/UserOrdersModal';
 import PrescriptionModal from './components/PrescriptionModal';
 import ServicesModal from './components/ServicesModal';
-import Assistant from './components/Assistant';
+import FirstAidGuide from './components/FirstAidGuide';
 import FamilyHealthModal from './components/FamilyHealthModal';
 import UserSubscriptionsModal from './components/UserSubscriptionsModal';
 import StaffAccessModal from './components/StaffAccessModal';
@@ -148,7 +148,11 @@ const App: React.FC = () => {
         />
       )}
       {logic.activeTab === 'services' && <ServicesModal user={logic.currentUser} onClose={() => logic.setActiveTab('home')} onLoginRequest={() => logic.setShowAuthModal(true)} />}
-      {logic.activeTab === 'assistant' && <Assistant products={logic.products} isOpen={true} onClose={() => logic.setActiveTab('home')} />}
+      {logic.activeTab === 'assistant' && (
+        <div className="fixed inset-0 z-40 bg-slate-50 overflow-y-auto pt-20 pb-20">
+          <FirstAidGuide products={logic.products} onAddToCart={(p) => logic.addToCart(p, 'UNIT')} onClose={() => logic.setActiveTab('home')} />
+        </div>
+      )}
       {logic.activeTab === 'health' && logic.currentUser && (
         <FamilyHealthModal user={logic.currentUser} products={logic.products} onClose={() => logic.setActiveTab('home')} onAddToCart={(p) => logic.addToCart(p, 'UNIT')} />
       )}

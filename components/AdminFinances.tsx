@@ -21,6 +21,7 @@ interface AdminFinancesProps {
     netProfit: number;
     onRegisterMonthlyFinance: () => void;
     onEditClosure?: (closure: CashClosure) => void;
+    onDeleteMonthlyFinance?: (id: string) => void;
 }
 
 const AdminFinances: React.FC<AdminFinancesProps> = ({ 
@@ -31,7 +32,8 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
     expenseBreakdown,
     netProfit,
     onRegisterMonthlyFinance,
-    onEditClosure
+    onEditClosure,
+    onDeleteMonthlyFinance
 }) => {
     const [subTab, setSubTab] = useState<'daily' | 'monthly'>('daily');
     const [isSyncing, setIsSyncing] = useState(false);
@@ -361,25 +363,41 @@ const AdminFinances: React.FC<AdminFinancesProps> = ({
                                     <th className="px-8 py-5">Gastos</th>
                                     <th className="px-8 py-5">Utilidad Neta</th>
                                     <th className="px-8 py-5">Pedidos</th>
+                                    <th className="px-8 py-5 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs">
-                                {(monthlyFinance || []).map((f) => (
-                                    <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-8 py-6 font-black uppercase text-slate-900">{safeFormatDate(f.month + '-02', 'MMMM yyyy')}</td>
-                                        <td className="px-8 py-6 font-bold text-slate-600">${(f.grossIncome || 0).toFixed(2)}</td>
-                                        <td className="px-8 py-6 text-red-500 font-bold">-${(f.totalExpenses || 0).toFixed(2)}</td>
-                                        <td className="px-8 py-6">
-                                            <span className={`inline-block px-4 py-1.5 rounded-xl font-black text-[10px] tracking-tight ${(f.netProfit || 0) >= 0 ? 'bg-teal-50 text-teal-600 shadow-sm shadow-teal-600/5' : 'bg-red-50 text-red-600 shadow-sm shadow-red-600/5'}`}>
-                                                ${(f.netProfit || 0).toFixed(2)}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-6 font-black text-slate-400">{f.totalOrders || 0}</td>
-                                    </tr>
-                                ))}
+                                {[...(monthlyFinance || [])]
+                                    .sort((a, b) => (b.month || '').localeCompare(a.month || ''))
+                                    .map((f) => (
+                                        <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-8 py-6 font-black uppercase text-slate-900">
+                                                {safeFormatDate(f.month + '-02T12:00:00', 'MMMM yyyy')}
+                                            </td>
+                                            <td className="px-8 py-6 font-bold text-slate-600">${(f.grossIncome || 0).toFixed(2)}</td>
+                                            <td className="px-8 py-6 text-red-500 font-bold">-${(f.totalExpenses || 0).toFixed(2)}</td>
+                                            <td className="px-8 py-6">
+                                                <span className={`inline-block px-4 py-1.5 rounded-xl font-black text-[10px] tracking-tight ${(f.netProfit || 0) >= 0 ? 'bg-teal-50 text-teal-600 shadow-sm shadow-teal-600/5' : 'bg-red-50 text-red-600 shadow-sm shadow-red-600/5'}`}>
+                                                    ${(f.netProfit || 0).toFixed(2)}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-6 font-black text-slate-400">{f.totalOrders || 0}</td>
+                                            <td className="px-8 py-6 text-right">
+                                                {onDeleteMonthlyFinance && (
+                                                    <button 
+                                                        onClick={() => onDeleteMonthlyFinance(f.id)}
+                                                        className="text-red-500 hover:text-red-700 p-2 rounded-xl hover:bg-red-50 transition-colors active:scale-90 inline-flex items-center justify-center"
+                                                        title="Eliminar este cierre"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
                                 {(monthlyFinance || []).length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-8 py-16 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
+                                        <td colSpan={6} className="px-8 py-16 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
                                             No hay cierres mensuales registrados aún.
                                         </td>
                                     </tr>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf, Home, ClipboardList, HeartPulse, Sparkles, Stethoscope, QrCode, Bell, BookOpen } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf, Home, ClipboardList, HeartPulse, LifeBuoy, Stethoscope, QrCode, Bell, BookOpen } from 'lucide-react';
 import { User } from '../types';
 
 interface NavbarProps {
@@ -73,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({
                <NavButton icon={BookOpen} label="Bienestar" onClick={() => onTabChange('wellness')} />
                <NavButton icon={Stethoscope} label="Servicios" onClick={() => onTabChange('services')} />
                <NavButton icon={HeartPulse} label="Salud Familiar" onClick={() => onTabChange('health')} />
-               <NavButton icon={Sparkles} label="Asistente IA" onClick={() => onTabChange('assistant')} />
+               <NavButton icon={LifeBuoy} label="Primeros Auxilios" onClick={() => onTabChange('assistant')} />
             </div>
 
             <div className="flex items-center space-x-3 shrink-0">

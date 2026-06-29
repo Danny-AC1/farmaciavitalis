@@ -88,8 +88,10 @@ export const useAdminPanelState = (
             }
 
             order.items.forEach(item => {
-                const cost = item.costPrice || 0;
-                const totalProfit = (item.price - cost) * item.quantity;
+                const price = typeof item.price === 'number' ? item.price : 0;
+                const cost = typeof item.costPrice === 'number' ? item.costPrice : 0;
+                const qty = typeof item.quantity === 'number' ? item.quantity : 0;
+                const totalProfit = (price - cost) * qty;
                 totalGP += totalProfit;
                 
                 if (isCurrentMonth) {
@@ -98,8 +100,8 @@ export const useAdminPanelState = (
 
                 if (!profitsMap[item.id]) profitsMap[item.id] = { name: item.name, profit: 0, quantity: 0 };
                 profitsMap[item.id].profit += totalProfit;
-                profitsMap[item.id].quantity += item.quantity;
-                if (item.category) categorySales[item.category] = (categorySales[item.category] || 0) + item.quantity;
+                profitsMap[item.id].quantity += qty;
+                if (item.category) categorySales[item.category] = (categorySales[item.category] || 0) + qty;
             });
         });
 

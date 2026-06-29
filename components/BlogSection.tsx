@@ -56,17 +56,20 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 animate-in fade-in duration-700">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
                 <div>
-                    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 border-l-4 border-teal-500 pl-4">
-                        Consejos Vitalis
+                    <h3 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                        <div className="bg-teal-600 p-2.5 rounded-2xl shadow-lg shadow-teal-600/20 text-white">
+                            <BookOpen size={24} />
+                        </div>
+                        Consejos de Salud Vitalis
                     </h3>
-                    <p className="text-gray-500 text-sm mt-1 ml-5">Tu salud, nuestra prioridad. Guías y bienestar.</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 md:ml-14">Tu salud, nuestra prioridad. Guías profesionales y bienestar para tu familia</p>
                 </div>
                 {isAuthorized && (
                     <button 
                         onClick={onOpenAdminPanel}
-                        className="bg-teal-50 text-teal-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-teal-100 transition shadow-sm border border-teal-100"
+                        className="bg-slate-900 text-white px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 hover:bg-black transition-all shadow-md shrink-0 active:scale-95"
                     >
                         <Plus size={16}/> Nuevo Consejo
                     </button>
@@ -74,60 +77,63 @@ const BlogSection: React.FC<BlogSectionProps> = ({ isAuthorized, onOpenAdminPane
             </div>
 
             {posts.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
-                    <BookOpen className="h-12 w-12 mx-auto text-gray-200 mb-2" />
-                    <p className="text-gray-500 font-medium">Próximamente compartiremos consejos de salud para ti.</p>
-                    <p className="text-gray-400 text-xs mt-1">Nuestros farmacéuticos están preparando contenido de calidad.</p>
+                <div className="text-center py-16 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                    <BookOpen className="h-12 w-12 mx-auto text-slate-200 mb-3 animate-pulse" />
+                    <p className="text-slate-500 font-black uppercase text-xs tracking-wider">Próximamente compartiremos consejos de salud para ti</p>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wide mt-1">Nuestros farmacéuticos están preparando contenido de alta calidad</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                     {[...posts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((post) => (
                         <div 
                             key={post.id}
                             onClick={() => setSelectedPost(post)}
-                            className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative flex flex-col h-full"
+                            className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:border-teal-500/10 hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative flex flex-col h-full"
                         >
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="bg-teal-100 p-2 rounded-lg text-teal-600">
-                                    <Sparkles size={18} />
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[9px] font-black text-teal-700 bg-teal-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                                    Salud & Bienestar
+                                </span>
+                                <div className="flex items-center text-[9px] text-teal-600/80 font-black uppercase tracking-wider gap-1">
+                                    <Sparkles size={12} className="text-teal-500 fill-teal-100 animate-pulse" /> 
+                                    Vitalis
                                 </div>
-                                <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded">Salud & Bienestar</span>
                             </div>
                             
-                            <h4 className="text-lg font-bold text-gray-800 mb-3 group-hover:text-teal-600 transition-colors line-clamp-2">
+                            <h4 className="text-lg font-black text-slate-800 mb-3 group-hover:text-teal-600 transition-colors line-clamp-2 leading-snug uppercase tracking-tight">
                                 {post.title}
                             </h4>
                             
                             <div 
-                                className="text-sm text-gray-600 line-clamp-3 mb-6 flex-grow leading-relaxed"
-                                dangerouslySetInnerHTML={{ __html: post.content.substring(0, 150) + '...' }}
+                                className="text-xs text-slate-500 line-clamp-3 mb-6 flex-grow leading-relaxed font-bold uppercase tracking-tight"
+                                dangerouslySetInnerHTML={{ __html: post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' }}
                             />
 
-                            <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-4">
-                                <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                                    <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(post.date).toLocaleDateString()}</span>
-                                    <span className="flex items-center gap-1"><UserIcon size={12}/> {post.author}</span>
+                            <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                                    <span className="flex items-center gap-1"><Calendar size={12} className="text-teal-500" /> {new Date(post.date).toLocaleDateString()}</span>
+                                    <span className="flex items-center gap-1"><UserIcon size={12} className="text-teal-500" /> {post.author}</span>
                                 </div>
-                                <span className="text-teal-600 font-bold text-xs flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                    Leer más &rarr;
+                                <span className="text-teal-600 font-black text-[10px] uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1.5 transition-transform shrink-0">
+                                    Leer &rarr;
                                 </span>
                             </div>
 
                             {isAuthorized && (
-                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                         onClick={(e) => handleEdit(e, post)}
-                                        className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
+                                        className="p-2 bg-white text-teal-600 rounded-xl hover:bg-teal-50 border border-slate-100 transition shadow-sm"
                                         title="Editar post"
                                     >
-                                        <Edit size={16} />
+                                        <Edit size={14} />
                                     </button>
                                     <button 
                                         onClick={(e) => handleDelete(e, post.id)}
-                                        className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+                                        className="p-2 bg-white text-rose-600 rounded-xl hover:bg-rose-50 border border-slate-100 transition shadow-sm"
                                         title="Eliminar post"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={14} />
                                     </button>
                                 </div>
                             )}

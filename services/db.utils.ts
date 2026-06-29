@@ -4,6 +4,10 @@ export const cleanData = (obj: any): any => {
     if (!obj || typeof obj !== 'object') return obj;
     Object.keys(obj).forEach(key => {
         if (obj[key] === undefined) return;
+        if (typeof obj[key] === 'number' && isNaN(obj[key])) {
+            clean[key] = 0;
+            return;
+        }
         if (Array.isArray(obj[key])) {
             clean[key] = obj[key].map((item: any) => typeof item === 'object' ? cleanData(item) : item);
         } else if (obj[key] !== null && typeof obj[key] === 'object' && !(obj[key] instanceof Date)) {

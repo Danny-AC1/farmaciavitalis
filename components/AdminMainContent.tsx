@@ -4,7 +4,7 @@ import AdminDashboard from './AdminDashboard';
 import AdminPOS from './AdminPOS';
 import AdminProductManagement from './AdminProductManagement';
 import AdminMarketing from './AdminMarketing';
-import AdminMarketingAI from './AdminMarketingAI';
+import AdminBlogManager from './AdminBlogManager';
 import AdminOrders from './AdminOrders';
 import AdminSimpleTable from './AdminSimpleTable';
 import AdminDemand from './AdminDemand';
@@ -157,21 +157,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
             );
 
         case 'marketing_ai':
-            return (
-                <AdminMarketingAI 
-                    products={props.products} 
-                    blogTopic={state.blogTopic} 
-                    setBlogTopic={state.setBlogTopic} 
-                    handleGenerateBlog={() => state.handleGenerateBlog(state.blogTopic)} 
-                    isGenerating={state.isGenerating} 
-                    marketingProduct={state.marketingProduct} 
-                    setMarketingProduct={state.setMarketingProduct} 
-                    postPlatform={state.postPlatform} 
-                    setPostPlatform={state.setPostPlatform} 
-                    generatedPost={state.generatedPost} 
-                    handleGeneratePost={state.handleGeneratePost} 
-                />
-            );
+            return <AdminBlogManager />;
 
         case 'categories': return <AdminSimpleTable title="Categorías" data={props.categories} onAdd={state.handleCategoryAdd} onDelete={props.onDeleteCategory} />;
         case 'suppliers': return <AdminSuppliers suppliers={state.suppliers} onAdd={state.handleAddSupplier} onDelete={state.handleDeleteSupplier} onAddPurchase={state.handleAddExpense} />;
@@ -196,6 +182,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                         expenseBreakdown={state.expenseBreakdown || {}}
                         onRegisterMonthlyFinance={state.handleRegisterMonthlyFinance || (() => {})}
                         onEditClosure={onEditClosure}
+                        onDeleteMonthlyFinance={state.handleDeleteMonthlyFinance}
                     />
                 </div>
             );

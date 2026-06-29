@@ -162,3 +162,7 @@ export const streamMonthlyFinance = (callback: (data: MonthlyFinance[]) => void)
         callback(data);
     });
 };
+
+export const deleteMonthlyFinanceDB = async (id: string) => {
+    await deleteDoc(doc(firestore, MONTHLY_FINANCE_COLLECTION, id));
+};
