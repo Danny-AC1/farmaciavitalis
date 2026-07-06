@@ -3,12 +3,12 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number; 
+  price: number;
   costPrice?: number;
   image: string;
   category: string;
-  stock: number; 
-  unitsPerBox?: number; 
+  stock: number;
+  unitsPerBox?: number;
   boxPrice?: number; // Este se usará como costo de caja para cálculos internos
   publicBoxPrice?: number; // Nuevo: Precio de venta al público por caja
   barcode?: string;
@@ -27,7 +27,7 @@ export interface Category {
 
 export interface CartItem extends Product {
   quantity: number;
-  selectedUnit: 'UNIT' | 'BOX'; 
+  selectedUnit: 'UNIT' | 'BOX';
 }
 
 export interface Order {
@@ -42,7 +42,7 @@ export interface Order {
   pointsRedeemed?: number;
   total: number;
   paymentMethod: 'TRANSFER' | 'CASH';
-  cashGiven?: number; 
+  cashGiven?: number;
   status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   source?: 'ONLINE' | 'POS';
   date: string;
@@ -79,7 +79,7 @@ export interface CheckoutFormData {
   address: string;
   city: string;
   paymentMethod: 'TRANSFER' | 'CASH';
-  cashGiven?: string; 
+  cashGiven?: string;
   deliveryFee: number;
   deliveryZone: string;
   lat?: number;
@@ -221,7 +221,7 @@ export interface CashClosure {
 
 export interface MonthlyFinance {
   id: string;
-  month: string; 
+  month: string;
   grossIncome: number;
   netProfit: number;
   totalOrders: number;
@@ -232,7 +232,8 @@ export interface MonthlyFinance {
 export const AVAILABLE_SERVICES = [
   { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
   { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
-  { id: 's4', name: 'Suero', price: 5.00, durationMin: 15, description: 'Puesta de suero.' }
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
+  { id: 's4', name: 'Suero', price: 10.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';
@@ -257,6 +258,14 @@ export interface CreditTicket {
   total: number;
   date: string;
   status: 'PENDIENTE' | 'PAGADO';
+  paidAmount?: number;
+  payments?: {
+    id: string;
+    date: string;
+    amount: number;
+    paymentMethod: 'CASH' | 'TRANSFER';
+    note?: string;
+  }[];
 }
 
 export interface TreasurySession {

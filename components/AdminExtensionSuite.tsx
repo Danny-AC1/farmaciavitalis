@@ -40,10 +40,10 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
       </div>
 
       {/* Selector de Pestañas de la Extensión */}
-      <div className="flex border-b border-slate-200/80 -mt-2">
+      <div className="flex overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-slate-200/80 -mt-2 whitespace-nowrap">
         <button
           onClick={() => setSubTab('discounts')}
-          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
             subTab === 'discounts'
               ? 'border-teal-500 text-teal-600 font-black'
               : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -71,7 +71,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
         <button
           onClick={() => setSubTab('shopping_list')}
-          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
             subTab === 'shopping_list'
               ? 'border-teal-500 text-teal-600 font-black'
               : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -88,7 +88,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
         <button
           onClick={() => setSubTab('credits')}
-          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
             subTab === 'credits'
               ? 'border-teal-500 text-teal-600 font-black'
               : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -102,7 +102,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
         <button
           onClick={() => setSubTab('treasury')}
-          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
             subTab === 'treasury'
               ? 'border-teal-500 text-teal-600 font-black'
               : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -116,7 +116,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
         <button
           onClick={() => setSubTab('hub')}
-          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative ${
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
             subTab === 'hub'
               ? 'border-teal-500 text-teal-600 font-black'
               : 'border-transparent text-slate-400 hover:text-slate-600'

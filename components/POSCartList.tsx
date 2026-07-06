@@ -76,7 +76,7 @@ const POSCartList: React.FC<POSCartListProps> = ({ posCart, removeFromPosCart, a
                   <span className={`text-[9px] md:text-[10px] font-bold shrink-0 ${item.price < 0 ? 'text-purple-500' : 'text-slate-400'}`}>(${unitPrice.toFixed(2)})</span>
                 </div>
 
-                <div className="flex items-center justify-between md:justify-end gap-4 md:gap-8 shrink-0">
+                <div className="flex items-center justify-between md:justify-end gap-1.5 sm:gap-4 md:gap-8 shrink-0">
                   {/* Selector de Unidad */}
                   <div className="w-24 flex justify-center">
                     {item.price >= 0 ? (

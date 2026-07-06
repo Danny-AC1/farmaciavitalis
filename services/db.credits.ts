@@ -68,6 +68,27 @@ export const updateCreditStatusDB = async (id: string, status: 'PENDIENTE' | 'PA
   }
 };
 
+export const updateCreditDB = async (credit: CreditTicket) => {
+  try {
+    const docRef = doc(firestore, CREDITS_COLLECTION, credit.id);
+    const cleaned = cleanData(credit);
+    await setDoc(docRef, cleaned);
+  } catch (err) {
+    console.error("Firestore updateCreditDB failed, updating locally:", err);
+  }
+
+  try {
+    const local = localStorage.getItem('vitalis_credits');
+    if (local) {
+      const list: CreditTicket[] = JSON.parse(local);
+      const updated = list.map(c => c.id === credit.id ? credit : c);
+      localStorage.setItem('vitalis_credits', JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 export const deleteCreditDB = async (id: string) => {
   try {
     const docRef = doc(firestore, CREDITS_COLLECTION, id);

@@ -71,7 +71,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                  </button>
 
                  {showNotifications && (
-                    <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
                         <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
                             <h4 className="text-[10px] font-black uppercase tracking-widest">Centro de Alertas</h4>
                             <span className="bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">{totalNotifications} Nuevas</span>
