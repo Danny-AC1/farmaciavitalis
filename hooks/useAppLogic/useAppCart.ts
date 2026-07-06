@@ -1,14 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Product, CartItem, DELIVERY_FEE, Bundle } from '../../types';
+import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 export const useAppCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    setActiveDiscounts(getActiveDiscounts());
+    return subscribeToDiscounts(() => {
+      setActiveDiscounts(getActiveDiscounts());
+    });
+  }, []);
 
   const subtotal = useMemo(() => cart.reduce((acc, item) => {
-    const price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+    let price = item.selectedUnit === 'BOX' ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+    
+    if (item.selectedUnit === 'UNIT') {
+      const discount = activeDiscounts.find(d => d.productId === item.id);
+      if (discount) {
+        price = getDiscountedPrice(item.price, discount);
+      }
+    }
+    
     return acc + (price * item.quantity);
-  }, 0), [cart]);
+  }, 0), [cart, activeDiscounts]);
 
   const totalBase = subtotal + DELIVERY_FEE;
 

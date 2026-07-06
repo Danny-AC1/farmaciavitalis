@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Minus, Plus, ShoppingBag, Tag } from 'lucide-react';
 import { CartItem, DELIVERY_FEE } from '../../types';
+import { getActiveDiscounts, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -17,6 +18,15 @@ interface CartDrawerProps {
 const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen, onClose, cart, updateQuantity, removeFromCart, subtotal, total, onCheckout
 }) => {
+  const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    setActiveDiscounts(getActiveDiscounts());
+    return subscribeToDiscounts(() => {
+      setActiveDiscounts(getActiveDiscounts());
+    });
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -41,7 +51,15 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                   <ul className="divide-y divide-gray-200">
                     {cart.map((item, idx) => {
                       const isBox = item.selectedUnit === 'BOX';
-                      const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+                      let price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+                      
+                      const discount = !isBox ? activeDiscounts.find(d => d.productId === item.id) : undefined;
+                      if (discount) {
+                        price = getDiscountedPrice(item.price, discount);
+                      }
+                      
+                      const discountPct = discount ? getDiscountPercentage(item.price, discount) : 0;
+
                       return (
                         <li key={`${item.id}-${idx}`} className={`py-6 flex ${item.price < 0 ? 'bg-purple-50 rounded-xl px-2' : ''}`}>
                           <img src={item.image} className="h-20 w-20 rounded border object-contain mix-blend-multiply bg-white" />
@@ -49,14 +67,26 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                             <div>
                               <div className="flex justify-between text-base font-medium text-gray-900">
                                 <h3 className={`line-clamp-1 ${item.price < 0 ? 'text-purple-700 font-bold' : ''}`}>{item.name}</h3>
-                                <p className={`ml-4 shrink-0 ${item.price < 0 ? 'text-purple-700' : ''}`}>${(price * item.quantity).toFixed(2)}</p>
+                                <div className="flex flex-col items-end shrink-0 pl-2">
+                                  <p className={`ml-4 shrink-0 ${item.price < 0 ? 'text-purple-700' : discount ? 'text-teal-700 font-black' : ''}`}>
+                                    ${(price * item.quantity).toFixed(2)}
+                                  </p>
+                                  {discount && (
+                                    <span className="text-xs text-gray-400 line-through">${(item.price * item.quantity).toFixed(2)}</span>
+                                  )}
+                                </div>
                               </div>
                               {isBox && <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-block">Caja x{item.unitsPerBox}</span>}
                               {item.price < 0 && <span className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-block">Combo Aplicado</span>}
+                              {discount && (
+                                <span className="bg-red-50 text-red-700 border border-red-100 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-flex items-center gap-1">
+                                  <Tag className="h-2.5 w-2.5" /> -{discountPct}% OFF
+                                </span>
+                              )}
                             </div>
                             <div className="flex-1 flex items-end justify-between text-sm">
                               {item.price >= 0 ? (
-                                <div className="flex items-center border rounded-md">
+                                <div className="flex items-center border rounded-md bg-white">
                                   <button onClick={() => updateQuantity(idx, -1)} className="p-1 hover:bg-gray-100"><Minus className="h-4 w-4" /></button>
                                   <span className="px-3 font-bold">{item.quantity}</span>
                                   <button onClick={() => updateQuantity(idx, 1)} className="p-1 hover:bg-gray-100"><Plus className="h-4 w-4" /></button>

@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Search, Package, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Package, Sparkles, Tag } from 'lucide-react';
 import { Product } from '../../types';
+import { getActiveDiscounts, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface POSProductSearchProps {
   posSearch: string;
@@ -14,6 +15,15 @@ interface POSProductSearchProps {
 const POSProductSearch: React.FC<POSProductSearchProps> = ({
   posSearch, setPosSearch, filteredProducts, addToPosCart, onSearchAlternatives
 }) => {
+  const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    setActiveDiscounts(getActiveDiscounts());
+    return subscribeToDiscounts(() => {
+      setActiveDiscounts(getActiveDiscounts());
+    });
+  }, []);
+
   return (
     <div className="relative">
       <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-teal-600" size={18} />
@@ -33,13 +43,25 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
             
             const canAddUnit = p.stock >= 1;
             const canAddBox = hasBox && p.stock >= unitsInBox;
+
+            const discount = activeDiscounts.find(d => d.productId === p.id);
+            const discountedPrice = discount ? getDiscountedPrice(p.price, discount) : p.price;
+            const discountPct = discount ? getDiscountPercentage(p.price, discount) : 0;
             
             return (
               <div key={p.id} className="flex items-center justify-between p-2 md:p-3 hover:bg-teal-50 transition-colors border-b last:border-0 group">
                 <div className="flex items-center gap-2 md:gap-3 min-w-0">
                   <div className="w-8 h-8 bg-slate-50 rounded flex items-center justify-center p-1 shrink-0"><Package size={14} className="text-slate-400"/></div>
                     <div className="min-w-0">
-                      <p className="text-[10px] md:text-xs font-black text-slate-800 uppercase truncate leading-none mb-1">{p.name}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-[10px] md:text-xs font-black text-slate-800 uppercase truncate leading-none">{p.name}</p>
+                        {discount && (
+                          <span className="bg-red-500 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 uppercase tracking-wider scale-90 origin-left">
+                            <Tag className="h-2 w-2" />
+                            -{discountPct}%
+                          </span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-1 items-center">
                         <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 5 ? 'text-red-500' : 'text-slate-400'}`}>
                             {p.category} • STOCK: {p.stock}
@@ -60,10 +82,20 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
                     onClick={() => { addToPosCart(p, 'UNIT'); setPosSearch(''); }}
                     className={`flex flex-col items-center border px-2 md:px-3 py-1 rounded-lg transition-all group/btn ${canAddUnit ? 'bg-white border-slate-200 hover:border-teal-500 hover:bg-teal-50' : 'bg-rose-50 border-rose-100'}`}
                   >
-                    <span className={`text-[10px] md:text-xs font-black ${canAddUnit ? 'text-teal-600' : 'text-rose-600'}`}>${p.price.toFixed(2)}</span>
-                    <span className={`text-[7px] font-black uppercase ${canAddUnit ? 'text-slate-300 group-hover/btn:text-teal-400' : 'text-rose-400'}`}>
-                        {canAddUnit ? 'Unid.' : 'Sin Stock'}
-                    </span>
+                    {discount && canAddUnit ? (
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] md:text-xs font-black text-teal-600">${discountedPrice.toFixed(2)}</span>
+                        <span className="text-[7px] md:text-[8px] text-slate-400 line-through leading-none">${p.price.toFixed(2)}</span>
+                        <span className="text-[6px] font-extrabold text-teal-500 uppercase mt-0.5">Dcto.</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className={`text-[10px] md:text-xs font-black ${canAddUnit ? 'text-teal-600' : 'text-rose-600'}`}>${p.price.toFixed(2)}</span>
+                        <span className={`text-[7px] font-black uppercase ${canAddUnit ? 'text-slate-300 group-hover/btn:text-teal-400' : 'text-rose-400'}`}>
+                            {canAddUnit ? 'Unid.' : 'Sin Stock'}
+                        </span>
+                      </>
+                    )}
                   </button>
 
                   {/* Botón Caja (Si aplica) */}

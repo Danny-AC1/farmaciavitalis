@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem } from '../../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check } from 'lucide-react';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check, Tag } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB, streamSubscriptions } from '../../services/db';
 import { getCrossSellSuggestion } from '../../services/gemini';
+import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface ProductDetailProps {
   product: Product;
@@ -20,6 +21,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [discount, setDiscount] = useState<ActiveDiscount | undefined>(undefined);
   
   // Cross-Sell Logic
   const [suggestion, setSuggestion] = useState<{product: Product | undefined, reason: string} | null>(null);
@@ -36,6 +38,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
     
     return () => unsub();
   }, [currentUserEmail, product.id]);
+
+  // Cargar y suscribir a descuentos activos
+  useEffect(() => {
+    setDiscount(getProductDiscount(product.id));
+    return subscribeToDiscounts(() => {
+      setDiscount(getProductDiscount(product.id));
+    });
+  }, [product.id]);
 
   useEffect(() => {
       if (products.length > 0) {
@@ -61,6 +71,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const unitsPerBox = product.unitsPerBox ?? 1;
 
   const displayBoxPrice = product.publicBoxPrice || product.boxPrice || 0;
+  
+  const discountedPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
+  const discountPct = discount ? getDiscountPercentage(product.price, discount) : 0;
 
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");
@@ -121,6 +134,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
         </div>
 
         <div className="w-full md:w-1/2 bg-gray-100 relative h-64 md:h-auto shrink-0 flex items-center justify-center p-6">
+          {available > 0 && discount && (
+             <div className="absolute top-4 left-4 z-10">
+                 <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 uppercase tracking-wider animate-pulse">
+                     <Tag className="h-4 w-4" />
+                     -{discountPct}%
+                 </span>
+             </div>
+          )}
           <img src={product.image} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform hover:scale-105 duration-500" />
           {available <= 0 && (
              <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[1px]">
@@ -173,7 +194,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                 <div className="space-y-4 pb-20 md:pb-0">
                   <div className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 transition-colors bg-gray-50/50">
                     <div className="flex justify-between items-center mb-3">
-                      <div><span className="block text-xs font-bold text-gray-400 uppercase">Precio Unitario</span><span className="text-2xl font-black text-teal-700">${product.price.toFixed(2)}</span></div>
+                      <div>
+                        <span className="block text-xs font-bold text-gray-400 uppercase">Precio Unitario</span>
+                        {discount ? (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-black text-teal-700">${discountedPrice.toFixed(2)}</span>
+                            <span className="text-sm text-gray-400 line-through">${product.price.toFixed(2)}</span>
+                            <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">-{discountPct}%</span>
+                          </div>
+                        ) : (
+                          <span className="text-2xl font-black text-teal-700">${product.price.toFixed(2)}</span>
+                        )}
+                      </div>
                     </div>
                     <button onClick={() => onAddToCart(product, 'UNIT')} className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-600/20"><ShoppingCart className="h-5 w-5" /> Agregar Unidad</button>
                   </div>

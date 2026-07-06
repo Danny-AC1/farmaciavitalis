@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ScanBarcode, Calculator, Package, Sparkles, X, Plus } from 'lucide-react';
 import { Product, CartItem, User, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE, Bundle } from '../../types';
 import { saveUserDB } from '../../services/db';
+import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 // Sub-componentes
 import POSCustomerSelect from './POSCustomerSelect';
@@ -59,6 +60,16 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     }
   }, [lastScanned]);
 
+  // DESCUENTOS ACTIVOS (Suite Gerencial)
+  const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    setActiveDiscounts(getActiveDiscounts());
+    return subscribeToDiscounts(() => {
+      setActiveDiscounts(getActiveDiscounts());
+    });
+  }, []);
+
   // ESTADOS DEL FORMULARIO DE REGISTRO
   const [regName, setRegName] = useState('');
   const [regCedula, setRegCedula] = useState('');
@@ -67,9 +78,17 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   // CALCULOS MATEMÁTICOS (Cerebro del POS)
   const subtotal = useMemo(() => posCart.reduce((sum, item) => {
       const isBox = item.selectedUnit === 'BOX';
-      const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+      let price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+      
+      if (!isBox && item.price >= 0) {
+          const discount = activeDiscounts.find(d => d.productId === item.id);
+          if (discount) {
+              price = getDiscountedPrice(item.price, discount);
+          }
+      }
+      
       return sum + (price * item.quantity);
-  }, 0), [posCart]);
+  }, 0), [posCart, activeDiscounts]);
 
   const { projectedPoints, projectedAccumulated } = useMemo(() => {
     if (!selectedCustomer) return { projectedPoints: 0, projectedAccumulated: 0 };

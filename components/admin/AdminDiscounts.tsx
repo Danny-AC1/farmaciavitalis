@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../../types';
+import { notifyDiscountsUpdated } from '../../utils/discounts';
 import { 
   Search, 
   Percent, 
@@ -62,6 +63,7 @@ const AdminDiscounts: React.FC<AdminDiscountsProps> = ({ products }) => {
     try {
       localStorage.setItem('vitalis_product_discounts', JSON.stringify(updatedDiscounts));
       setDiscounts(updatedDiscounts);
+      notifyDiscountsUpdated();
     } catch (e) {
       console.error("Error saving discounts to localStorage", e);
     }

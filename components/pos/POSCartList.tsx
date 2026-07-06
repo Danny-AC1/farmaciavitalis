@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { ShoppingBag, Minus, Plus, Trash2, Package, Inbox, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingBag, Minus, Plus, Trash2, Package, Inbox, AlertTriangle, Tag } from 'lucide-react';
 import { CartItem } from '../../types';
+import { getActiveDiscounts, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface POSCartListProps {
   posCart: CartItem[];
@@ -11,6 +12,14 @@ interface POSCartListProps {
 }
 
 const POSCartList: React.FC<POSCartListProps> = ({ posCart, removeFromPosCart, addToPosCart, setPosCart }) => {
+  const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    setActiveDiscounts(getActiveDiscounts());
+    return subscribeToDiscounts(() => {
+      setActiveDiscounts(getActiveDiscounts());
+    });
+  }, []);
   
   const toggleUnit = (item: CartItem) => {
       const targetUnit = item.selectedUnit === 'UNIT' ? 'BOX' : 'UNIT';
@@ -59,7 +68,12 @@ const POSCartList: React.FC<POSCartListProps> = ({ posCart, removeFromPosCart, a
           </div>
           {posCart.map((item, idx) => {
             const isBox = item.selectedUnit === 'BOX';
-            const unitPrice = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+            const originalPrice = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+            
+            const discount = !isBox && item.price >= 0 ? activeDiscounts.find(d => d.productId === item.id) : undefined;
+            const unitPrice = discount ? getDiscountedPrice(item.price, discount) : originalPrice;
+            const discountPct = discount ? getDiscountPercentage(item.price, discount) : 0;
+            
             const hasBoxOption = (item.unitsPerBox ?? 0) > 1;
             const { canAddOneMore, unitsUsedInThisLine } = getStockStatus(item);
 
@@ -70,10 +84,27 @@ const POSCartList: React.FC<POSCartListProps> = ({ posCart, removeFromPosCart, a
                     {item.price < 0 ? 'DESC' : isBox ? 'CAJA' : 'UNID'}
                   </span>
                   <div className="min-w-0 flex-grow">
-                    <h4 className={`text-[11px] md:text-sm font-black uppercase truncate leading-none ${item.price < 0 ? 'text-purple-700' : 'text-slate-800'}`}>{item.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-[11px] md:text-sm font-black uppercase truncate leading-none ${item.price < 0 ? 'text-purple-700' : 'text-slate-800'}`}>{item.name}</h4>
+                      {discount && (
+                        <span className="bg-red-500 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 uppercase tracking-wider scale-90 origin-left">
+                          <Tag className="h-2 w-2" />
+                          -{discountPct}%
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{item.price < 0 ? 'Descuento aplicado automáticamente' : `Stock: ${item.stock} / Usado: ${unitsUsedInThisLine}`}</p>
                   </div>
-                  <span className={`text-[9px] md:text-[10px] font-bold shrink-0 ${item.price < 0 ? 'text-purple-500' : 'text-slate-400'}`}>(${unitPrice.toFixed(2)})</span>
+                  <div className="flex flex-col items-end shrink-0 pl-1 md:pl-2">
+                    {discount ? (
+                      <>
+                        <span className="text-[10px] md:text-xs font-black text-teal-600">(${unitPrice.toFixed(2)})</span>
+                        <span className="text-[8px] text-slate-400 line-through leading-none">(${originalPrice.toFixed(2)})</span>
+                      </>
+                    ) : (
+                      <span className={`text-[9px] md:text-[10px] font-bold shrink-0 ${item.price < 0 ? 'text-purple-500' : 'text-slate-400'}`}>(${unitPrice.toFixed(2)})</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between md:justify-end gap-1.5 sm:gap-4 md:gap-8 shrink-0">

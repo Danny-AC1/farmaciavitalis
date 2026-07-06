@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Tag } from 'lucide-react';
 import { Product, CartItem } from '../../types';
+import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface ProductCardProps {
   product: Product;
@@ -19,8 +20,20 @@ const getReservedStock = (productId: string, currentCart: CartItem[]) => {
 };
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, onSelect }) => {
+  const [discount, setDiscount] = useState<ActiveDiscount | undefined>(undefined);
+
+  useEffect(() => {
+    setDiscount(getProductDiscount(product.id));
+    return subscribeToDiscounts(() => {
+      setDiscount(getProductDiscount(product.id));
+    });
+  }, [product.id]);
+
   const reserved = getReservedStock(product.id, cart);
   const available = Math.max(0, product.stock - reserved);
+
+  const discountedPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
+  const discountPct = discount ? getDiscountPercentage(product.price, discount) : 0;
   
   return (
       <div 
@@ -29,6 +42,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
       >
           <div className="h-32 md:h-48 bg-gray-50 overflow-hidden relative">
               <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 mix-blend-multiply" />
+              {available > 0 && discount && (
+                <div className="absolute top-2 left-2 z-10">
+                  <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-[10px] md:text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 uppercase tracking-wider">
+                    <Tag className="h-3 w-3 shrink-0" />
+                    -{discountPct}%
+                  </span>
+                </div>
+              )}
               {available <= 0 && (
               <div className="absolute inset-0 bg-white/70 flex items-center justify-center backdrop-blur-[1px]">
                   <span className="bg-red-500 text-white px-2 py-1 text-[10px] md:text-xs font-bold rounded shadow-lg transform -rotate-6">AGOTADO</span>
@@ -43,7 +64,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
               
               <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-gray-100 space-y-2 md:space-y-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between">
-                      <span className="text-base md:text-lg font-black text-teal-700">${product.price.toFixed(2)}</span>
+                      {discount ? (
+                        <div className="flex flex-col">
+                          <span className="text-base md:text-lg font-black text-teal-700">${discountedPrice.toFixed(2)}</span>
+                          <span className="text-[10px] md:text-xs text-gray-400 line-through">${product.price.toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-base md:text-lg font-black text-teal-700">${product.price.toFixed(2)}</span>
+                      )}
                       <button 
                           onClick={(e) => {
                               e.stopPropagation();

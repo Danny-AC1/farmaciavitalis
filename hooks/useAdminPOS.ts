@@ -4,6 +4,7 @@ import { Product, CartItem, User, Order, POINTS_DISCOUNT_VALUE, Bundle } from '.
 import { addOrderDB } from '../services/db.orders';
 import { updateStockDB } from '../services/db.products';
 import { saveUserDB } from '../services/db.users';
+import { getProductDiscount, getDiscountedPrice } from '../utils/discounts';
 
 export const useAdminPOS = (products: Product[]) => {
     const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -103,7 +104,20 @@ export const useAdminPOS = (products: Product[]) => {
     const handlePosCheckout = async (customer?: User, pointsRedeemed: number = 0) => {
         if (posCart.length === 0) return;
         
-        const subtotalValue = posCart.reduce((sum, item) => {
+        const finalItems = posCart.map(item => {
+            if (item.selectedUnit === 'UNIT' && item.price >= 0) {
+                const discount = getProductDiscount(item.id);
+                if (discount) {
+                    return {
+                        ...item,
+                        price: getDiscountedPrice(item.price, discount)
+                    };
+                }
+            }
+            return item;
+        });
+
+        const subtotalValue = finalItems.reduce((sum, item) => {
             const isBox = item.selectedUnit === 'BOX';
             const price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
             return sum + (price * item.quantity);
@@ -117,7 +131,7 @@ export const useAdminPOS = (products: Product[]) => {
             customerName: customer?.displayName || 'Venta Local',
             customerPhone: customer?.phone || 'N/A',
             customerAddress: customer?.cedula || 'Mostrador',
-            items: posCart, subtotal: subtotalValue, deliveryFee: 0,
+            items: finalItems, subtotal: subtotalValue, deliveryFee: 0,
             discount: discountValue, pointsRedeemed: pointsRedeemed,
             total: totalValue, paymentMethod: posPaymentMethod,
             status: 'DELIVERED', source: 'POS', date: new Date().toISOString(),

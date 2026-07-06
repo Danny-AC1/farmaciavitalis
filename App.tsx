@@ -182,11 +182,11 @@ const App: React.FC = () => {
               else if (n.link === '/services') logic.handleTabChange('services');
               else if (n.link === '/wellness') logic.handleTabChange('wellness');
               else if (n.link === '/') logic.handleTabChange('home');
-              else if (n.link.startsWith('/product/')) {
-                const pid = n.link.split('/').pop();
+              else if (n.link.includes('/product/')) {
+                const pid = n.link.split('/').filter(Boolean).pop()?.split('?')[0];
                 const prod = logic.products.find(p => p.id === pid);
                 if (prod) {
-                  logic.setView('HOME');
+                  logic.handleTabChange('home');
                   logic.setSelectedProduct(prod);
                 }
               }
