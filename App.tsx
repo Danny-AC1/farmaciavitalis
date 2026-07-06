@@ -8,27 +8,29 @@ import {
 import { CheckCircle } from 'lucide-react';
 
 // Components
-import Navbar from './components/Navbar';
-import HomeView from './components/HomeView';
-import CartDrawer from './components/CartDrawer';
-import ProductDetail from './components/ProductDetail';
-import Checkout from './components/Checkout';
-import AdminPanel from './components/AdminPanel';
-import DriverDashboard from './components/DriverDashboard';
-import BottomNav from './components/BottomNav';
-import SearchBar from './components/SearchBar';
-import AuthModal from './components/AuthModal';
-import ProfileModal from './components/ProfileModal';
-import UserOrdersModal from './components/UserOrdersModal';
-import PrescriptionModal from './components/PrescriptionModal';
-import ServicesModal from './components/ServicesModal';
-import FirstAidGuide from './components/FirstAidGuide';
-import FamilyHealthModal from './components/FamilyHealthModal';
-import UserSubscriptionsModal from './components/UserSubscriptionsModal';
-import StaffAccessModal from './components/StaffAccessModal';
-import Footer from './components/Footer';
-import NotificationCenter from './components/NotificationCenter';
-import BlogSection from './components/BlogSection';
+import {
+  Navbar,
+  HomeView,
+  CartDrawer,
+  ProductDetail,
+  Checkout,
+  AdminPanel,
+  DriverDashboard,
+  BottomNav,
+  SearchBar,
+  AuthModal,
+  ProfileModal,
+  UserOrdersModal,
+  PrescriptionModal,
+  ServicesModal,
+  FirstAidGuide,
+  FamilyHealthModal,
+  UserSubscriptionsModal,
+  StaffAccessModal,
+  Footer,
+  NotificationCenter,
+  BlogSection
+} from './components';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
