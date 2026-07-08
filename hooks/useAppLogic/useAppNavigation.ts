@@ -33,6 +33,7 @@ export const useAppNavigation = () => {
     if (view !== 'HOME') params.set('view', view);
     if (activeTab !== 'home') params.set('tab', activeTab);
     if (activeCategory) params.set('category', activeCategory);
+    if (selectedProduct) params.set('product', selectedProduct.id);
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
     

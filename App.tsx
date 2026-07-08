@@ -175,25 +175,68 @@ const App: React.FC = () => {
           isOpen={logic.notifications.isOpen} 
           onClose={() => logic.notifications.setIsOpen(false)} 
           onNavigate={(n) => {
+            // Cerrar cualquier modal o panel lateral que pueda interferir u ocultar el detalle del producto
+            logic.setIsCartOpen(false);
+            logic.setShowProfileModal(false);
+            logic.setShowUserSubscriptionsModal(false);
+            logic.setShowPrescriptionModal(false);
+            logic.setShowAuthModal(false);
+            logic.setShowStaffAccess(false);
+            
             if (n.link) {
-              if (n.link === '/orders') logic.handleTabChange('orders');
-              else if (n.link === '/health') logic.handleTabChange('health');
-              else if (n.link === '/assistant') logic.handleTabChange('assistant');
-              else if (n.link === '/services') logic.handleTabChange('services');
-              else if (n.link === '/wellness') logic.handleTabChange('wellness');
-              else if (n.link === '/') logic.handleTabChange('home');
-              else if (n.link.includes('/product/')) {
-                const pid = n.link.split('/').filter(Boolean).pop()?.split('?')[0];
-                const prod = logic.products.find(p => p.id === pid);
+              if (n.link === '/orders') {
+                logic.handleTabChange('orders');
+              } else if (n.link === '/health') {
+                logic.handleTabChange('health');
+              } else if (n.link === '/assistant') {
+                logic.handleTabChange('assistant');
+              } else if (n.link === '/services') {
+                logic.handleTabChange('services');
+              } else if (n.link === '/wellness') {
+                logic.handleTabChange('wellness');
+              } else if (n.link === '/') {
+                logic.handleTabChange('home');
+              } else if (n.link.includes('product')) {
+                // Obtener ID del producto del enlace robustamente
+                let pid = null;
+                try {
+                  const urlObj = n.link.includes('://') ? new URL(n.link) : new URL(n.link, window.location.origin);
+                  pid = urlObj.searchParams.get('id') || urlObj.searchParams.get('product') || urlObj.searchParams.get('productId');
+                } catch (e) {
+                  // Fallback si no es una URL válida
+                }
+
+                if (!pid) {
+                  const match = n.link.match(/product\/([a-zA-Z0-9_-]+)/);
+                  pid = (match ? match[1] : null) || n.link.split('/').filter(Boolean).pop()?.split('?')[0];
+                }
+
+                const trimmedPid = pid?.trim();
+                const prod = logic.products.find(p => p.id === trimmedPid || p.id.toLowerCase() === trimmedPid?.toLowerCase());
+
                 if (prod) {
                   logic.handleTabChange('home');
                   logic.setSelectedProduct(prod);
+                } else {
+                  // Fallback adicional por nombre encerrado en comillas en el mensaje
+                  const nameMatch = n.message.match(/"([^"]+)"/);
+                  if (nameMatch) {
+                    const extractedName = nameMatch[1].toLowerCase();
+                    const prodByName = logic.products.find(p => p.name.toLowerCase().includes(extractedName) || extractedName.includes(p.name.toLowerCase()));
+                    if (prodByName) {
+                      logic.handleTabChange('home');
+                      logic.setSelectedProduct(prodByName);
+                    }
+                  }
                 }
               }
             } else {
               // Fallback por tipo
-              if (n.type === 'ORDER_UPDATE') logic.handleTabChange('orders');
-              else if (n.type === 'PROMOTION') logic.handleTabChange('home');
+              if (n.type === 'ORDER_UPDATE') {
+                logic.handleTabChange('orders');
+              } else if (n.type === 'PROMOTION') {
+                logic.handleTabChange('home');
+              }
             }
           }}
         />
