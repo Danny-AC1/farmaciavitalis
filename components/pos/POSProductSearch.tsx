@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Package, Sparkles, Tag } from 'lucide-react';
+import { Search, Package, ArrowLeftRight, Tag } from 'lucide-react';
 import { Product } from '../../types';
 import { getActiveDiscounts, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
@@ -77,6 +77,19 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
                 </div>
 
                 <div className="flex gap-1 md:gap-2 shrink-0">
+                  {/* Botón Sustituto / Equivalente */}
+                  <button 
+                    onClick={() => { 
+                      onSearchAlternatives?.(p.activeIngredient || p.name); 
+                    }}
+                    type="button"
+                    className="flex flex-col items-center justify-center border border-teal-200 bg-teal-50 text-teal-700 px-2 md:px-3 py-1 rounded-lg hover:bg-teal-600 hover:text-white hover:border-teal-600 transition-all group/sub"
+                    title="Buscar sustituto o equivalente de este producto"
+                  >
+                    <ArrowLeftRight size={10} className="text-teal-500 group-hover/sub:text-white" />
+                    <span className="text-[7px] md:text-[8px] font-black uppercase leading-none mt-0.5">Sustituto</span>
+                  </button>
+
                   {/* Botón Unidad */}
                   <button 
                     onClick={() => { addToPosCart(p, 'UNIT'); setPosSearch(''); }}
@@ -113,13 +126,13 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
             );
           })}
           
-          {/* Botón de Alternativas IA */}
+          {/* Botón de Alternativas tradicional */}
           <button 
             onClick={() => onSearchAlternatives?.(posSearch)}
-            className="w-full p-4 bg-indigo-600 text-white flex items-center justify-center gap-3 hover:bg-indigo-700 transition-colors font-black text-xs uppercase tracking-widest"
+            className="w-full p-3 bg-teal-600 text-white flex items-center justify-center gap-3 hover:bg-teal-700 transition-colors font-black text-xs uppercase tracking-widest"
           >
-            <Sparkles size={16}/> 
-            {filteredProducts.length === 0 ? 'No se encuentra el producto? Buscar alternativas IA' : '¿No es lo que buscas? Ver alternativas IA'}
+            <ArrowLeftRight size={14}/> 
+            {filteredProducts.length === 0 ? '¿No se encuentra? Buscar equivalentes' : '¿Ver otros equivalentes o sustitutos?'}
           </button>
         </div>
       )}

@@ -19,6 +19,9 @@ export const useAppNavigation = () => {
   const [activeCategory, setActiveCategory] = useState<string | null>(initialState.category);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Estado para saber si ya hemos intentado inicializar el producto desde la URL en la carga inicial
+  const [hasInitializedProductFromUrl, setHasInitializedProductFromUrl] = useState(false);
+  
   const [lastBackPress, setLastBackPress] = useState(0);
   const isInternalChange = useRef(false);
 
@@ -33,25 +36,40 @@ export const useAppNavigation = () => {
     if (view !== 'HOME') params.set('view', view);
     if (activeTab !== 'home') params.set('tab', activeTab);
     if (activeCategory) params.set('category', activeCategory);
-    if (selectedProduct) params.set('product', selectedProduct.id);
+    
+    // Si hay un producto seleccionado, lo agregamos a la URL
+    if (selectedProduct) {
+      params.set('product', selectedProduct.id);
+    } else if (!hasInitializedProductFromUrl) {
+      // Si no se ha inicializado el producto desde la URL aún (ej: en la carga inicial cuando los productos siguen cargando),
+      // preservamos el parámetro 'product' actual de la barra de direcciones para no borrarlo prematuramente.
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlPid = urlParams.get('product') || urlParams.get('id') || urlParams.get('productId');
+      if (urlPid) {
+        params.set('product', urlPid);
+      }
+    }
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
     
+    const initialUrlProduct = !hasInitializedProductFromUrl ? (new URLSearchParams(window.location.search).get('product') || undefined) : undefined;
+    const currentProductId = selectedProduct ? selectedProduct.id : initialUrlProduct;
+
     const state = { 
       view, 
       activeTab, 
       activeCategory, 
-      selectedProductId: selectedProduct?.id,
+      selectedProductId: currentProductId,
       searchTerm 
     };
 
     // Si estamos en el inicio y no hay nada seleccionado, usamos replaceState para no llenar el historial
-    if (view === 'HOME' && activeTab === 'home' && !activeCategory && !selectedProduct) {
+    if (view === 'HOME' && activeTab === 'home' && !activeCategory && !currentProductId) {
       window.history.replaceState(state, '', newUrl);
     } else {
       window.history.pushState(state, '', newUrl);
     }
-  }, [view, activeTab, activeCategory, selectedProduct]); // Excluimos searchTerm para no llenar el historial con cada letra
+  }, [view, activeTab, activeCategory, selectedProduct, hasInitializedProductFromUrl]); // Excluimos searchTerm para no llenar el historial con cada letra
 
   // Sincronizar searchTerm por separado con replaceState para que persista en el estado actual
   useEffect(() => {
@@ -117,6 +135,7 @@ export const useAppNavigation = () => {
   return { 
     view, setView, activeTab, setActiveTab, tempStaffRole, setTempStaffRole,
     selectedProduct, setSelectedProduct, activeCategory, setActiveCategory,
-    searchTerm, setSearchTerm
+    searchTerm, setSearchTerm,
+    hasInitializedProductFromUrl, setHasInitializedProductFromUrl
   };
 };

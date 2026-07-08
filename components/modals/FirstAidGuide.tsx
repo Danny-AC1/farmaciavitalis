@@ -18,7 +18,8 @@ import {
   Archive,
   Calculator,
   Baby,
-  Calendar
+  Calendar,
+  Search
 } from 'lucide-react';
 import { Product } from '../../types';
 
@@ -227,29 +228,9 @@ const BOTIQUIN_CHECKLIST_ITEMS = [
   { id: 'item_7', name: 'Suero de Rehidratación Oral', category: 'Hidratación', keyword: 'suero' }
 ];
 
-interface MedicationPresentation {
-  id: string;
-  label: string;
-  concentrationText: string;
-  doseUnit: 'mL' | 'gotas';
-  calculate: (weightKg: number) => {
-    dose: number;
-    explanation: string;
-    maxDaily: string;
-  };
-}
 
-interface MedicationConfig {
-  id: string;
-  name: string;
-  category: string;
-  presentations: MedicationPresentation[];
-  warning: string;
-  administrationTip: string;
-  searchKeyword: string;
-}
 
-const MEDICATION_CONFIGS: MedicationConfig[] = [
+/* const MEDICATION_CONFIGS_DISABLED = [
   {
     id: 'paracetamol',
     name: 'Paracetamol (Acetaminofén)',
@@ -437,6 +418,122 @@ const MEDICATION_CONFIGS: MedicationConfig[] = [
     administrationTip: 'Alivia rápidamente síntomas de alergias respiratorias, urticaria y prurito en general.',
     searchKeyword: 'antialérgico'
   }
+]; */
+
+export interface KnownActiveIngredient {
+  name: string;
+  id: string;
+  category: string;
+  searchKeys: string[];
+  defaultConcentrationMg: number;
+  defaultConcentrationMl: number;
+  defaultDosageMgKg: number;
+  doseUnit: 'mL' | 'gotas';
+  frequencyHours: number;
+  maxDailyDoses: number;
+  warning: string;
+  administrationTip: string;
+}
+
+export const KNOWN_INGREDIENTS: KnownActiveIngredient[] = [
+  {
+    name: 'Paracetamol (Acetaminofén)',
+    id: 'paracetamol',
+    category: 'Analgésico / Antipirético',
+    searchKeys: ['paracetamol', 'acetaminofen', 'acetaminofén'],
+    defaultConcentrationMg: 120,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 15,
+    doseUnit: 'mL',
+    frequencyHours: 6,
+    maxDailyDoses: 5,
+    warning: 'No administrar más de 5 veces al día. Dejar pasar al menos 4 a 6 horas entre cada dosis. El uso excesivo de paracetamol puede causar daños graves al hígado.',
+    administrationTip: 'La presentación en gotas es exclusiva para bebés pequeños; para niños mayores de 2 años se prefiere la suspensión en jarabe con jeringa dosificadora.'
+  },
+  {
+    name: 'Ibuprofeno Infantil',
+    id: 'ibuprofeno',
+    category: 'Antiinflamatorio / Analgésico',
+    searchKeys: ['ibuprofeno', 'ibuprofen'],
+    defaultConcentrationMg: 100,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 10,
+    doseUnit: 'mL',
+    frequencyHours: 8,
+    maxDailyDoses: 4,
+    warning: 'No usar en menores de 6 meses de edad sin indicación médica expresa. Administrar siempre acompañado de alimentos para proteger el estómago del niño.',
+    administrationTip: 'El intervalo recomendado es de cada 6 a 8 horas. No exceder de 4 dosis en 24 horas.'
+  },
+  {
+    name: 'Amoxicilina',
+    id: 'amoxicilina',
+    category: 'Antibiótico',
+    searchKeys: ['amoxicilina', 'amoxil', 'antibiotico', 'amoxicilin'],
+    defaultConcentrationMg: 250,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 15,
+    doseUnit: 'mL',
+    frequencyHours: 8,
+    maxDailyDoses: 3,
+    warning: 'Este medicamento requiere receta médica estricta y supervisión pediátrica. Complete el ciclo completo del tratamiento incluso si los síntomas desaparecen.',
+    administrationTip: 'Se puede mezclar con leche, jugos o compotas. No olvide agitar muy bien la suspensión líquida reconstituida antes de dosificar.'
+  },
+  {
+    name: 'Loratadina Jarabe',
+    id: 'loratadina',
+    category: 'Antihistamínico (Alergias)',
+    searchKeys: ['loratadina', 'loratadine'],
+    defaultConcentrationMg: 5,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 0.2,
+    doseUnit: 'mL',
+    frequencyHours: 24,
+    maxDailyDoses: 1,
+    warning: 'Uso recomendado a partir de los 2 años. Solo se administra una vez al día. No provoca somnolencia severa en la mayoría de los casos.',
+    administrationTip: 'Ideal para el alivio de rinitis alérgica, estornudos y picazón por picaduras de insectos.'
+  },
+  {
+    name: 'Cetirizina Gotas/Jarabe',
+    id: 'cetirizina',
+    category: 'Antihistamínico (Alergias)',
+    searchKeys: ['cetirizina', 'cetirizine', 'alergias'],
+    defaultConcentrationMg: 5,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 0.25,
+    doseUnit: 'mL',
+    frequencyHours: 12,
+    maxDailyDoses: 2,
+    warning: 'Uso en menores de 2 años requiere estricta supervisión del pediatra. Puede causar somnolencia leve en algunos niños.',
+    administrationTip: 'Alivia rápidamente síntomas de alergias respiratorias, urticaria y prurito en general.'
+  },
+  {
+    name: 'Salbutamol Jarabe',
+    id: 'salbutamol',
+    category: 'Broncodilatador (Asma)',
+    searchKeys: ['salbutamol', 'ventolin', 'albuterol'],
+    defaultConcentrationMg: 2,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 0.1,
+    doseUnit: 'mL',
+    frequencyHours: 8,
+    maxDailyDoses: 3,
+    warning: 'El jarabe de salbutamol puede generar temblor y aceleración del ritmo cardíaco (taquicardia). Utilizar únicamente bajo recomendación y control estricto del pediatra.',
+    administrationTip: 'En crisis bronquiales obstructivas, las guías clínicas internacionales de pediatría prefieren el uso de inhaladores con aerocámara sobre el jarabe oral.'
+  },
+  {
+    name: 'Metoclopramida Jarabe',
+    id: 'metoclopramida',
+    category: 'Antiemético (Náuseas/Vómito)',
+    searchKeys: ['metoclopramida', 'primperan', 'vomito', 'nauseas'],
+    defaultConcentrationMg: 5,
+    defaultConcentrationMl: 5,
+    defaultDosageMgKg: 0.1,
+    doseUnit: 'mL',
+    frequencyHours: 8,
+    maxDailyDoses: 3,
+    warning: '¡PRECAUCIÓN EXTREMA! Su uso en niños puede desencadenar reacciones extrapiramidales (espasmos musculares severos, movimientos involuntarios de cuello/cara). Use con extrema precaución y solo si es indicado.',
+    administrationTip: 'Administrar bajo estricta indicación médica. Si el menor presenta temblores o rigidez, suspenda su uso de inmediato.'
+  }
 ];
 
 const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, onClose }) => {
@@ -451,24 +548,18 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
   const [activeSection, setActiveSection] = useState<'protocols' | 'calculator'>('protocols');
   const [childWeight, setChildWeight] = useState<number | ''>(12);
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LB'>('KG');
-  const [selectedMed, setSelectedMed] = useState<string>('paracetamol');
-  const [selectedPresentation, setSelectedPresentation] = useState<string>('susp_120_5');
 
-  const handleMedChange = (medId: string) => {
-    setSelectedMed(medId);
-    const med = MEDICATION_CONFIGS.find(m => m.id === medId);
-    if (med && med.presentations.length > 0) {
-      setSelectedPresentation(med.presentations[0].id);
-    }
-  };
-
-  const activeMedication = useMemo(() => {
-    return MEDICATION_CONFIGS.find(m => m.id === selectedMed) || MEDICATION_CONFIGS[0];
-  }, [selectedMed]);
-
-  const activePresentation = useMemo(() => {
-    return activeMedication.presentations.find(p => p.id === selectedPresentation) || activeMedication.presentations[0];
-  }, [activeMedication, selectedPresentation]);
+  // Principio activo state & parameters
+  const [activeIngredientInput, setActiveIngredientInput] = useState<string>('Paracetamol');
+  const [customMg, setCustomMg] = useState<number>(120);
+  const [customMl, setCustomMl] = useState<number>(5);
+  const [customDosage, setCustomDosage] = useState<number>(15);
+  const [customUnit, setCustomUnit] = useState<'mL' | 'gotas'>('mL');
+  const [customFreq, setCustomFreq] = useState<number>(6);
+  const [customMaxDoses, setCustomMaxDoses] = useState<number>(5);
+  const [customWarning, setCustomWarning] = useState<string>('No administrar más de 5 veces al día. Dejar pasar al menos 4 a 6 horas entre cada dosis. El uso excesivo de paracetamol puede causar daños graves al hígado.');
+  const [customTip, setCustomTip] = useState<string>('La presentación en gotas es exclusiva para bebés pequeños; para niños mayores de 2 años se prefiere la suspensión en jarabe con jeringa dosificadora.');
+  const [customCategory, setCustomCategory] = useState<string>('Analgésico / Antipirético');
 
   const calculationResult = useMemo(() => {
     if (childWeight === '' || isNaN(Number(childWeight)) || Number(childWeight) <= 0) {
@@ -479,17 +570,26 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
       };
     }
     const weightKg = weightUnit === 'LB' ? Number(childWeight) / 2.20462 : Number(childWeight);
-    return activePresentation.calculate(weightKg);
-  }, [childWeight, weightUnit, activePresentation]);
+    const mgDose = weightKg * customDosage;
+    const calculatedDose = mgDose * (customMl / customMg);
+    const roundedDose = customUnit === 'gotas' ? Math.round(calculatedDose) : Math.round(calculatedDose * 10) / 10;
+    
+    return {
+      dose: roundedDose,
+      explanation: `Dosis calculada a razón de ${customDosage} mg/kg por toma (aporta aprox. ${Math.round(mgDose)} mg).`,
+      maxDaily: `${Math.round(roundedDose * customMaxDoses * 10) / 10} ${customUnit} al día (máximo ${customMaxDoses} tomas en 24h).`
+    };
+  }, [childWeight, weightUnit, customMg, customMl, customDosage, customUnit, customMaxDoses]);
 
   const matchedStoreProducts = useMemo(() => {
     return products.filter(p => {
       const nameLower = p.name.toLowerCase();
       const descLower = p.description.toLowerCase();
-      const searchKeyword = activeMedication.searchKeyword;
-      return nameLower.includes(searchKeyword) || descLower.includes(searchKeyword);
+      const query = activeIngredientInput.toLowerCase().trim();
+      if (!query) return false;
+      return nameLower.includes(query) || descLower.includes(query);
     }).slice(0, 3);
-  }, [activeMedication, products]);
+  }, [activeIngredientInput, products]);
 
   // Current selected protocol
   const currentProtocol = useMemo(() => {
@@ -1016,58 +1116,197 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                 </p>
               </div>
 
-              {/* MEDICATION SELECTOR */}
-              <div className="space-y-2.5">
+              {/* PRINCIPIO ACTIVO SEARCH & SELECTION */}
+              <div className="space-y-2.5 relative">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                  Medicamento Común de Venta Libre
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {MEDICATION_CONFIGS.map((med) => {
-                    const isSelected = selectedMed === med.id;
-                    return (
-                      <button
-                        key={med.id}
-                        type="button"
-                        onClick={() => handleMedChange(med.id)}
-                        className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                          isSelected
-                            ? 'border-teal-500 bg-teal-50/30 ring-1 ring-teal-500/30'
-                            : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                        }`}
-                      >
-                        <span className={`text-[9px] font-black uppercase tracking-wider block ${
-                          isSelected ? 'text-teal-600' : 'text-slate-400'
-                        }`}>
-                          {med.category}
-                        </span>
-                        <span className="text-xs font-black text-slate-800 mt-1">
-                          {med.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* PRESENTATION SELECTOR */}
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                  Presentación y Concentración Disponible
+                  Principio Activo (Escribe o busca el medicamento)
                 </label>
                 <div className="relative">
-                  <select
-                    value={selectedPresentation}
-                    onChange={(e) => setSelectedPresentation(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-100 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none rounded-xl px-4 py-3 text-xs font-bold text-slate-800 transition-all appearance-none cursor-pointer"
-                  >
-                    {activeMedication.presentations.map((pres) => (
-                      <option key={pres.id} value={pres.id}>
-                        {pres.label} ({pres.concentrationText})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 font-mono text-[9px]">
-                    ▼
+                  <input
+                    type="text"
+                    value={activeIngredientInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setActiveIngredientInput(val);
+                      // Autocomplete if exact match is typed
+                      const match = KNOWN_INGREDIENTS.find(item => 
+                        item.searchKeys.some(key => key === val.toLowerCase().trim())
+                      );
+                      if (match) {
+                        setCustomCategory(match.category);
+                        setCustomMg(match.defaultConcentrationMg);
+                        setCustomMl(match.defaultConcentrationMl);
+                        setCustomDosage(match.defaultDosageMgKg);
+                        setCustomUnit(match.doseUnit);
+                        setCustomFreq(match.frequencyHours);
+                        setCustomMaxDoses(match.maxDailyDoses);
+                        setCustomWarning(match.warning);
+                        setCustomTip(match.administrationTip);
+                      }
+                    }}
+                    placeholder="Ej. Paracetamol, Ibuprofeno, Amoxicilina, Salbutamol..."
+                    className="w-full bg-slate-50 border border-slate-100 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none rounded-xl px-4 py-3 text-sm font-bold text-slate-800 transition-all"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300">
+                    <Search size={16} />
+                  </div>
+                </div>
+
+                {/* Match suggestions */}
+                {activeIngredientInput.trim() !== '' && (
+                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-slate-100 no-scrollbar">
+                    {(() => {
+                      const query = activeIngredientInput.toLowerCase().trim();
+                      const filtered = KNOWN_INGREDIENTS.filter(item =>
+                        item.name.toLowerCase().includes(query) ||
+                        item.searchKeys.some(key => key.includes(query)) ||
+                        item.category.toLowerCase().includes(query)
+                      );
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="p-3 text-xs text-slate-400 font-semibold text-center uppercase">
+                            ✨ Principio activo personalizado libre
+                          </div>
+                        );
+                      }
+
+                      return filtered.map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveIngredientInput(item.name);
+                            setCustomCategory(item.category);
+                            setCustomMg(item.defaultConcentrationMg);
+                            setCustomMl(item.defaultConcentrationMl);
+                            setCustomDosage(item.defaultDosageMgKg);
+                            setCustomUnit(item.doseUnit);
+                            setCustomFreq(item.frequencyHours);
+                            setCustomMaxDoses(item.maxDailyDoses);
+                            setCustomWarning(item.warning);
+                            setCustomTip(item.administrationTip);
+                          }}
+                          className="w-full text-left p-3 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-xs font-black text-slate-800 uppercase">{item.name}</p>
+                            <p className="text-[9px] text-slate-400 font-black uppercase mt-0.5">{item.category}</p>
+                          </div>
+                          <span className="text-[8px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded font-black uppercase border border-teal-100 shrink-0">
+                            Cargar Datos
+                          </span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* DYNAMIC DOSING PARAMETERS PANEL */}
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Concentración de la Presentación y Dosis
+                  </span>
+                  <span className="text-[9px] bg-teal-50 text-teal-700 px-2.5 py-0.5 rounded-full font-black uppercase border border-teal-100">
+                    {customCategory}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">
+                      Concentración (mg)
+                    </label>
+                    <input
+                      type="number"
+                      value={customMg || ''}
+                      onChange={(e) => setCustomMg(Number(e.target.value) || 0)}
+                      placeholder="Ej. 250"
+                      className="w-full bg-white border border-slate-100 focus:border-teal-500 outline-none rounded-lg px-3 py-2 text-xs font-bold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">
+                      Volumen o Medida
+                    </label>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        value={customMl || ''}
+                        onChange={(e) => setCustomMl(Number(e.target.value) || 0)}
+                        placeholder="Ej. 5"
+                        className="w-full bg-white border border-slate-100 focus:border-teal-500 outline-none rounded-lg px-3 py-2 text-xs font-bold text-slate-800 min-w-0"
+                      />
+                      <select
+                        value={customUnit}
+                        onChange={(e) => setCustomUnit(e.target.value as 'mL' | 'gotas')}
+                        className="bg-white border border-slate-100 rounded-lg px-1 py-2 text-[10px] font-black uppercase text-slate-600 outline-none cursor-pointer"
+                      >
+                        <option value="mL">mL</option>
+                        <option value="gotas">Gotas</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">
+                      Dosis Objetivo (mg/kg)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        value={customDosage || ''}
+                        onChange={(e) => setCustomDosage(Number(e.target.value) || 0)}
+                        placeholder="Ej. 15"
+                        className="w-full bg-white border border-slate-100 focus:border-teal-500 outline-none rounded-lg px-3 py-2 text-xs font-bold text-slate-800"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-400 pointer-events-none uppercase">
+                        mg/kg
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">
+                      Frecuencia Sugerida
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={customFreq || ''}
+                        onChange={(e) => setCustomFreq(Number(e.target.value) || 0)}
+                        placeholder="Ej. 8"
+                        className="w-full bg-white border border-slate-100 focus:border-teal-500 outline-none rounded-lg px-3 py-2 text-xs font-bold text-slate-800"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-400 pointer-events-none uppercase">
+                        horas
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase block">
+                    Tomas Máximas Recomendadas al Día (24h)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="6"
+                      value={customMaxDoses}
+                      onChange={(e) => setCustomMaxDoses(Number(e.target.value))}
+                      className="flex-grow accent-teal-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                    />
+                    <span className="font-mono text-xs font-black text-slate-700 w-16 text-right">
+                      {customMaxDoses} tomas
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1108,13 +1347,13 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                   ) : (
                     <div>
                       <span className="text-4xl md:text-5xl font-black font-mono text-teal-400 tracking-tight block">
-                        {calculationResult.dose} <span className="text-xl md:text-2.5xl font-sans uppercase font-bold text-white">{activePresentation.doseUnit}</span>
+                        {calculationResult.dose} <span className="text-xl md:text-2.5xl font-sans uppercase font-bold text-white">{customUnit}</span>
                       </span>
                       <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block mt-2">
-                        {activeMedication.name}
+                        {activeIngredientInput}
                       </span>
                       <span className="text-[10.5px] text-slate-400 font-medium block mt-1.5 leading-relaxed bg-white/5 py-1 px-3 rounded-lg w-fit mx-auto">
-                        {activePresentation.label}
+                        Concentración: {customMg} mg / {customMl} {customUnit}
                       </span>
                     </div>
                   )}
@@ -1140,7 +1379,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Frecuencia y Límite Diario</span>
                       <p className="text-[11px] font-medium text-slate-200 mt-0.5">
                         Intervalo sugerido: <span className="font-bold text-teal-300">
-                          {selectedMed === 'paracetamol' ? 'Cada 4 a 6 horas' : selectedMed === 'ibuprofeno' ? 'Cada 6 a 8 horas' : 'Cada 24 horas (Una vez al día)'}
+                          Cada {customFreq} horas
                         </span>.
                       </p>
                       <p className="text-[10.5px] font-bold text-rose-300 mt-1">
@@ -1155,7 +1394,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 relative z-10">
                     <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-wider">
                       <span>Referencia Visual en Jeringa/Medida</span>
-                      <span className="font-mono text-teal-300 font-bold">{calculationResult.dose} {activePresentation.doseUnit}</span>
+                      <span className="font-mono text-teal-300 font-bold">{calculationResult.dose} {customUnit}</span>
                     </div>
                     {/* Syringe body */}
                     <div className="h-7 bg-white/10 rounded-lg relative overflow-hidden flex items-center">
@@ -1163,7 +1402,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ 
-                          width: `${Math.min(100, (calculationResult.dose / (activePresentation.doseUnit === 'gotas' ? 50 : 15)) * 100)}%` 
+                          width: `${Math.min(100, (calculationResult.dose / (customUnit === 'gotas' ? 50 : 15)) * 100)}%` 
                         }}
                         transition={{ duration: 0.4 }}
                         className="h-full bg-teal-500/40 rounded-l-lg"
@@ -1178,7 +1417,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                         ))}
                       </div>
                       <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-200 pointer-events-none">
-                        Medida aproximada ({activePresentation.doseUnit === 'gotas' ? 'escala 50 gotas' : 'escala 15 mL'})
+                        Medida aproximada ({customUnit === 'gotas' ? 'escala 50 gotas' : 'escala 15 mL'})
                       </div>
                     </div>
                   </div>
@@ -1188,7 +1427,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                 <div className="bg-rose-950/40 border border-rose-900/50 p-4 rounded-xl text-[11px] text-rose-200 space-y-1 relative z-10">
                   <span className="font-black text-rose-300 uppercase block tracking-wider">⚠ Advertencia de Seguridad</span>
                   <p className="leading-relaxed font-semibold">
-                    {activeMedication.warning}
+                    {customWarning}
                   </p>
                 </div>
 
@@ -1196,7 +1435,7 @@ const FirstAidGuide: React.FC<FirstAidGuideProps> = ({ products, onAddToCart, on
                 <div className="bg-blue-950/40 border border-blue-900/50 p-4 rounded-xl text-[11px] text-blue-200 space-y-1 relative z-10">
                   <span className="font-black text-blue-300 uppercase block tracking-wider">💡 Consejo Práctico</span>
                   <p className="leading-relaxed font-semibold">
-                    {activeMedication.administrationTip}
+                    {customTip}
                   </p>
                 </div>
               </div>

@@ -46,6 +46,9 @@ export const useAppLogic = () => {
           }
         }
       }
+      
+      // Marcar como inicializado una vez que los productos se han cargado y hemos procesado la URL
+      nav.setHasInitializedProductFromUrl(true);
     };
 
     handleUrlProductSync();
