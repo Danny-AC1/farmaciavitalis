@@ -29,12 +29,18 @@ import {
   StaffAccessModal,
   Footer,
   NotificationCenter,
-  BlogSection
+  BlogSection,
+  DeliveryInfo
 } from './components';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
   const [showExitToast, setShowExitToast] = React.useState(false);
+
+  // Lógica de horario de servicio para Machalilla: Activo de 08:00 a 20:00
+  const now = new Date();
+  const currentHour = now.getHours();
+  const isServiceActive = currentHour >= 8 && currentHour < 20;
 
   React.useEffect(() => {
     const handleExitToast = () => {
@@ -76,6 +82,7 @@ const App: React.FC = () => {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        {logic.view === 'HOME' && <DeliveryInfo isServiceActive={isServiceActive} />}
         <SearchBar 
           searchTerm={logic.searchTerm} 
           setSearchTerm={logic.setSearchTerm} 
@@ -85,11 +92,11 @@ const App: React.FC = () => {
           startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
-          categories={logic.categories} bundles={logic.bundles} blogPosts={logic.blogPosts} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
+          categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
           displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} 
           onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
           onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
-          onTabChange={logic.handleTabChange} cart={logic.cart}
+          cart={logic.cart}
         />
         <Footer />
       </main>
