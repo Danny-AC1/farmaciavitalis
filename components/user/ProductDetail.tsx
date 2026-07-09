@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem } from '../../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Check, Tag } from 'lucide-react';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Tag } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB, streamSubscriptions } from '../../services/db';
 import { getCrossSellSuggestion } from '../../services/gemini';
 import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import ShareSheet from './ShareSheet';
 
 interface ProductDetailProps {
   product: Product;
@@ -20,7 +21,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   const [alertSent, setAlertSent] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [discount, setDiscount] = useState<ActiveDiscount | undefined>(undefined);
   
   // Cross-Sell Logic
@@ -106,14 +107,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
   };
 
   const handleShare = () => {
-    const url = new URL(window.location.origin);
-    url.searchParams.set('product', product.id);
-    navigator.clipboard.writeText(url.toString());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setIsShareOpen(true);
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-2xl rounded-none shadow-2xl overflow-hidden flex flex-col md:flex-row relative animate-in slide-in-from-bottom-full md:zoom-in-95 duration-300"
@@ -122,11 +120,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
         <div className="absolute top-5 right-5 md:top-4 md:right-4 z-10 flex gap-2">
           <button 
             onClick={handleShare} 
-            className={`p-2 rounded-full transition-all shadow-sm backdrop-blur-sm flex items-center gap-1 ${copied ? 'bg-green-500 text-white' : 'bg-white/80 hover:bg-white text-gray-500 hover:text-teal-600'}`}
-            title="Copiar enlace"
+            className="p-2 rounded-full transition-all shadow-sm backdrop-blur-sm flex items-center gap-1 bg-white/80 hover:bg-white text-gray-500 hover:text-teal-600 hover:scale-105"
+            title="Compartir Producto"
           >
-            {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
-            {copied && <span className="text-[10px] font-bold pr-1">Copiado</span>}
+            <Share2 className="h-5 w-5" />
+            <span className="text-[10px] font-bold pr-1">Compartir</span>
           </button>
           <button onClick={onClose} className="bg-white/80 p-2 rounded-full hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm backdrop-blur-sm">
             <X className="h-6 w-6" />
@@ -269,6 +267,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
         </div>
       </div>
     </div>
+
+    <ShareSheet 
+      product={product}
+      discountedPrice={discountedPrice}
+      isOpen={isShareOpen}
+      onClose={() => setIsShareOpen(false)}
+    />
+    </>
   );
 };
 
