@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Grid, Filter, Clock } from 'lucide-react';
+import { X, Grid, Filter, Clock } from 'lucide-react';
 import { Category, Product } from '../../types';
 import { getCategoryStyle } from '../../utils/CategoryStyles';
 
@@ -121,34 +121,41 @@ const CategoryNavigation: React.FC<CategoryNavigationProps> = ({
       </div>
 
       {/* ========================================== */}
-      {/* 2. MOBILE FLOATING TRIGGER BAR */}
+      {/* 2. MOBILE FLOATING ACTION PILL (FAB) */}
       {/* ========================================== */}
-      <div className="lg:hidden sticky top-[136px] z-30 bg-gray-50/95 backdrop-blur-sm py-2 mb-4 -mx-4 px-4 border-b border-gray-100 shadow-sm flex items-center justify-between gap-3">
+      <div className="lg:hidden fixed bottom-20 right-4 z-40">
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="flex-1 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 flex items-center justify-between shadow-sm active:scale-[0.98] transition-transform"
+          className={`flex items-center gap-2 px-4 py-3 rounded-full shadow-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 active:scale-95 hover:scale-105 ${
+            activeCategoryObj
+              ? 'bg-teal-600 text-white shadow-teal-600/30 border border-teal-500'
+              : 'bg-slate-950 text-white shadow-slate-950/20'
+          }`}
         >
-          <div className="flex items-center gap-2.5">
-            <Filter size={16} className="text-teal-600 shrink-0" />
-            <span className="truncate">
-              {activeCategoryObj ? `Categoría: ${activeCategoryObj.name}` : 'Todas las Categorías'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-extrabold shrink-0">
-            <span>{activeCategoryObj ? getProductCount(activeCategoryObj.name) : totalProductCount} prod</span>
-            <ChevronRight size={14} />
-          </div>
+          {activeCategoryObj ? (
+            <>
+              <span className="text-sm shrink-0">
+                {getCategoryStyle(activeCategoryObj.name).icon ? (
+                  React.createElement(getCategoryStyle(activeCategoryObj.name).icon, { size: 14 })
+                ) : (
+                  '💊'
+                )}
+              </span>
+              <span className="truncate max-w-[100px]">{activeCategoryObj.name}</span>
+              <span className="bg-white/25 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black ml-1">
+                {getProductCount(activeCategoryObj.name)}
+              </span>
+            </>
+          ) : (
+            <>
+              <Filter size={14} className="animate-pulse" />
+              <span>Categorías</span>
+              <span className="bg-white/15 text-slate-300 text-[10px] px-1.5 py-0.5 rounded-full font-black ml-1">
+                {totalProductCount}
+              </span>
+            </>
+          )}
         </button>
-
-        {activeCategory !== null && (
-          <button
-            onClick={() => handleCategorySelect(null)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold px-3 py-3 rounded-xl text-xs flex items-center gap-1 active:scale-95 transition-transform shrink-0"
-          >
-            <X size={14} />
-            <span>Limpiar</span>
-          </button>
-        )}
       </div>
 
       {/* ========================================== */}
