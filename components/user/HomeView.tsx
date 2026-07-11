@@ -71,18 +71,33 @@ const HomeView: React.FC<HomeViewProps> = ({
       ) : (
         <div className="animate-in fade-in">
           {!searchTerm && (
+            <div className="mb-6 mt-1 flex flex-row justify-center gap-2 md:gap-4">
+              <button 
+                onClick={onOpenPrescription} 
+                className="flex-1 bg-white border border-teal-500 text-teal-700 hover:bg-teal-50 px-2.5 py-3 md:border-2 md:px-6 md:py-4 rounded-xl shadow-md flex items-center justify-center gap-1.5 md:gap-3 font-extrabold text-[11px] sm:text-sm md:text-lg transition-all hover:scale-[1.02] active:scale-95 min-w-0"
+                title="Subir Receta Médica"
+              >
+                <Camera className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 shrink-0 text-teal-600" /> 
+                <span className="truncate">Subir Receta</span>
+              </button>
+              
+              <button 
+                onClick={onOpenServices} 
+                className="flex-1 bg-white border border-blue-500 text-blue-700 hover:bg-blue-50 px-2.5 py-3 md:border-2 md:px-6 md:py-4 rounded-xl shadow-md flex items-center justify-center gap-1.5 md:gap-3 font-extrabold text-[11px] sm:text-sm md:text-lg transition-all hover:scale-[1.02] active:scale-95 min-w-0"
+                title="Consultas y Servicios"
+              >
+                <Stethoscope className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 shrink-0 text-blue-600" /> 
+                <span className="truncate">Servicios</span>
+              </button>
+            </div>
+          )}
+
+          {!searchTerm && (
             <PromotionsSection 
               activeBundles={activeBundles}
               allProducts={allProducts}
               onAddBundle={onAddBundle}
             />
-          )}
-
-          {!searchTerm && (
-            <div className="mb-12 flex flex-col sm:flex-row justify-center gap-4">
-              <button onClick={onOpenPrescription} className="flex-1 bg-white border-2 border-teal-500 text-teal-700 hover:bg-teal-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Camera className="h-6 w-6" /> Subir Receta Médica</button>
-              <button onClick={onOpenServices} className="flex-1 bg-white border-2 border-blue-500 text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-xl shadow-md flex items-center justify-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"><Stethoscope className="h-6 w-6" />Servicios</button>
-            </div>
           )}
 
           {!searchTerm && !activeCategory && (

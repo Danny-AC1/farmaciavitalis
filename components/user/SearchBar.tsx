@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Stethoscope, Loader2, Mic, X, Check } from 'lucide-react';
+import { Search, Stethoscope, Loader2, Mic, X, Check, Volume2, AlertCircle } from 'lucide-react';
 import { SYMPTOMS_LIST } from '../../hooks/useAppLogic/useAppAI';
+import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 
 interface SearchBarProps {
   searchTerm: string;
@@ -8,21 +9,41 @@ interface SearchBarProps {
   isSymptomMode: boolean;
   setIsSymptomMode: React.Dispatch<React.SetStateAction<boolean>>;
   isSearchingAI: boolean;
-  startVoiceSearch: () => void;
+  startVoiceSearch?: () => void;
   placeholder?: string;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ 
   searchTerm, setSearchTerm, isSymptomMode, setIsSymptomMode, 
-  isSearchingAI, startVoiceSearch, placeholder 
+  isSearchingAI, placeholder 
 }) => {
   // Check if the current searchTerm matches any symptom in our list
   const activeSymptom = SYMPTOMS_LIST.find(
     s => s.label.toLowerCase() === searchTerm.toLowerCase() || s.id === searchTerm
   );
 
+  // Initialize fully functional Web Speech API voice search hook
+  const {
+    isListening,
+    transcript,
+    supported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript
+  } = useVoiceSearch((finalResult) => {
+    if (finalResult) {
+      setSearchTerm(finalResult);
+    }
+  });
+
+  const handleVoiceButtonClick = () => {
+    resetTranscript();
+    startListening();
+  };
+
   return (
-    <div className="relative w-full mb-6 z-30 sticky top-16 bg-gray-50 pt-2 pb-2 transition-all">
+    <div className="relative w-full mb-2 z-30 sticky top-16 bg-gray-50 pt-2 pb-2 transition-all">
         <div className="relative flex gap-2">
             <button 
               onClick={() => { 
@@ -63,11 +84,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
                   </button>
                 ) : null}
                 <button 
-                  onClick={startVoiceSearch} 
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white/50 hover:bg-white p-2 rounded-full transition-colors" 
-                  title="Buscar por voz"
+                  onClick={handleVoiceButtonClick} 
+                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all ${
+                    isListening 
+                      ? 'bg-teal-100 text-teal-700 animate-pulse' 
+                      : 'bg-white/50 hover:bg-white text-slate-500 hover:text-teal-600'
+                  }`} 
+                  title="Buscar por voz de primer nivel"
                 >
-                  <Mic className={`h-5 w-5 ${isSymptomMode ? 'text-teal-600' : 'text-slate-500'}`} />
+                  <Mic className="h-5 w-5" />
                 </button>
             </div>
         </div>
@@ -116,6 +141,132 @@ const SearchBar: React.FC<SearchBarProps> = ({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Búsqueda por Voz Premium */}
+        {isListening && (
+          <div className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-lg flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
+            <div className="max-w-md w-full bg-slate-950/40 rounded-3xl p-8 border border-white/10 text-center relative overflow-hidden shadow-2xl flex flex-col justify-between min-h-[420px] max-h-[90vh]">
+              
+              {/* Pulsing Glowing Background Accents */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+              {/* Close Button */}
+              <button 
+                onClick={stopListening} 
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
+                title="Cancelar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              {/* Title Header */}
+              <div className="mb-4">
+                <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-3 py-1 rounded-full font-black uppercase tracking-widest inline-block mb-2">
+                  Búsqueda por Voz Activa
+                </span>
+                <h3 className="text-xl font-extrabold text-white">Farmacia Vitalis</h3>
+                <p className="text-xs text-slate-400 font-medium mt-1">Diga claramente el medicamento o malestar que busca</p>
+              </div>
+
+              {/* Audio Visualizer Waves */}
+              <div className="my-6 flex flex-col items-center justify-center gap-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-28 h-28 bg-teal-500/10 rounded-full animate-ping"></div>
+                  <div className="absolute w-20 h-20 bg-teal-500/20 rounded-full animate-pulse"></div>
+                  <div className="relative bg-gradient-to-tr from-teal-500 to-emerald-500 p-5.5 rounded-full shadow-lg shadow-teal-500/30 border border-teal-300/20">
+                    <Volume2 className="h-8 w-8 text-white animate-bounce" />
+                  </div>
+                </div>
+
+                {/* Animated waves representation */}
+                <div className="flex gap-1 items-center h-8 my-1">
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-4 duration-500"></span>
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-6 duration-300"></span>
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-8 duration-200"></span>
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-5 duration-400"></span>
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-7 duration-150"></span>
+                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-4 duration-600"></span>
+                </div>
+              </div>
+
+              {/* Live Transcript Panel */}
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-5 min-h-[96px] flex flex-col items-center justify-center mb-4 transition-all duration-300">
+                {transcript ? (
+                  <p className="text-lg font-bold text-teal-100 line-clamp-3 leading-snug animate-in fade-in duration-150">
+                    "{transcript}"
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-400 font-medium italic animate-pulse">
+                    Escuchando... hable ahora
+                  </p>
+                )}
+              </div>
+
+              {/* User Guide/Tips */}
+              <div className="border-t border-white/5 pt-4">
+                <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-1.5">Sugerencias:</span>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {["Ibuprofeno", "Fiebre", "Ambroxol", "Estómago"].map((tip) => (
+                    <button 
+                      key={tip} 
+                      onClick={() => {
+                        setSearchTerm(tip);
+                        stopListening();
+                      }}
+                      className="text-[10px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-200 hover:border-teal-500/30 border border-white/5 px-2.5 py-1.5 rounded-lg font-bold text-slate-300 transition-colors"
+                    >
+                      "{tip}"
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Búsqueda por Voz No Soportada / Error */}
+        {!supported && voiceError === 'Búsqueda por voz no soportada en este navegador' && (
+          <div className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 text-white animate-in fade-in duration-250">
+            <div className="max-w-sm w-full bg-slate-950 rounded-2xl p-6 border border-white/10 text-center relative shadow-2xl">
+              <div className="mx-auto bg-red-500/10 p-3 rounded-full w-14 h-14 flex items-center justify-center border border-red-500/20 mb-4">
+                <AlertCircle className="h-7 w-7 text-red-400" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">Navegador No Soportado</h3>
+              <p className="text-xs text-slate-400 font-medium mt-1 leading-relaxed">
+                La tecnología de reconocimiento de voz requiere de un navegador compatible (como Google Chrome o Safari).
+              </p>
+              <button 
+                onClick={resetTranscript} 
+                className="mt-5 w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs py-3 rounded-xl transition-all"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Error de Permiso / General */}
+        {voiceError && voiceError !== 'Búsqueda por voz no soportada en este navegador' && (
+          <div className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 text-white animate-in fade-in duration-250">
+            <div className="max-w-sm w-full bg-slate-950 rounded-2xl p-6 border border-white/10 text-center relative shadow-2xl">
+              <div className="mx-auto bg-amber-500/10 p-3 rounded-full w-14 h-14 flex items-center justify-center border border-amber-500/20 mb-4">
+                <AlertCircle className="h-7 w-7 text-amber-400" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">Acceso al Micrófono</h3>
+              <p className="text-xs text-slate-400 font-medium mt-1 leading-relaxed">
+                {voiceError}. Asegúrate de dar los permisos necesarios en la barra de tu navegador para usar la búsqueda por voz.
+              </p>
+              <button 
+                onClick={resetTranscript} 
+                className="mt-5 w-full bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs py-3 rounded-xl transition-all"
+              >
+                Reintentar Búsqueda
+              </button>
             </div>
           </div>
         )}

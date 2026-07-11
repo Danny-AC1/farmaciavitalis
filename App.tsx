@@ -6,6 +6,7 @@ import {
   addCategoryDB, deleteCategoryDB, addOrderDB, updateOrderStatusDB 
 } from './services/db';
 import { CheckCircle } from 'lucide-react';
+import { Product } from './types';
 
 // Components
 import {
@@ -89,7 +90,6 @@ const App: React.FC = () => {
           isSymptomMode={logic.isSymptomMode} 
           setIsSymptomMode={logic.setIsSymptomMode}
           isSearchingAI={logic.isSearchingAI}
-          startVoiceSearch={() => alert("Próximamente...")}
         />
         <HomeView 
           categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
@@ -190,55 +190,83 @@ const App: React.FC = () => {
             logic.setShowAuthModal(false);
             logic.setShowStaffAccess(false);
             
+            let foundProd: Product | null = null;
+
+            // 1. Intentar buscar por coincidencia directa de ID dentro del enlace de manera exhaustiva
             if (n.link) {
-              if (n.link === '/orders') {
-                logic.handleTabChange('orders');
-              } else if (n.link === '/health') {
-                logic.handleTabChange('health');
-              } else if (n.link === '/assistant') {
-                logic.handleTabChange('assistant');
-              } else if (n.link === '/services') {
-                logic.handleTabChange('services');
-              } else if (n.link === '/wellness') {
-                logic.handleTabChange('wellness');
-              } else if (n.link === '/') {
-                logic.handleTabChange('home');
-              } else if (n.link.includes('product')) {
-                // Obtener ID del producto del enlace robustamente
-                let pid = null;
-                try {
-                  const urlObj = n.link.includes('://') ? new URL(n.link) : new URL(n.link, window.location.origin);
-                  pid = urlObj.searchParams.get('id') || urlObj.searchParams.get('product') || urlObj.searchParams.get('productId');
-                } catch (e) {
-                  // Fallback si no es una URL válida
-                }
-
-                if (!pid) {
-                  const match = n.link.match(/product\/([a-zA-Z0-9_-]+)/);
-                  pid = (match ? match[1] : null) || n.link.split('/').filter(Boolean).pop()?.split('?')[0];
-                }
-
-                const trimmedPid = pid?.trim();
-                const prod = logic.products.find(p => p.id === trimmedPid || p.id.toLowerCase() === trimmedPid?.toLowerCase());
-
-                if (prod) {
-                  logic.handleTabChange('home');
-                  logic.setSelectedProduct(prod);
-                } else {
-                  // Fallback adicional por nombre encerrado en comillas en el mensaje
-                  const nameMatch = n.message.match(/"([^"]+)"/);
-                  if (nameMatch) {
-                    const extractedName = nameMatch[1].toLowerCase();
-                    const prodByName = logic.products.find(p => p.name.toLowerCase().includes(extractedName) || extractedName.includes(p.name.toLowerCase()));
-                    if (prodByName) {
-                      logic.handleTabChange('home');
-                      logic.setSelectedProduct(prodByName);
-                    }
-                  }
+              const segments = n.link.split(/[\/\?&=\-_]/).filter(Boolean);
+              for (const segment of segments) {
+                const match = logic.products.find(p => p.id === segment || p.id.toLowerCase() === segment.toLowerCase());
+                if (match) {
+                  foundProd = match;
+                  break;
                 }
               }
+
+              // 2. Intentar buscar por query parameters si no se encontró en segmentos simples
+              if (!foundProd) {
+                try {
+                  const urlObj = n.link.includes('://') ? new URL(n.link) : new URL(n.link, window.location.origin);
+                  const pid = urlObj.searchParams.get('id') || urlObj.searchParams.get('product') || urlObj.searchParams.get('productId');
+                  if (pid) {
+                    const match = logic.products.find(p => p.id === pid || p.id.toLowerCase() === pid.toLowerCase());
+                    if (match) foundProd = match;
+                  }
+                } catch (e) {
+                  // Ignorar error de URL
+                }
+              }
+            }
+
+            // 3. Fallback: Buscar nombres de productos encerrados entre comillas en el mensaje
+            if (!foundProd && n.message) {
+              const nameMatch = n.message.match(/"([^"]+)"/);
+              if (nameMatch) {
+                const extractedName = nameMatch[1].toLowerCase().trim();
+                const prodByName = logic.products.find(p => p.name.toLowerCase().includes(extractedName) || extractedName.includes(p.name.toLowerCase()));
+                if (prodByName) foundProd = prodByName;
+              }
+            }
+
+            // 4. Fallback final: Buscar si algún nombre de producto está presente de manera directa en el mensaje o título
+            if (!foundProd) {
+              const msgLower = (n.message || '').toLowerCase();
+              const titleLower = (n.title || '').toLowerCase();
+              // Ordenar productos por longitud de nombre para evitar falsos positivos con palabras cortas
+              const sortedProducts = [...logic.products].sort((a, b) => b.name.length - a.name.length);
+              for (const prod of sortedProducts) {
+                const prodNameLower = prod.name.toLowerCase();
+                if (prodNameLower.length > 3 && (msgLower.includes(prodNameLower) || titleLower.includes(prodNameLower))) {
+                  foundProd = prod;
+                  break;
+                }
+              }
+            }
+
+            // Ejecutar la redirección final
+            if (foundProd) {
+              logic.handleTabChange('home');
+              // Pequeño timeout para asegurar que el cambio de pestaña y estado de navegación se asiente antes de abrir el modal
+              setTimeout(() => {
+                logic.setSelectedProduct(foundProd);
+              }, 100);
+            } else if (n.link) {
+              const linkLower = n.link.toLowerCase();
+              if (linkLower.includes('/orders')) {
+                logic.handleTabChange('orders');
+              } else if (linkLower.includes('/health')) {
+                logic.handleTabChange('health');
+              } else if (linkLower.includes('/assistant')) {
+                logic.handleTabChange('assistant');
+              } else if (linkLower.includes('/services')) {
+                logic.handleTabChange('services');
+              } else if (linkLower.includes('/wellness')) {
+                logic.handleTabChange('wellness');
+              } else {
+                logic.handleTabChange('home');
+              }
             } else {
-              // Fallback por tipo
+              // Fallback por tipo de notificación
               if (n.type === 'ORDER_UPDATE') {
                 logic.handleTabChange('orders');
               } else if (n.type === 'PROMOTION') {

@@ -11,7 +11,7 @@ interface CategoryPillsProps {
 
 const CategoryPills: React.FC<CategoryPillsProps> = ({ categories, activeCategory, setActiveCategory }) => {
   return (
-    <div className="sticky top-[136px] md:top-[148px] z-20 bg-gray-50/95 backdrop-blur-sm py-3 mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-gray-100 shadow-sm md:shadow-none transition-all duration-300">
+    <div className="sticky top-[136px] md:top-[148px] z-20 bg-gray-50/95 backdrop-blur-sm pt-1.5 pb-3 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-gray-100 shadow-sm md:shadow-none transition-all duration-300">
       <div className="flex overflow-x-auto pb-1 gap-3 snap-x scrollbar-hide">
         <button
           onClick={() => setActiveCategory(null)}
