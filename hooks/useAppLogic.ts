@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAppNavigation } from './useAppLogic/useAppNavigation';
 import { useAppData } from './useAppLogic/useAppData';
 import { useAppCart } from './useAppLogic/useAppCart';
-import { useAppAI } from './useAppLogic/useAppAI';
 import { useAppSearch } from './useAppLogic/useAppSearch';
 import { useAppOrders } from './useAppLogic/useAppOrders';
 import { useNotifications } from './useNotifications';
@@ -19,7 +18,6 @@ export const useAppLogic = () => {
 
   const data = useAppData(nav.activeTab, setShowAuthModal);
   const cart = useAppCart();
-  const ai = useAppAI(searchTerm, data.products);
   const notifications = useNotifications(data.currentUser?.uid);
 
   // Sincronizar el producto de la URL con el estado de la aplicación
@@ -65,10 +63,7 @@ export const useAppLogic = () => {
     searchTerm, 
     setSearchTerm, 
     activeCategory, 
-    setActiveCategory, 
-    ai.isSymptomMode, 
-    ai.aiResults, 
-    ai.isSearchingAI
+    setActiveCategory
   );
 
   const orders = useAppOrders(
@@ -98,7 +93,9 @@ export const useAppLogic = () => {
     ...data,
     ...nav,
     ...cart,
-    ...ai,
+    isSymptomMode: false,
+    setIsSymptomMode: () => {},
+    isSearchingAI: false,
     ...search,
     ...orders,
     notifications,

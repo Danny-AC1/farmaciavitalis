@@ -166,7 +166,11 @@ export const useAdminPOS = (products: Product[]) => {
                 }
             }
             setPosCart([]); setPosCashReceived(''); alert("¡Venta exitosa!");
-        } catch (error: any) { alert("Error al procesar venta."); }
+            return orderData;
+        } catch (error: any) { 
+            alert("Error al procesar venta."); 
+            return undefined;
+        }
     };
 
     return {

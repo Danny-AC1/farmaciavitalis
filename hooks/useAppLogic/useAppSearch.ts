@@ -8,10 +8,7 @@ export const useAppSearch = (
   searchTerm: string,
   setSearchTerm: Dispatch<SetStateAction<string>>,
   activeCategory: string | null,
-  setActiveCategory: Dispatch<SetStateAction<string | null>>,
-  isSymptomMode: boolean, 
-  aiResults: string[], 
-  isSearchingAI: boolean
+  setActiveCategory: Dispatch<SetStateAction<string | null>>
 ) => {
   const displayedProducts = useMemo(() => {
     let filtered = products;
@@ -20,26 +17,26 @@ export const useAppSearch = (
       filtered = products.filter(p => p.category === catName);
     }
     if (searchTerm) {
-      if (isSymptomMode) {
-        filtered = filtered.filter(p => aiResults.includes(p.id));
-      } else {
-        filtered = filtered.filter(p => 
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(term) || 
+        p.description.toLowerCase().includes(term) ||
+        p.category.toLowerCase().includes(term) ||
+        (p.activeIngredient && p.activeIngredient.toLowerCase().includes(term)) ||
+        (p.keywords && p.keywords.toLowerCase().includes(term))
+      );
     }
     return filtered;
-  }, [products, searchTerm, activeCategory, categories, isSymptomMode, aiResults]);
+  }, [products, searchTerm, activeCategory, categories]);
 
   useEffect(() => {
-    if (searchTerm.length > 3 && displayedProducts.length === 0 && !isSearchingAI) {
+    if (searchTerm.length > 3 && displayedProducts.length === 0) {
       const timer = setTimeout(() => {
         logSearchDB(searchTerm);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [searchTerm, displayedProducts.length, isSearchingAI]);
+  }, [searchTerm, displayedProducts.length]);
 
   return { searchTerm, setSearchTerm, activeCategory, setActiveCategory, displayedProducts };
 };

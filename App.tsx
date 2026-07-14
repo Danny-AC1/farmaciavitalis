@@ -90,6 +90,10 @@ const App: React.FC = () => {
           isSymptomMode={logic.isSymptomMode} 
           setIsSymptomMode={logic.setIsSymptomMode}
           isSearchingAI={logic.isSearchingAI}
+          allProducts={logic.products}
+          onAddToCart={logic.addToCart}
+          onSelectProduct={logic.setSelectedProduct}
+          cart={logic.cart}
         />
         <HomeView 
           categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}

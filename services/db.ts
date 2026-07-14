@@ -8,3 +8,4 @@ export * from './db.health';
 export * from './db.admin';
 export * from './db.bundles';
 export * from './db.intelligence';
+export * from './stockAlertService';

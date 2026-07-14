@@ -18,13 +18,13 @@ const Footer: React.FC = () => {
               Tu salud es nuestra prioridad. Ofrecemos productos farmacéuticos de alta calidad con la rapidez y confianza que mereces en Machalilla.
             </p>
             <div className="flex items-center gap-3 pt-2">
-              <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all">
+              <a href="https://www.facebook.com/share/1EgmXJBpFK/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all" title="Síguenos en Facebook">
                 <Facebook size={18} />
               </a>
-              <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all">
+              <a href="https://www.instagram.com/farmacia__vitalis?igsh=d2ZseWU0NXlyZDBr" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all" title="Síguenos en Instagram">
                 <Instagram size={18} />
               </a>
-              <a href="https://wa.me/593998506160" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all">
+              <a href="https://wa.me/593998506160" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-all" title="Escríbenos en WhatsApp">
                 <MessageCircle size={18} />
               </a>
             </div>
@@ -53,7 +53,7 @@ const Footer: React.FC = () => {
             <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Servicios</h4>
             <ul className="space-y-2 text-sm text-gray-500 font-medium">
               <li className="flex items-center gap-2"><Truck size={16} className="text-teal-500" /> Entrega a Domicilio</li>
-              <li className="flex items-center gap-2"><Clock size={16} className="text-teal-500" /> Horario: 08:00 - 21:00</li>
+              <li className="flex items-center gap-2"><Clock size={16} className="text-teal-500" /> Horario: 07:00 - 21:00</li>
               <li className="flex items-center gap-2"><Award size={16} className="text-teal-500" /> Puntos Vitalis</li>
             </ul>
           </div>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem } from '../../types';
 import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Tag } from 'lucide-react';
-import { addStockAlertDB, addSubscriptionDB, streamSubscriptions } from '../../services/db';
+import { addStockAlertDB, addSubscriptionDB, streamSubscriptions, addEmailLogDB, getEmailTemplateHTML } from '../../services/db';
 import { getCrossSellSuggestion } from '../../services/gemini';
 import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 import ShareSheet from './ShareSheet';
@@ -78,8 +78,42 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");
-      await addStockAlertDB(emailAlert, product.id);
-      setAlertSent(true);
+      setIsProcessing(true);
+      try {
+          await addStockAlertDB(emailAlert, product.id);
+          
+          // Registrar correo de confirmación de registro de alerta de stock
+          const subject = `[Farmacia Vitalis] Alerta de Stock Registrada: ${product.name}`;
+          const emailContent = `
+            <p>Estimado Cliente,</p>
+            <p>Hemos registrado correctamente su solicitud para recibir un aviso tan pronto como tengamos stock disponible del producto: <strong>${product.name}</strong>.</p>
+            <p>Le notificaremos de forma automática a este correo electrónico desde nuestra cuenta oficial: <strong style="color: #0d9488;">farmaciavitalis@outlook.es</strong>.</p>
+            <p>Agradecemos su preferencia y confianza en Farmacia Vitalis.</p>
+          `;
+          
+          const htmlBody = getEmailTemplateHTML(
+            '¡Alerta de Stock Registrada!',
+            emailContent
+          );
+          
+          await addEmailLogDB({
+            sender: 'farmaciavitalis@outlook.es',
+            recipient: emailAlert,
+            subject,
+            body: htmlBody,
+            timestamp: new Date().toISOString(),
+            status: 'ENVIADO',
+            type: 'CONFIRMACION_ALERTA',
+            productName: product.name
+          });
+          
+          setAlertSent(true);
+      } catch (e) {
+          console.error("Error al registrar alerta:", e);
+          alert("Hubo un error al guardar la alerta.");
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const handleSubscribe = async () => {
