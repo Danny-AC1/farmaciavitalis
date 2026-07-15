@@ -1,14 +1,9 @@
 import React from 'react';
-import { Gift, ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle } from 'lucide-react';
-import { User } from '../../types';
+import { ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle } from 'lucide-react';
+
 
 interface POSFooterProps {
-  selectedCustomer: User | null;
-  canUsePoints: boolean;
-  usePoints: boolean;
-  setUsePoints: (b: boolean) => void;
   posTotal: number;
-  discount: number;
   showPaymentDetails: boolean;
   setShowPaymentDetails: (b: boolean) => void;
   onCheckoutClick: () => void;
@@ -23,7 +18,7 @@ interface POSFooterProps {
 }
 
 const POSFooter: React.FC<POSFooterProps> = ({
-  selectedCustomer, canUsePoints, usePoints, setUsePoints, posTotal, discount,
+  posTotal,
   showPaymentDetails, setShowPaymentDetails, onCheckoutClick, onCheckoutAndPrintClick, isProcessing,
   posCartEmpty, posPaymentMethod, setPosPaymentMethod, posCashReceived,
   setPosCashReceived, changeDue
@@ -31,32 +26,6 @@ const POSFooter: React.FC<POSFooterProps> = ({
   return (
     <div className="shrink-0 bg-slate-900 p-3 md:p-4 md:px-8 md:py-5 text-white border-t border-slate-800 shadow-2xl z-30 font-sans">
       <div className="max-w-[1600px] mx-auto">
-        
-        {/* Lógica de Canje en Footer */}
-        {selectedCustomer && canUsePoints && (
-          <div className="mb-4 bg-teal-500/10 border border-teal-500/30 p-3 rounded-2xl flex items-center justify-between animate-in slide-in-from-bottom-2">
-              <div className="flex items-center gap-3">
-                  <div className="bg-teal-600 p-2 rounded-xl shadow-lg shadow-teal-600/20 text-white">
-                      <Gift size={18}/>
-                  </div>
-                  <div>
-                      <p className="text-[10px] font-black uppercase text-teal-400 leading-none mb-1">Premio Disponible</p>
-                      <p className="text-xs font-bold text-white uppercase tracking-tight">Canjear $5.00 OFF con 500 pts</p>
-                  </div>
-              </div>
-              <div className="flex items-center gap-3">
-                  <span className={`text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${usePoints ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-400'}`}>
-                      {usePoints ? 'APLICADO ✅' : 'SIN USAR'}
-                  </span>
-                  <input 
-                    type="checkbox" 
-                    className="h-6 w-6 rounded-lg accent-teal-500 cursor-pointer" 
-                    checked={usePoints}
-                    onChange={e => setUsePoints(e.target.checked)}
-                  />
-              </div>
-          </div>
-        )}
 
         {/* MÓVIL (Mobile UI) */}
         <div className="flex items-center justify-between mb-3 md:hidden">
@@ -65,7 +34,6 @@ const POSFooter: React.FC<POSFooterProps> = ({
             <p className="text-2xl font-black text-teal-400 tracking-tighter leading-none flex items-start gap-0.5">
               <span className="text-xs opacity-50 mt-1">$</span>{posTotal.toFixed(2)}
             </p>
-            {discount > 0 && <p className="text-[8px] text-yellow-400 font-bold uppercase mt-1">Beneficio: -$5.00</p>}
           </div>
           <div className="flex gap-1.5 items-center">
             <button 
@@ -107,7 +75,6 @@ const POSFooter: React.FC<POSFooterProps> = ({
               <p className="text-4xl font-black text-teal-400 tracking-tighter leading-none flex items-start gap-0.5">
                 <span className="text-lg opacity-50 mt-1">$</span>{posTotal.toFixed(2)}
               </p>
-              {discount > 0 && <p className="text-[10px] text-yellow-400 font-black uppercase mt-1 animate-pulse tracking-widest">RECOMPENSA APLICADA (-$5)</p>}
             </div>
 
             <div className="flex gap-2 w-full md:w-auto justify-around sm:justify-start">

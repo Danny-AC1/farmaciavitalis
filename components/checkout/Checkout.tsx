@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { CartItem, Ciudadela, DELIVERY_CITY, CheckoutFormData, User, Coupon, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../../types';
+import { CartItem, Ciudadela, DELIVERY_CITY, CheckoutFormData, User, Coupon } from '../../types';
 import { Truck, X } from 'lucide-react';
 import { streamCoupons, streamCiudadelas } from '../../services/db';
 import CheckoutForm from './CheckoutForm';
@@ -32,7 +32,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [usePoints, setUsePoints] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
 
   useEffect(() => {
@@ -80,11 +79,8 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
           if (appliedCoupon.type === 'PERCENTAGE') d += subtotal * (appliedCoupon.value / 100);
           else d += Math.min(subtotal, appliedCoupon.value);
       }
-      if (usePoints) {
-          d += POINTS_DISCOUNT_VALUE;
-      }
       setDiscountAmount(d);
-  }, [appliedCoupon, usePoints, subtotal]);
+  }, [appliedCoupon, subtotal]);
 
   useEffect(() => {
     if (selectedCiudadela) {
@@ -103,9 +99,6 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
   const pointsAvailable = currentUser?.points || 0;
   const earnedInThisOrder = Math.floor(subtotal);
   const projectedPoints = pointsAvailable + earnedInThisOrder;
-  const canUsePoints = projectedPoints >= POINTS_THRESHOLD;
-  const willReachThreshold = pointsAvailable < POINTS_THRESHOLD && projectedPoints >= POINTS_THRESHOLD;
-  const finalBalance = usePoints ? (projectedPoints - POINTS_THRESHOLD) : projectedPoints;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleNextStep = (e: React.FormEvent) => { e.preventDefault(); if (!formData.address.trim()) return alert("Dirección requerida"); setStep(2); };
@@ -129,7 +122,7 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
         await onConfirmOrder(
             { ...formData, cashGiven: cashGiven }, 
             discountAmount, 
-            usePoints ? POINTS_THRESHOLD : 0
+            0
         );
     } finally {
         setIsSubmitting(false);
@@ -168,15 +161,10 @@ const Checkout: React.FC<CheckoutProps> = ({ subtotal, onConfirmOrder, onCancel,
               couponCode={couponCode}
               setCouponCode={setCouponCode}
               handleApplyCoupon={handleApplyCoupon}
-              usePoints={usePoints}
-              setUsePoints={setUsePoints}
               currentUser={currentUser}
               pointsAvailable={pointsAvailable}
               earnedInThisOrder={earnedInThisOrder}
               projectedPoints={projectedPoints}
-              canUsePoints={canUsePoints}
-              willReachThreshold={willReachThreshold}
-              finalBalance={finalBalance}
               finalTotal={finalTotal}
               formData={formData}
               setFormData={setFormData}

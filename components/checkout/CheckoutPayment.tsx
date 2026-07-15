@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Gift, Sparkles, CheckCircle, Info, Landmark, Copy, Banknote, AlertCircle, Loader2 } from 'lucide-react';
-import { CheckoutFormData, Coupon, User, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE } from '../../types';
+import { Gift, Landmark, Copy, Banknote, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckoutFormData, Coupon, User } from '../../types';
 
 interface CheckoutPaymentProps {
   subtotal: number;
@@ -12,15 +12,10 @@ interface CheckoutPaymentProps {
   couponCode: string;
   setCouponCode: (s: string) => void;
   handleApplyCoupon: () => void;
-  usePoints: boolean;
-  setUsePoints: (b: boolean) => void;
   currentUser: User | null;
   pointsAvailable: number;
   earnedInThisOrder: number;
   projectedPoints: number;
-  canUsePoints: boolean;
-  willReachThreshold: boolean;
-  finalBalance: number;
   finalTotal: number;
   formData: CheckoutFormData;
   setFormData: (f: CheckoutFormData) => void;
@@ -44,65 +39,43 @@ const CheckoutPayment: React.FC<CheckoutPaymentProps> = (props) => {
             <span>${props.currentDeliveryFee.toFixed(2)}</span>
         </div>
         {props.appliedCoupon && <div className="flex justify-between text-sm text-green-600 font-bold"><span>Cupón</span><span>-${(props.subtotal * (props.appliedCoupon.value / 100)).toFixed(2)}</span></div>}
-        {props.usePoints && <div className="flex justify-between text-sm text-purple-600 font-bold"><span>Recompensa Vitalis (500 pts)</span><span>-${POINTS_DISCOUNT_VALUE.toFixed(2)}</span></div>}
         <div className="border-t pt-2 mt-2 flex justify-between items-center"><span className="font-bold text-gray-800">Total</span><span className="font-bold text-xl text-teal-700">${props.finalTotal.toFixed(2)}</span></div>
       </div>
 
       {/* Sistema de Puntos Vitalis Rewards */}
       {props.currentUser && (
-          <div className={`p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${props.canUsePoints ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100 opacity-80'}`}>
+          <div className="p-5 rounded-2xl border-2 border-indigo-100 bg-indigo-50 relative overflow-hidden">
               <div className="flex items-start justify-between relative z-10">
                   <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-2xl shadow-sm ${props.canUsePoints ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                      <div className="p-3 rounded-2xl shadow-sm bg-indigo-600 text-white">
                         <Gift size={24} />
                       </div>
                       <div>
                           <p className="font-black text-slate-800 text-sm uppercase tracking-tight">Vitalis Rewards</p>
-                          {props.willReachThreshold ? (
-                              <p className="text-[10px] text-purple-600 font-black flex items-center gap-1 uppercase tracking-tighter">
-                                  <Sparkles size={12}/> ¡META ALCANZADA CON ESTA COMPRA!
-                              </p>
-                          ) : (
-                              <p className="text-[10px] text-gray-500 font-bold uppercase">
-                                  Puntos acumulados: {props.pointsAvailable} pts
-                              </p>
-                          )}
+                          <p className="text-[10px] text-indigo-700 font-bold uppercase">
+                              Balance actual: {props.pointsAvailable} pts
+                          </p>
                       </div>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <input 
-                        type="checkbox" 
-                        checked={props.usePoints} 
-                        disabled={!props.canUsePoints}
-                        onChange={(e) => props.setUsePoints(e.target.checked)}
-                        className="h-7 w-7 accent-purple-600 cursor-pointer disabled:cursor-not-allowed rounded-lg"
-                    />
-                    {props.canUsePoints && <span className="text-[8px] font-black text-purple-600 mt-1 uppercase">ACTIVAR $5.00 OFF</span>}
-                  </div>
+                  <span className="text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+                    ACTIVO
+                  </span>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-4 border-t border-purple-100 pt-3 relative z-10">
+              <div className="mt-4 grid grid-cols-2 gap-4 border-t border-indigo-100 pt-3 relative z-10">
                   <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ganarás hoy</p>
                       <p className="text-sm font-black text-teal-600">+{props.earnedInThisOrder} PTS</p>
                   </div>
                   <div className="text-right">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Balance Final</p>
-                      <p className="text-sm font-black text-purple-700">{props.finalBalance} PTS</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Balance Proyectado</p>
+                      <p className="text-sm font-black text-indigo-700">{(props.pointsAvailable + props.earnedInThisOrder)} PTS</p>
                   </div>
               </div>
 
-              {props.usePoints && (
-                  <div className="mt-3 bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-in slide-in-from-top-2">
-                      <CheckCircle size={14}/> Descuento de $5.00 aplicado
-                  </div>
-              )}
-              
-              {!props.canUsePoints && (
-                  <p className="mt-2 text-[9px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                      <Info size={12}/> Te faltan {POINTS_THRESHOLD - props.projectedPoints} puntos para tu próximo vale de $5.
-                  </p>
-              )}
+              <div className="mt-4 p-3.5 bg-white border border-indigo-100 rounded-xl text-[10px] text-slate-600 leading-normal font-bold">
+                🎁 Al completar <strong className="text-indigo-700 font-black">500 puntos</strong>, desbloqueas un <strong className="text-emerald-700 font-black">cupón del 15% OFF</strong> para usar cuando decidas. Canjéalos desde la sección <strong className="text-indigo-700">"Mi Actividad"</strong>.
+              </div>
           </div>
       )}
 

@@ -3,12 +3,12 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: number; 
   costPrice?: number;
   image: string;
   category: string;
-  stock: number;
-  unitsPerBox?: number;
+  stock: number; 
+  unitsPerBox?: number; 
   boxPrice?: number; // Este se usará como costo de caja para cálculos internos
   publicBoxPrice?: number; // Nuevo: Precio de venta al público por caja
   barcode?: string;
@@ -27,7 +27,7 @@ export interface Category {
 
 export interface CartItem extends Product {
   quantity: number;
-  selectedUnit: 'UNIT' | 'BOX';
+  selectedUnit: 'UNIT' | 'BOX'; 
 }
 
 export interface Order {
@@ -42,7 +42,7 @@ export interface Order {
   pointsRedeemed?: number;
   total: number;
   paymentMethod: 'TRANSFER' | 'CASH';
-  cashGiven?: number;
+  cashGiven?: number; 
   status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   source?: 'ONLINE' | 'POS';
   date: string;
@@ -79,7 +79,7 @@ export interface CheckoutFormData {
   address: string;
   city: string;
   paymentMethod: 'TRANSFER' | 'CASH';
-  cashGiven?: string;
+  cashGiven?: string; 
   deliveryFee: number;
   deliveryZone: string;
   lat?: number;
@@ -92,6 +92,7 @@ export interface Coupon {
   type: 'PERCENTAGE' | 'FIXED';
   value: number;
   active: boolean;
+  userId?: string;
 }
 
 export interface Banner {
@@ -221,7 +222,7 @@ export interface CashClosure {
 
 export interface MonthlyFinance {
   id: string;
-  month: string;
+  month: string; 
   grossIncome: number;
   netProfit: number;
   totalOrders: number;

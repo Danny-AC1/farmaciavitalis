@@ -10,7 +10,6 @@ interface POSCustomerSelectProps {
   customerSearchResults: User[];
   setSelectedCustomer: (u: User | null) => void;
   setShowUserForm: (b: boolean) => void;
-  setUsePoints: (b: boolean) => void;
   subtotal: number;
   projectedPoints: number;
   projectedAccumulated: number;
@@ -18,7 +17,7 @@ interface POSCustomerSelectProps {
 
 const POSCustomerSelect: React.FC<POSCustomerSelectProps> = ({
   selectedCustomer, customerSearch, setCustomerSearch, customerSearchResults,
-  setSelectedCustomer, setShowUserForm, setUsePoints, subtotal, projectedPoints,
+  setSelectedCustomer, setShowUserForm, subtotal, projectedPoints,
   projectedAccumulated
 }) => {
   return (
@@ -52,7 +51,7 @@ const POSCustomerSelect: React.FC<POSCustomerSelectProps> = ({
               </p>
             </div>
           </div>
-          <button onClick={() => { setSelectedCustomer(null); setUsePoints(false); }} className="text-teal-400 hover:text-red-500 p-1"><X size={14}/></button>
+          <button onClick={() => setSelectedCustomer(null)} className="text-teal-400 hover:text-red-500 p-1"><X size={14}/></button>
         </div>
       )}
       {customerSearchResults.length > 0 && (

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { ScanBarcode, Calculator, Package, Sparkles, X, Plus } from 'lucide-react';
-import { Product, CartItem, User, Order, POINTS_THRESHOLD, POINTS_DISCOUNT_VALUE, Bundle } from '../../types';
+import { Product, CartItem, User, Order, Bundle } from '../../types';
 import { saveUserDB } from '../../services/db';
 import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
@@ -44,7 +44,6 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [upgradeSuggestion, setUpgradeSuggestion] = useState<Bundle | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null);
-  const [usePoints, setUsePoints] = useState(false);
   const [showUserForm, setShowUserForm] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,9 +100,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     };
   }, [selectedCustomer, subtotal]);
 
-  const canUsePoints = projectedPoints >= POINTS_THRESHOLD;
-  const discount = usePoints ? POINTS_DISCOUNT_VALUE : 0;
-  const posTotal = Math.max(0, subtotal - discount);
+  const posTotal = subtotal;
   const changeDue = posCashReceived ? parseFloat(posCashReceived) - posTotal : 0;
 
   const handleAddToCartWithUpgradeCheck = (p: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
@@ -316,8 +313,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       if (posCart.length === 0) return;
       setIsProcessing(true);
       try {
-          await handlePosCheckout(selectedCustomer || undefined, usePoints ? POINTS_THRESHOLD : 0);
-          setUsePoints(false);
+          await handlePosCheckout(selectedCustomer || undefined, 0);
           setSelectedCustomer(null);
       } finally {
           setIsProcessing(false);
@@ -328,11 +324,10 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       if (posCart.length === 0) return;
       setIsProcessing(true);
       try {
-          const order = await handlePosCheckout(selectedCustomer || undefined, usePoints ? POINTS_THRESHOLD : 0);
+          const order = await handlePosCheckout(selectedCustomer || undefined, 0);
           if (order) {
               handlePrintOrder(order);
           }
-          setUsePoints(false);
           setSelectedCustomer(null);
       } finally {
           setIsProcessing(false);
@@ -363,7 +358,6 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               customerSearchResults={customerSearchResults}
               setSelectedCustomer={setSelectedCustomer}
               setShowUserForm={setShowUserForm}
-              setUsePoints={setUsePoints}
               subtotal={subtotal}
               projectedPoints={projectedPoints}
               projectedAccumulated={projectedAccumulated}
@@ -437,12 +431,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
 
       {/* 3. PANEL INFERIOR (Cobro y Totales) */}
       <POSFooter 
-        selectedCustomer={selectedCustomer}
-        canUsePoints={canUsePoints}
-        usePoints={usePoints}
-        setUsePoints={setUsePoints}
         posTotal={posTotal}
-        discount={discount}
         showPaymentDetails={showPaymentDetails}
         setShowPaymentDetails={setShowPaymentDetails}
         onCheckoutClick={onCheckoutClick}

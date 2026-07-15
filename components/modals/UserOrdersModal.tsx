@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { User, Order, POINTS_THRESHOLD } from '../../types';
-import { getOrdersByUserDB } from '../../services/db';
-import { X, RefreshCw, ShoppingBag, Gift, Star, Trophy, Navigation, Radio, MapPin, Clock, Loader2 } from 'lucide-react';
+import { User, Order, POINTS_THRESHOLD, Coupon } from '../../types';
+import { getOrdersByUserDB, streamCoupons, addCouponDB, updateUserFieldsDB } from '../../services/db';
+import { X, RefreshCw, ShoppingBag, Gift, Star, Trophy, Navigation, Radio, MapPin, Clock, Loader2, Copy, Check } from 'lucide-react';
 
 interface UserOrdersModalProps {
   user: User;
@@ -38,9 +38,53 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
     return () => unsub();
   }, [user.uid, trackingId]); 
 
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubCoupons = streamCoupons(setCoupons);
+    return () => unsubCoupons();
+  }, []);
+
+  const myCoupons = coupons.filter(c => c.userId === user.uid && c.active);
+
   const points = user.points || 0;
   const progressPercentage = Math.min(100, (points / POINTS_THRESHOLD) * 100);
   const pointsNeeded = Math.max(0, POINTS_THRESHOLD - points);
+
+  const handleRedeemPoints = async () => {
+    if (points < POINTS_THRESHOLD) return;
+    setIsRedeeming(true);
+    try {
+      const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const code = `V15-${randomSuffix}`;
+
+      await addCouponDB({
+        id: '',
+        code,
+        type: 'PERCENTAGE',
+        value: 15,
+        active: true,
+        userId: user.uid
+      });
+
+      await updateUserFieldsDB(user.uid, {
+        points: points - POINTS_THRESHOLD
+      });
+    } catch (error) {
+      console.error("Error redeeming points:", error);
+      alert("Hubo un error al canjear tus puntos. Por favor, intenta de nuevo.");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -160,21 +204,68 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                                 </div>
                             </div>
 
-                            <div className="bg-white/10 rounded-2xl p-3 flex items-center justify-between backdrop-blur-md border border-white/10">
+                            <div className="bg-white/10 rounded-2xl p-3 flex flex-col gap-2 backdrop-blur-md border border-white/10">
                                 {points >= POINTS_THRESHOLD ? (
-                                    <div className="flex items-center gap-2 text-yellow-300 font-black text-xs animate-pulse">
-                                        <Gift className="h-4 w-4" /> ¡TIENES UN VALE DE $5!
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2 text-yellow-300 font-black text-xs animate-pulse">
+                                            <Gift className="h-4 w-4" /> ¡HAS COMPLETADO 500 PUNTOS!
+                                        </div>
+                                        <button
+                                            onClick={handleRedeemPoints}
+                                            disabled={isRedeeming}
+                                            className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:bg-slate-600 text-slate-900 text-xs font-black py-2.5 px-4 rounded-xl uppercase tracking-wider transition-all shadow-md active:scale-95"
+                                        >
+                                            {isRedeeming ? 'Generando cupón...' : 'Canjear por Cupón de 15% OFF'}
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-100">
                                         <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                                        <span>TE FALTAN <strong className="text-white">{pointsNeeded} PTS</strong> PARA TU RECOMPENSA.</span>
+                                        <span>TE FALTAN <strong className="text-white">{pointsNeeded} PTS</strong> PARA TU CUPÓN DEL 15% OFF.</span>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Mis Cupones Desbloqueados */}
+                {myCoupons.length > 0 && (
+                  <div className="px-4 pb-2 space-y-2">
+                    <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-2">Mis Cupones de Puntos (15% OFF)</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {myCoupons.map((coupon) => (
+                        <div key={coupon.id} className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between shadow-sm animate-in zoom-in-95 duration-200">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-9 w-9 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                              <Gift size={16} />
+                            </div>
+                            <div>
+                              <p className="font-black text-emerald-800 text-[11px] uppercase tracking-wider leading-none mb-0.5">{coupon.code}</p>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">15% de descuento en tu compra</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleCopyCode(coupon.code)}
+                            className="bg-white hover:bg-slate-50 border border-slate-200 p-2 rounded-xl text-slate-600 hover:text-teal-600 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase"
+                          >
+                            {copiedCode === coupon.code ? (
+                              <>
+                                <Check size={12} className="text-emerald-600" />
+                                <span className="text-emerald-600">Copiado</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={12} />
+                                <span>Copiar</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="px-4 pb-6 space-y-4">
                     <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-2">Historial Reciente</h4>
