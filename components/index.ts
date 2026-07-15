@@ -94,3 +94,7 @@ export { default as NotificationItem } from './notifications/NotificationItem';
 
 // 8. Modulo del Conductor (Driver)
 export { default as DriverDashboard } from './driver/DriverDashboard';
+
+// 9. Modulo de Soporte y Chat Privado
+export { SupportAndDoseCalculator } from './support/SupportAndDoseCalculator';
+export { AdminSupportChats } from './admin/AdminSupportChats';

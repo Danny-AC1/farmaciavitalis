@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, ClipboardList, HeartPulse, LifeBuoy, BookOpen } from 'lucide-react';
+import { Home, ClipboardList, HeartPulse, MessageSquare, BookOpen } from 'lucide-react';
 
 // Added 'services' and 'wellness' to the tab types to align with useAppLogic state
 interface BottomNavProps {
@@ -28,15 +28,15 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
           <span className="text-[10px] font-medium">Pedidos</span>
         </button>
 
-        {/* VitalBot Central Button -> First Aid */}
+        {/* Support Chat Button */}
         <button 
           onClick={() => onTabChange('assistant')}
           className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 group ${activeTab === 'assistant' ? 'text-teal-600' : 'text-gray-400'}`}
         >
            <div className={`p-2 rounded-xl transition-all duration-300 ${activeTab === 'assistant' ? 'bg-teal-600 shadow-lg shadow-teal-200 -translate-y-2' : 'bg-teal-50 group-hover:bg-teal-100'}`}>
-              <LifeBuoy className={`h-5 w-5 ${activeTab === 'assistant' ? 'text-white' : 'text-teal-600'}`} />
+              <MessageSquare className={`h-5 w-5 ${activeTab === 'assistant' ? 'text-white' : 'text-teal-600'}`} />
            </div>
-           <span className={`text-[10px] font-bold ${activeTab === 'assistant' ? 'text-teal-600' : 'text-teal-600/70'}`}>Auxilio</span>
+           <span className={`text-[10px] font-bold ${activeTab === 'assistant' ? 'text-teal-600' : 'text-teal-600/70'}`}>Soporte</span>
         </button>
 
         <button 

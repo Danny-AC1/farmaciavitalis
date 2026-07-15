@@ -21,6 +21,7 @@ import AdminBundles from './AdminBundles';
 import AdminFinances from './AdminFinances';
 import IntelligenceHub from './IntelligenceHub';
 import AdminExtensionSuite from './AdminExtensionSuite';
+import { AdminSupportChats } from './AdminSupportChats';
 
 interface AdminMainContentProps {
     activeTab: string;
@@ -192,6 +193,9 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         case 'stock_alerts': return <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />;
         case 'extension_suite':
             return <AdminExtensionSuite setActiveTab={state.setActiveTab} products={props.products} suppliers={state.suppliers} />;
+        
+        case 'support_chats':
+            return <AdminSupportChats currentUser={props.currentUser || null} />;
         
         default: return null;
     }

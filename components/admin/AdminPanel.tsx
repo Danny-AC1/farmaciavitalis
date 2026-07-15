@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Product, Order, Category, CashClosure } from '../../types';
+import { Product, Order, Category, CashClosure, User } from '../../types';
 import { useAdminPanelState } from '../../hooks/useAdminPanelState';
 import { useUSBScanner } from '../../hooks/useUSBScanner';
 
@@ -25,6 +25,7 @@ interface AdminPanelProps {
   onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>;
   onLogout: () => void;
   currentUserRole?: 'ADMIN' | 'CASHIER' | 'DRIVER' | 'USER'; 
+  currentUser?: User | null;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = (props) => {

@@ -24,7 +24,7 @@ import {
   UserOrdersModal,
   PrescriptionModal,
   ServicesModal,
-  FirstAidGuide,
+  SupportAndDoseCalculator,
   FamilyHealthModal,
   UserSubscriptionsModal,
   StaffAccessModal,
@@ -64,6 +64,7 @@ const App: React.FC = () => {
         onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB}
         onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} 
         currentUserRole={logic.tempStaffRole || logic.currentUser?.role}
+        currentUser={logic.currentUser}
       />
     );
   }
@@ -163,7 +164,13 @@ const App: React.FC = () => {
       {logic.activeTab === 'services' && <ServicesModal user={logic.currentUser} onClose={() => logic.setActiveTab('home')} onLoginRequest={() => logic.setShowAuthModal(true)} />}
       {logic.activeTab === 'assistant' && (
         <div className="fixed inset-0 z-40 bg-slate-50 overflow-y-auto pt-20 pb-20">
-          <FirstAidGuide products={logic.products} onAddToCart={(p) => logic.addToCart(p, 'UNIT')} onClose={() => logic.setActiveTab('home')} />
+          <SupportAndDoseCalculator 
+            products={logic.products} 
+            currentUser={logic.currentUser} 
+            onAddToCart={(p) => logic.addToCart(p, 'UNIT')} 
+            onClose={() => logic.setActiveTab('home')} 
+            onLoginRequest={() => logic.setShowAuthModal(true)} 
+          />
         </div>
       )}
       {logic.activeTab === 'health' && logic.currentUser && (
