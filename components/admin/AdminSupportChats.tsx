@@ -31,7 +31,7 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Stream active support chats
+  // Escucha chats activos en tiempo real
   useEffect(() => {
     const unsubscribe = streamAdminChats((data) => {
       setChats(data);
@@ -39,7 +39,7 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
     return () => unsubscribe();
   }, []);
 
-  // Stream messages for selected chat
+  // Escucha mensajes del chat seleccionado en tiempo real
   useEffect(() => {
     if (!selectedChat) {
       setMessages([]);
@@ -47,13 +47,11 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
     }
 
     setLoadingMessages(true);
-    // Mark as read immediately when admin views the chat
     markChatAsReadByAdmin(selectedChat.id);
 
     const unsubscribe = streamChatMessages(selectedChat.id, (data) => {
       setMessages(data);
       setLoadingMessages(false);
-      // Mark as read for new messages arriving while active
       markChatAsReadByAdmin(selectedChat.id);
     });
 
@@ -62,7 +60,6 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
     };
   }, [selectedChat]);
 
-  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -75,7 +72,6 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
     setNewMessage('');
     setIsSending(true);
 
-    // Build standard Admin sender user profile if currentUser not fully ready
     const adminUser: User = currentUser || {
       uid: 'admin',
       email: 'admin@vitalis.com',
@@ -104,11 +100,11 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
   return (
     <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-md overflow-hidden min-h-[600px] flex flex-col lg:flex-row font-sans" id="admin-support-chats-container">
       
-      {/* LEFT COLUMN: CHATS LIST */}
+      {/* COLUMNA IZQUIERDA: LISTA DE CHATS */}
       <div className="lg:w-2/5 xl:w-1/3 border-r border-slate-200 flex flex-col h-[600px] bg-slate-50/50">
         <div className="p-4 border-b border-slate-200 bg-white space-y-3">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-            <MessageSquare className="text-teal-600 animate-pulse" size={16} />
+            <MessageSquare className="text-teal-600" size={16} />
             <span>Mensajes de Soporte</span>
             {chats.filter(c => c.unreadByAdmin).length > 0 && (
               <span className="bg-rose-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full animate-bounce">
@@ -117,7 +113,6 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
             )}
           </h3>
 
-          {/* Search bar */}
           <div className="relative">
             <input
               type="text"
@@ -130,7 +125,6 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
           </div>
         </div>
 
-        {/* Chats queue */}
         <div className="flex-grow overflow-y-auto p-2 space-y-1 no-scrollbar">
           {filteredChats.length === 0 ? (
             <div className="py-12 text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider italic">
@@ -188,11 +182,10 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
         </div>
       </div>
 
-      {/* RIGHT COLUMN: ACTIVE CHAT LOG */}
+      {/* COLUMNA DERECHA: CHAT CON EL CLIENTE SELECCIONADO */}
       <div className="lg:w-3/5 xl:w-2/3 flex flex-col h-[600px] bg-white relative">
         {selectedChat ? (
           <>
-            {/* Header chat */}
             <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <button 
@@ -219,12 +212,11 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
               </div>
             </div>
 
-            {/* Message lists */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50/30 no-scrollbar">
               {loadingMessages ? (
                 <div className="h-full flex items-center justify-center flex-col gap-2">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">Cargando conversación...</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">Cargando...</span>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -260,7 +252,6 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
               )}
             </div>
 
-            {/* Input admin */}
             <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
               <input
                 type="text"
@@ -279,9 +270,8 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
             </form>
           </>
         ) : (
-          /* PLACEHOLDER */
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-            <div className="h-16 w-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center shadow-inner animate-bounce">
+            <div className="h-16 w-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center shadow-inner">
               <MessageSquare size={28} />
             </div>
             <div className="max-w-xs space-y-1">

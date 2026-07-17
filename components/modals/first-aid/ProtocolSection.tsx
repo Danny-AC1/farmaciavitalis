@@ -1,20 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Check, 
-  ShoppingCart, 
-  Info, 
-  Plus, 
-  CheckSquare, 
-  Square,
-  ShieldAlert,
-  Archive,
-  Search,
-  Activity,
-  ArrowRight
-} from 'lucide-react';
 import { Product } from '../../../types';
 import { FIRST_AID_PROTOCOLS, BOTIQUIN_CHECKLIST_ITEMS, KNOWN_INGREDIENTS } from './constants';
+
+// Subcomponents
+import { SymptomAnalyzer } from './components/SymptomAnalyzer';
+import { ProtocolSelector } from './components/ProtocolSelector';
+import { ProtocolSteps } from './components/ProtocolSteps';
+import { ProtocolBotiquin } from './components/ProtocolBotiquin';
 
 interface ProtocolSectionProps {
   products: Product[];
@@ -144,599 +136,53 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
     }));
   };
 
-  const IconComponent = currentProtocol.icon;
-
   return (
     <div className="space-y-6">
       {/* --- SYMPTOM / DISCOMFORT FREE TEXT WRITER PANEL --- */}
-      <div className="bg-gradient-to-br from-indigo-50/50 via-white to-slate-50/50 p-6 rounded-[2rem] border border-indigo-100/50 shadow-xs space-y-4">
-        <div className="space-y-1">
-          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
-            Buscador Rápido de Malestares
-          </span>
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-            ¿Qué malestar, síntoma o incidente doméstico tienes?
-          </h3>
-          <p className="text-[11px] text-slate-400 font-semibold leading-normal">
-            Escribe tu incidente o malestar abajo. Analizaremos tu texto clínicamente para sugerirte el protocolo correcto de primeros auxilios y los medicamentos recomendados.
-          </p>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400">
-            <Search size={18} />
-          </div>
-          <input
-            type="text"
-            id="symptom-discomfort-input"
-            value={userDiscomfortQuery}
-            onChange={(e) => setUserDiscomfortQuery(e.target.value)}
-            placeholder="Ej: Mi hijo tiene fiebre alta, me quemé con agua hirviendo, picadura de avispa, dolor de cabeza..."
-            className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl text-xs font-semibold text-slate-800 shadow-xs focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
-          />
-        </div>
-
-        {/* --- DYNAMIC DIAGNOSTIC ANALYSIS CARD --- */}
-        <AnimatePresence mode="wait">
-          {userDiscomfortQuery.trim() !== '' && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-              className="bg-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-xl space-y-5"
-            >
-              <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                <div className="h-10 w-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
-                  <Activity size={20} className="animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-white">Análisis Clínico del Malestar</h4>
-                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">Sugerencias inmediatas basadas en el vademécum de primeros auxilios</p>
-                </div>
-                <button 
-                  onClick={() => setUserDiscomfortQuery('')}
-                  className="ml-auto text-[9px] font-black text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-colors"
-                >
-                  Limpiar
-                </button>
-              </div>
-
-              {/* Match protocol */}
-              {searchResults && searchResults.bestProtocolMatch ? (
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-teal-400 bg-teal-400/10 px-2 py-0.5 rounded-full border border-teal-500/15">
-                      Protocolo Recomendado
-                    </span>
-                    <span className="text-[9px] font-mono text-slate-400 font-black uppercase">Relevancia: Alta</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="p-2.5 rounded-xl bg-teal-400/20 text-teal-300 mt-1">
-                      {React.createElement(searchResults.bestProtocolMatch.icon, { size: 20 })}
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-black text-white uppercase tracking-tight">
-                        {searchResults.bestProtocolMatch.title}
-                      </h5>
-                      <p className="text-[11px] text-slate-300 font-medium leading-relaxed mt-1">
-                        {searchResults.bestProtocolMatch.shortDesc}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      onClick={() => {
-                        setSelectedIncidentId(searchResults.bestProtocolMatch!.id);
-                        setActiveStepIndex(0);
-                        // Focus on details
-                        const element = document.getElementById('first-aid-details-grid');
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className="w-full py-2.5 px-4 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      Cargar Guía de Acción de {searchResults.bestProtocolMatch.title} <ArrowRight size={13} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                userDiscomfortQuery.trim().length > 3 && (!searchResults || searchResults.matchedIngredients.length === 0) && (
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl text-center">
-                    <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed">
-                      No detectamos un protocolo exacto de accidente doméstico. Intenta buscar términos como <span className="text-teal-400 font-black">"fiebre"</span>, <span className="text-teal-400 font-black">"corte"</span>, <span className="text-teal-400 font-black">"quemadura"</span>, <span className="text-teal-400 font-black">"picadura"</span> o dolores corporales para guiarte mejor.
-                    </p>
-                  </div>
-                )
-              )}
-
-              {/* Match Ingredients */}
-              {searchResults && searchResults.matchedIngredients.length > 0 && (
-                <div className="space-y-3">
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-400 block">
-                    Sustancias de Alivio y Medicación Coherente:
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {searchResults.matchedIngredients.map((ing) => {
-                      // Find products in inventory containing this ingredient
-                      const matchingProducts = products.filter(p => {
-                        const nameLower = p.name.toLowerCase();
-                        const descLower = p.description.toLowerCase();
-                        const kw = ing.id.toLowerCase();
-                        return nameLower.includes(kw) || descLower.includes(kw) || nameLower.includes(ing.name.toLowerCase().split(' ')[0]);
-                      }).slice(0, 2);
-
-                      return (
-                        <div key={ing.id} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col justify-between gap-3 hover:border-white/20 transition-all">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <h6 className="text-[11px] font-black text-teal-300 uppercase tracking-tight">{ing.name}</h6>
-                              <span className="text-[8px] bg-white/10 text-slate-300 border border-white/15 px-1.5 py-0.5 rounded uppercase font-black tracking-wider shrink-0">
-                                {ing.category}
-                              </span>
-                            </div>
-                            <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed">
-                              <span className="text-slate-300 font-bold">Indicación General:</span> {ing.warning}
-                            </p>
-                            <p className="text-[10px] text-slate-300 font-medium bg-slate-800/80 p-2.5 rounded-xl border border-white/5">
-                              💡 <span className="text-teal-400 font-bold uppercase text-[9px] block mb-0.5">Uso / Administración:</span>
-                              {ing.administrationTip}
-                            </p>
-                          </div>
-
-                          {/* Display matched inventory products inside symptom card */}
-                          {matchingProducts.length > 0 && (
-                            <div className="pt-2 border-t border-white/5 space-y-2">
-                              <span className="text-[8.5px] text-slate-400 uppercase font-black block">
-                                Disponibles en Almacén Vitalis:
-                              </span>
-                              {matchingProducts.map(prod => {
-                                const isAdded = addedItemsMap[prod.id];
-                                return (
-                                  <div key={prod.id} className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <img 
-                                        src={prod.image} 
-                                        alt={prod.name} 
-                                        className="h-7 w-7 rounded bg-white object-cover shrink-0" 
-                                        referrerPolicy="no-referrer"
-                                      />
-                                      <div className="min-w-0">
-                                        <p className="text-[9.5px] font-black text-slate-200 line-clamp-1">{prod.name}</p>
-                                        <p className="text-[8.5px] font-mono text-teal-400 font-bold">${prod.price.toFixed(2)}</p>
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => handleAddProduct(prod)}
-                                      disabled={prod.stock === 0 || isAdded}
-                                      className={`px-2 py-1 rounded text-[8.5px] font-black transition-all shrink-0 ${
-                                        isAdded 
-                                          ? 'bg-emerald-600 text-white' 
-                                          : 'bg-teal-400 hover:bg-teal-300 text-slate-950 shadow-xs'
-                                      }`}
-                                    >
-                                      {isAdded ? 'Añadido' : 'Comprar'}
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Medical Notice */}
-              <div className="bg-amber-500/10 border border-amber-500/25 p-3 rounded-xl flex gap-2 items-start text-[10px] text-amber-300">
-                <Info size={14} className="shrink-0 mt-0.5 text-amber-400" />
-                <p className="font-semibold leading-relaxed">
-                  <span className="font-black text-amber-400 uppercase">⚠ Aviso de Seguridad:</span> Estas sugerencias no reemplazan de ninguna forma la consulta pediátrica o prescripción de un profesional de salud habilitado. Ante dificultades graves busque ayuda médica presencial de inmediato.
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <SymptomAnalyzer 
+        userDiscomfortQuery={userDiscomfortQuery}
+        setUserDiscomfortQuery={setUserDiscomfortQuery}
+        searchResults={searchResults}
+        setSelectedIncidentId={setSelectedIncidentId}
+        setActiveStepIndex={setActiveStepIndex}
+        products={products}
+        addedItemsMap={addedItemsMap}
+        handleAddProduct={handleAddProduct}
+      />
 
       {/* --- PROTOCOL SELECTOR GRID --- */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3" id="first-aid-selector">
-        {FIRST_AID_PROTOCOLS.map((protocol) => {
-          const ItemIcon = protocol.icon;
-          const isSelected = selectedIncidentId === protocol.id;
-
-          return (
-            <button
-              key={protocol.id}
-              id={`btn-protocol-${protocol.id}`}
-              onClick={() => {
-                setSelectedIncidentId(protocol.id);
-                setActiveStepIndex(0); // Reset step progress
-              }}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between h-28 relative overflow-hidden group ${
-                isSelected 
-                  ? 'bg-slate-900 border-slate-900 text-white shadow-lg -translate-y-1' 
-                  : 'bg-white border-slate-100 text-slate-700 hover:border-slate-200 hover:shadow-xs'
-              }`}
-            >
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-all ${
-                isSelected ? 'bg-white/10 text-white' : protocol.colorClass
-              }`}>
-                <ItemIcon size={20} />
-              </div>
-              <div>
-                <h3 className="text-xs font-black tracking-tight mt-2">{protocol.title}</h3>
-                <span className={`text-[9px] font-bold block mt-0.5 ${
-                  isSelected ? 'text-slate-300' : 'text-slate-400'
-                }`}>Ver guía rápida</span>
-              </div>
-              
-              {/* Subtle background decoration */}
-              <div className={`absolute -right-3 -bottom-3 opacity-5 group-hover:scale-110 transition-transform ${
-                isSelected ? 'text-white' : 'text-slate-700'
-              }`}>
-                <ItemIcon size={72} />
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <ProtocolSelector 
+        selectedIncidentId={selectedIncidentId}
+        setSelectedIncidentId={setSelectedIncidentId}
+        setActiveStepIndex={setActiveStepIndex}
+      />
 
       {/* --- PROTOCOL DETAILS & RECOMMENDED KITS GRID --- */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="first-aid-details-grid">
-
-        {/* MAIN COLUMN: PROTOCOL PROTOCOL STEPS */}
+        {/* MAIN COLUMN: PROTOCOL STEPS */}
         <div className="lg:col-span-8 space-y-6">
-          
-          <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-            
-            {/* Header inside manual */}
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-50">
-              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center ${currentProtocol.colorClass}`}>
-                <IconComponent size={22} />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                  Protocolo: {currentProtocol.title}
-                </h3>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">{currentProtocol.shortDesc}</p>
-              </div>
-            </div>
-
-            {/* Steps interactive layout */}
-            <div className="space-y-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                Guía Paso a Paso para la Emergencia
-              </span>
-
-              {/* Active Step Display */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={`${selectedIncidentId}-${activeStepIndex}`}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="bg-slate-50 p-5 rounded-2xl border border-slate-100/50 space-y-2 relative"
-                >
-                  <span className="absolute top-4 right-4 text-[10px] font-mono font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
-                    Paso {activeStepIndex + 1} de {currentProtocol.steps.length}
-                  </span>
-
-                  <h4 className="text-xs font-black text-slate-800 uppercase pr-16">
-                    {currentProtocol.steps[activeStepIndex].title}
-                  </h4>
-                  <p className="text-xs font-semibold text-slate-500 leading-relaxed pt-1">
-                    {currentProtocol.steps[activeStepIndex].description}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Step Navigation Dots / Buttons */}
-              <div className="grid grid-cols-3 gap-2">
-                {currentProtocol.steps.map((step, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setActiveStepIndex(idx)}
-                    className={`py-2 px-3 rounded-xl border text-left transition-all ${
-                      activeStepIndex === idx
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-800 shadow-2xs'
-                        : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50/50'
-                    }`}
-                  >
-                    <span className="text-[9px] font-black uppercase tracking-wider block">Paso {idx + 1}</span>
-                    <span className="text-[10px] font-bold line-clamp-1 mt-0.5">{step.title}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* --- MEDICACIONES COHERENTES DEL INCIDENTE --- */}
-            <div className="space-y-4 border-t border-slate-100 pt-5">
-              <div>
-                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
-                  Pautas de Medicación Coherente
-                </span>
-                <h4 className="text-xs font-black text-slate-800 uppercase mt-1.5">
-                  Fármacos e Insumos Sugeridos para Tratamiento
-                </h4>
-                <p className="text-[10.5px] text-slate-400 font-semibold mt-0.5">
-                  Uso recomendado por profesionales médicos para aliviar o mitigar este incidente doméstico:
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {currentProtocol.coherentMedications?.map((med, idx) => {
-                  // Dynamically match a product in store with this keyword
-                  const matchedStoreProducts = products.filter(p => {
-                    const nameLower = p.name.toLowerCase();
-                    const descLower = p.description.toLowerCase();
-                    return nameLower.includes(med.productKeyword) || descLower.includes(med.productKeyword);
-                  }).slice(0, 1);
-
-                  return (
-                    <div 
-                      key={idx} 
-                      className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/70 hover:border-indigo-100 transition-colors flex flex-col justify-between gap-3"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
-                            <span className="h-2 w-2 rounded-full bg-indigo-500 shrink-0" />
-                            {med.name}
-                          </h5>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] text-slate-500 font-medium">
-                            <span className="font-bold text-slate-700">Propósito:</span> {med.purpose}
-                          </p>
-                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed bg-white p-2 rounded-lg border border-slate-100">
-                            📢 <span className="font-bold text-slate-700">Aplicación/Dosis:</span> {med.dosageInstructions}
-                          </p>
-                        </div>
-
-                        <div className="text-[9.5px] text-rose-600/90 font-bold bg-rose-50/30 p-2 rounded-lg border border-rose-100/50">
-                          ⚠ <span className="uppercase text-rose-700 font-black">Precaución:</span> {med.caution}
-                        </div>
-                      </div>
-
-                      {/* Store matcher for this specific medication */}
-                      {matchedStoreProducts.map(prod => {
-                        const isAdded = addedItemsMap[prod.id];
-                        return (
-                          <div 
-                            key={prod.id} 
-                            className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-100 mt-2 hover:border-slate-200 transition-colors"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <img 
-                                src={prod.image} 
-                                alt={prod.name} 
-                                className="h-7 w-7 rounded bg-slate-50 border border-slate-100 object-cover shrink-0"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-black text-slate-700 line-clamp-1">{prod.name}</p>
-                                <p className="text-[9px] font-mono text-slate-500 font-semibold">${prod.price.toFixed(2)}</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleAddProduct(prod)}
-                              disabled={prod.stock === 0 || isAdded}
-                              className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black transition-all flex items-center gap-1 shrink-0 ${
-                                isAdded 
-                                  ? 'bg-emerald-600 text-white shadow-xs' 
-                                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs'
-                              }`}
-                            >
-                              {isAdded ? <Check size={9} /> : <Plus size={9} />}
-                              {isAdded ? 'Añadido' : 'Comprar'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Warning box: What NOT to do */}
-            <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 space-y-3">
-              <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest block flex items-center gap-1.5">
-                <ShieldAlert size={14} /> ¡Atención! Qué NO hacer bajo ninguna circunstancia
-              </span>
-              <ul className="space-y-2">
-                {currentProtocol.dontDo.map((dont, idx) => (
-                  <li key={idx} className="text-xs font-semibold text-rose-700/90 flex gap-2 items-start">
-                    <span className="text-rose-500 mt-0.5">•</span>
-                    <span>{dont}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* When to go to emergency / doctor */}
-            <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 space-y-3">
-              <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest block flex items-center gap-1.5">
-                <Info size={14} /> Cuándo buscar asistencia médica profesional
-              </span>
-              <ul className="space-y-2">
-                {currentProtocol.whenToCallDoc.map((when, idx) => (
-                  <li key={idx} className="text-xs font-semibold text-amber-800/90 flex gap-2 items-start">
-                    <span className="text-amber-500 mt-0.5">•</span>
-                    <span>{when}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-          </div>
-
+          <ProtocolSteps 
+            currentProtocol={currentProtocol}
+            activeStepIndex={activeStepIndex}
+            setActiveStepIndex={setActiveStepIndex}
+            products={products}
+            addedItemsMap={addedItemsMap}
+            handleAddProduct={handleAddProduct}
+          />
         </div>
 
         {/* SIDE COLUMN: RECOMMENDED PHARMACY PRODUCTS FOR THIS INCIDENT */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* MATCHED INVENTORY SECTION */}
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-            <div>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block">
-                Equipamiento Sugerido
-              </span>
-              <h4 className="text-xs font-black text-slate-800 mt-1.5 uppercase">Botiquín para {currentProtocol.title}</h4>
-              <p className="text-[10.5px] text-slate-400 font-semibold mt-0.5">
-                Productos reales en almacén que sirven para tratar este incidente doméstico:
-              </p>
-            </div>
-
-            {recommendedProducts.length === 0 ? (
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-center space-y-2">
-                <Archive size={24} className="mx-auto text-slate-300" />
-                <p className="text-[10px] font-semibold text-slate-500">No encontramos productos listos con estas características en stock.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recommendedProducts.map((prod) => {
-                  const isAdded = addedItemsMap[prod.id];
-                  const isLowStock = prod.stock <= 5;
-
-                  return (
-                    <div 
-                      key={prod.id} 
-                      className="bg-slate-50/50 p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between gap-3 hover:border-slate-200 transition-colors"
-                    >
-                      <div className="flex gap-2">
-                        <img 
-                          src={prod.image} 
-                          alt={prod.name} 
-                          className="h-10 w-10 rounded-lg bg-white border border-slate-100 object-cover shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div>
-                          <h5 className="text-[11.5px] font-black text-slate-800 line-clamp-1">{prod.name}</h5>
-                          <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1 py-0.2 rounded-md uppercase">
-                            {prod.category}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100/50">
-                        <div>
-                          <span className="text-[10.5px] font-black font-mono text-slate-700">${prod.price.toFixed(2)}</span>
-                          {prod.stock === 0 ? (
-                            <span className="text-[9px] text-rose-500 font-bold block">Agotado</span>
-                          ) : isLowStock ? (
-                            <span className="text-[9px] text-amber-500 font-bold block">Poco stock ({prod.stock})</span>
-                          ) : (
-                            <span className="text-[9px] text-emerald-600 font-bold block">En stock</span>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => handleAddProduct(prod)}
-                          disabled={prod.stock === 0 || isAdded}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 shadow-xs ${
-                            prod.stock === 0
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : isAdded
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-900 hover:bg-slate-800 text-white'
-                          }`}
-                        >
-                          {isAdded ? (
-                            <>
-                              <Check size={11} /> ¡Añadido!
-                            </>
-                          ) : (
-                            <>
-                              <ShoppingCart size={11} /> Añadir
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* GENERAL BASIC EMERGENCY KIT CHECKLIST */}
-          <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-800 shadow-md space-y-4 relative overflow-hidden">
-            <div className="space-y-1 relative z-10">
-              <span className="text-[9px] font-black text-amber-400 bg-white/10 px-2 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                Autodiagnóstico de Botiquín
-              </span>
-              <h4 className="text-xs font-black uppercase tracking-tight text-white mt-1.5">Completa tu Botiquín Básico</h4>
-              <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
-                Verifica qué elementos esenciales tienes en casa y equipa los que te hacen falta:
-              </p>
-            </div>
-
-            {/* Checklist list */}
-            <div className="space-y-2.5 relative z-10">
-              {checklistInventoryMatches.map((item) => {
-                const isChecked = checkedChecklistItems[item.id];
-                
-                return (
-                  <div 
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group"
-                  >
-                    <button 
-                      type="button"
-                      onClick={() => toggleChecklistItem(item.id)}
-                      className="flex items-center gap-2.5 text-left text-[11px] font-bold text-slate-100"
-                    >
-                      {isChecked ? (
-                        <CheckSquare size={15} className="text-emerald-400 shrink-0" />
-                      ) : (
-                        <Square size={15} className="text-slate-500 shrink-0 group-hover:text-slate-300" />
-                      )}
-                      <span className={isChecked ? 'line-through text-slate-400 font-medium' : ''}>
-                        {item.name}
-                      </span>
-                    </button>
-
-                    {/* Buy missing button if matched in catalog */}
-                    {!isChecked && item.matchedProduct && (
-                      <button
-                        onClick={() => handleAddProduct(item.matchedProduct!)}
-                        className="px-2 py-1 rounded bg-teal-500 hover:bg-teal-400 text-slate-950 text-[9px] font-black transition-all flex items-center gap-1 shrink-0 shadow-sm"
-                        title="Comprar repuesto oficial"
-                      >
-                        <Plus size={10} /> Añadir
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Progress counter */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-black text-slate-300 relative z-10">
-              <span>Tu nivel de preparación:</span>
-              <span className="text-teal-400 font-mono">
-                {Object.values(checkedChecklistItems).filter(Boolean).length} / {BOTIQUIN_CHECKLIST_ITEMS.length} Listos
-              </span>
-            </div>
-
-            {/* Decorative cross symbol */}
-            <div className="absolute -right-6 -bottom-6 text-white/5 pointer-events-none">
-              <Plus size={100} strokeWidth={6} />
-            </div>
-          </div>
-
-        </div>
-
+        <ProtocolBotiquin 
+          currentProtocol={currentProtocol}
+          recommendedProducts={recommendedProducts}
+          addedItemsMap={addedItemsMap}
+          handleAddProduct={handleAddProduct}
+          checklistInventoryMatches={checklistInventoryMatches}
+          checkedChecklistItems={checkedChecklistItems}
+          toggleChecklistItem={toggleChecklistItem}
+        />
       </div>
     </div>
   );
 };
+export default ProtocolSection;

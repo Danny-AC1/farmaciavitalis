@@ -37,7 +37,6 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Stream chat messages if user is logged in
   useEffect(() => {
     if (!currentUser) {
       setLoadingMessages(false);
@@ -45,14 +44,11 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
     }
 
     setLoadingMessages(true);
-    // Mark as read immediately when user views the chat
     markChatAsReadByUser(currentUser.uid);
 
     const unsubscribe = streamChatMessages(currentUser.uid, (data) => {
       setMessages(data);
       setLoadingMessages(false);
-      
-      // Mark as read when new messages arrive and tab is active
       markChatAsReadByUser(currentUser.uid);
     });
 
@@ -61,7 +57,6 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
     };
   }, [currentUser, activeSubTab]);
 
-  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -85,7 +80,7 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-2 font-sans md:py-6" id="support-and-dose-container">
-      {/* Header */}
+      {/* Cabecera */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <button 
@@ -108,7 +103,7 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
           </div>
         </div>
 
-        {/* Tab Selector */}
+        {/* Alternador de Pestañas */}
         <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner shrink-0">
           <button
             onClick={() => setActiveSubTab('chat')}
@@ -135,13 +130,11 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
         </div>
       </div>
 
-      {/* Main Area */}
+      {/* Área Principal */}
       <div className="w-full">
         {activeSubTab === 'chat' ? (
-          /* SUPPORT CHAT TAB */
           <div className="w-full">
             {!currentUser ? (
-              /* PROMPT USER TO LOG IN */
               <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl p-8 md:p-12 text-center max-w-xl mx-auto space-y-6">
                 <div className="h-16 w-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto text-teal-600 shadow-inner">
                   <ShieldCheck size={32} />
@@ -151,7 +144,7 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                     Chat de Soporte Médico Seguro
                   </h3>
                   <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                    Para brindarte atención privada de primer nivel y permitir que nuestros farmacéuticos accedan de forma segura a tus consultas e historial de pedidos, por favor inicia sesión o regístrate.
+                    Para brindarte atención privada de primer nivel y permitir que nuestros farmacéuticos accedan de forma segura a tus consultas, por favor inicia sesión.
                   </p>
                 </div>
                 <button
@@ -162,14 +155,12 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                 </button>
               </div>
             ) : (
-              /* ACTIVE CHAT WINDOW */
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden min-h-[500px]">
-                
-                {/* Info Panel Left */}
+                {/* Panel Lateral Informativo */}
                 <div className="lg:col-span-4 bg-slate-50 p-6 border-r border-slate-100 flex flex-col justify-between">
                   <div className="space-y-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-teal-600 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md shadow-teal-600/20">
+                      <div className="h-10 w-10 bg-teal-600 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md">
                         V
                       </div>
                       <div>
@@ -199,7 +190,7 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                           <ShieldCheck size={12} className="text-teal-600 mt-0.5" />
                           <div>
                             <p className="font-bold uppercase tracking-wider text-slate-800 text-[9px]">Canal Encriptado</p>
-                            <p className="text-slate-400 font-medium mt-0.5">Tus consultas médicas y personales están seguras con nosotros.</p>
+                            <p className="text-slate-400 font-medium mt-0.5">Tus consultas médicas y personales están protegidas.</p>
                           </div>
                         </div>
                       </div>
@@ -218,9 +209,8 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                   </div>
                 </div>
 
-                {/* Chat window right */}
+                {/* Ventana de Chat */}
                 <div className="lg:col-span-8 flex flex-col h-[500px]">
-                  {/* Messages container */}
                   <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50/40 no-scrollbar">
                     {loadingMessages ? (
                       <div className="h-full flex items-center justify-center flex-col gap-2">
@@ -237,7 +227,7 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                             ¡Comienza la conversación!
                           </p>
                           <p className="text-[10px] text-slate-400 font-semibold leading-normal">
-                            Escribe tu duda, consulta de medicamentos, consulta sobre cobertura de envíos, o cualquier requerimiento especial.
+                            Escribe tu duda, consulta de medicamentos, envíos, o cualquier requerimiento especial.
                           </p>
                         </div>
                       </div>
@@ -278,7 +268,6 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                     )}
                   </div>
 
-                  {/* Input Form */}
                   <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
                     <input
                       type="text"
@@ -300,12 +289,11 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
             )}
           </div>
         ) : (
-          /* DOSAGE CALCULATOR TAB */
           <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl p-6 md:p-8">
             <div className="mb-4 bg-teal-50/50 rounded-2xl p-4 border border-teal-100/50 flex items-start gap-3">
               <Sparkles className="text-teal-600 mt-0.5 shrink-0" size={16} />
               <div className="text-[11px] text-teal-800 leading-normal font-semibold">
-                <span className="font-extrabold uppercase">Instrucciones de Uso:</span> Seleccione el principio activo en la calculadora, configure el peso del niño en KG o Libras y la concentración de la presentación para obtener la dosis exacta recomendada por toma.
+                <span className="font-extrabold uppercase">Instrucciones de Uso:</span> Selecciona el principio activo, ingresa el peso en kilogramos o libras y la concentración del frasco para ver la dosis exacta recomendada.
               </div>
             </div>
             <DoseCalculator 

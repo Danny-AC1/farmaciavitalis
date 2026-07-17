@@ -2,6 +2,10 @@
   "name": "Farmacia Vitalis",
   "description": "Tu Salud Al Día - Catálogo farmacéutico en línea con entregas en Machalilla.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }
