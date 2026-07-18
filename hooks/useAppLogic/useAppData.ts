@@ -6,12 +6,99 @@ import {
 import { auth } from '../../services/firebase';
 
 export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => void) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [bundles, setBundles] = useState<Bundle[]>([]);
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Cargar estado inicial desde localStorage (Backup/Caché instantáneo)
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_products');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [categories, setCategories] = useState<Category[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_categories');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_orders');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [bundles, setBundles] = useState<Bundle[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_bundles');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_blogPosts');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_currentUser');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Guardar en localStorage cuando el estado se actualiza en tiempo real
+  useEffect(() => {
+    if (products && products.length > 0) {
+      localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+    }
+  }, [products]);
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      localStorage.setItem('vitalis_cache_categories', JSON.stringify(categories));
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      localStorage.setItem('vitalis_cache_orders', JSON.stringify(orders));
+    }
+  }, [orders]);
+
+  useEffect(() => {
+    if (bundles && bundles.length > 0) {
+      localStorage.setItem('vitalis_cache_bundles', JSON.stringify(bundles));
+    }
+  }, [bundles]);
+
+  useEffect(() => {
+    if (blogPosts && blogPosts.length > 0) {
+      localStorage.setItem('vitalis_cache_blogPosts', JSON.stringify(blogPosts));
+    }
+  }, [blogPosts]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('vitalis_cache_currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('vitalis_cache_currentUser');
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
