@@ -163,7 +163,7 @@ const App: React.FC = () => {
       )}
       {logic.activeTab === 'services' && <ServicesModal user={logic.currentUser} onClose={() => logic.setActiveTab('home')} onLoginRequest={() => logic.setShowAuthModal(true)} />}
       {logic.activeTab === 'assistant' && (
-        <div className="fixed inset-0 z-40 bg-slate-50 overflow-y-auto pt-20 pb-20">
+        <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col pt-16 md:pt-20 pb-4 md:pb-6 overflow-hidden">
           <SupportAndDoseCalculator 
             products={logic.products} 
             currentUser={logic.currentUser} 

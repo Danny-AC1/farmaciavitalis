@@ -18,10 +18,12 @@ export interface SupportChat {
   userDisplayName: string;
   userEmail: string;
   lastMessageText: string;
-  lastMessageTime: any; // Timestamp o Date string
+  lastMessageTime: any; // Timestamp or Date string
   unreadByAdmin: boolean;
   unreadByUser: boolean;
   updatedAt: any;
+  userTyping?: boolean;
+  adminTyping?: boolean;
 }
 
 export interface SupportMessage {
@@ -32,6 +34,8 @@ export interface SupportMessage {
   text: string;
   timestamp: any;
   read: boolean;
+  mediaUrl?: string;
+  mediaType?: string;
 }
 
 const SUPPORT_CHATS_COLLECTION = 'support_chats';
@@ -59,7 +63,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: null,
+      userId: null, // Filled when auth available
       email: null,
     },
     operationType,
@@ -70,7 +74,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 /**
- * Escucha en tiempo real todos los chats activos para los administradores y cajeros
+ * Streams all active support chats for administrators/cashiers
  */
 export const streamAdminChats = (callback: (chats: SupportChat[]) => void) => {
   const q = query(
@@ -90,7 +94,7 @@ export const streamAdminChats = (callback: (chats: SupportChat[]) => void) => {
 };
 
 /**
- * Escucha en tiempo real los mensajes de un chat específico
+ * Streams the message history for a specific chat (by userId)
  */
 export const streamChatMessages = (userId: string, callback: (messages: SupportMessage[]) => void) => {
   const messagesPath = `${SUPPORT_CHATS_COLLECTION}/${userId}/messages`;
@@ -111,71 +115,105 @@ export const streamChatMessages = (userId: string, callback: (messages: SupportM
 };
 
 /**
- * Envía un mensaje en calidad de Cliente
+ * Sends a message from the customer/user
  */
-export const sendMessageAsUser = async (userId: string, user: User, text: string) => {
+export const sendMessageAsUser = async (
+  userId: string, 
+  user: User, 
+  text: string, 
+  mediaUrl?: string, 
+  mediaType?: string
+) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
   const messagesCollectionRef = collection(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages');
   const now = Timestamp.now();
 
   try {
+    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : 'Archivo'}]`) : text;
+
+    // 1. Create or update the support chat session metadata
     await setDoc(chatRef, {
       id: userId,
       userId,
       userDisplayName: user.displayName || user.email || 'Cliente',
       userEmail: user.email || '',
-      lastMessageText: text,
+      lastMessageText: lastText,
       lastMessageTime: now,
       unreadByAdmin: true,
       unreadByUser: false,
       updatedAt: now,
     }, { merge: true });
 
-    await addDoc(messagesCollectionRef, {
+    // 2. Add the actual message
+    const msgData: any = {
       senderId: userId,
       senderRole: 'USER',
       senderName: user.displayName || 'Cliente',
-      text,
+      text: lastText,
       timestamp: now,
       read: false,
-    });
+    };
+
+    if (mediaUrl) {
+      msgData.mediaUrl = mediaUrl;
+      msgData.mediaType = mediaType || 'image';
+    }
+
+    await addDoc(messagesCollectionRef, msgData);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);
   }
 };
 
 /**
- * Envía un mensaje en calidad de Administrador / Farmacéutico
+ * Sends a message from the administrator
  */
-export const sendMessageAsAdmin = async (userId: string, admin: User, text: string) => {
+export const sendMessageAsAdmin = async (
+  userId: string, 
+  admin: User, 
+  text: string, 
+  mediaUrl?: string, 
+  mediaType?: string
+) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
   const messagesCollectionRef = collection(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages');
   const now = Timestamp.now();
 
   try {
+    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : 'Archivo'}]`) : text;
+
+    // 1. Update support chat session metadata
     await setDoc(chatRef, {
-      lastMessageText: text,
+      lastMessageText: lastText,
       lastMessageTime: now,
       unreadByAdmin: false,
       unreadByUser: true,
       updatedAt: now,
     }, { merge: true });
 
-    await addDoc(messagesCollectionRef, {
+    // 2. Add the actual message
+    const msgData: any = {
       senderId: admin.uid,
       senderRole: 'ADMIN',
       senderName: admin.displayName || 'Administrador',
-      text,
+      text: lastText,
       timestamp: now,
       read: false,
-    });
+    };
+
+    if (mediaUrl) {
+      msgData.mediaUrl = mediaUrl;
+      msgData.mediaType = mediaType || 'image';
+    }
+
+    await addDoc(messagesCollectionRef, msgData);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);
   }
 };
 
 /**
- * Marca el chat como leído por el administrador
+ * Marks a chat as read by admin
  */
 export const markChatAsReadByAdmin = async (userId: string) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
@@ -189,7 +227,7 @@ export const markChatAsReadByAdmin = async (userId: string) => {
 };
 
 /**
- * Marca el chat como leído por el usuario/cliente
+ * Marks a chat as read by user
  */
 export const markChatAsReadByUser = async (userId: string) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
@@ -199,5 +237,49 @@ export const markChatAsReadByUser = async (userId: string) => {
     });
   } catch (error) {
     console.warn("Could not mark chat as read by user:", error);
+  }
+};
+
+/**
+ * Streams the chat session metadata (including typing statuses and unread flags) for a specific user.
+ */
+export const streamChatSession = (userId: string, callback: (chat: SupportChat | null) => void) => {
+  const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
+  return onSnapshot(chatRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback({ id: snapshot.id, ...snapshot.data() } as SupportChat);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Error streaming chat session metadata:", error);
+  });
+};
+
+/**
+ * Updates the user's typing status.
+ */
+export const setUserTypingStatus = async (userId: string, isTyping: boolean) => {
+  const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
+  try {
+    await updateDoc(chatRef, {
+      userTyping: isTyping
+    });
+  } catch (error) {
+    console.warn("Could not set user typing status:", error);
+  }
+};
+
+/**
+ * Updates the admin's typing status.
+ */
+export const setAdminTypingStatus = async (userId: string, isTyping: boolean) => {
+  const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
+  try {
+    await updateDoc(chatRef, {
+      adminTyping: isTyping
+    });
+  } catch (error) {
+    console.warn("Could not set admin typing status:", error);
   }
 };
