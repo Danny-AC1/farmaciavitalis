@@ -63,40 +63,64 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
 
   // Guardar en localStorage cuando el estado se actualiza en tiempo real
   useEffect(() => {
-    if (products && products.length > 0) {
-      localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+    try {
+      if (products && products.length > 0) {
+        localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [products]);
 
   useEffect(() => {
-    if (categories && categories.length > 0) {
-      localStorage.setItem('vitalis_cache_categories', JSON.stringify(categories));
+    try {
+      if (categories && categories.length > 0) {
+        localStorage.setItem('vitalis_cache_categories', JSON.stringify(categories));
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [categories]);
 
   useEffect(() => {
-    if (orders && orders.length > 0) {
-      localStorage.setItem('vitalis_cache_orders', JSON.stringify(orders));
+    try {
+      if (orders && orders.length > 0) {
+        localStorage.setItem('vitalis_cache_orders', JSON.stringify(orders));
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [orders]);
 
   useEffect(() => {
-    if (bundles && bundles.length > 0) {
-      localStorage.setItem('vitalis_cache_bundles', JSON.stringify(bundles));
+    try {
+      if (bundles && bundles.length > 0) {
+        localStorage.setItem('vitalis_cache_bundles', JSON.stringify(bundles));
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [bundles]);
 
   useEffect(() => {
-    if (blogPosts && blogPosts.length > 0) {
-      localStorage.setItem('vitalis_cache_blogPosts', JSON.stringify(blogPosts));
+    try {
+      if (blogPosts && blogPosts.length > 0) {
+        localStorage.setItem('vitalis_cache_blogPosts', JSON.stringify(blogPosts));
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [blogPosts]);
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('vitalis_cache_currentUser', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('vitalis_cache_currentUser');
+    try {
+      if (currentUser) {
+        localStorage.setItem('vitalis_cache_currentUser', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('vitalis_cache_currentUser');
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
     }
   }, [currentUser]);
 

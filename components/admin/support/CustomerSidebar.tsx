@@ -33,7 +33,7 @@ export const CustomerSidebar: React.FC<CustomerSidebarProps> = ({
   }, [userId]);
 
   return (
-    <div className="w-full lg:w-72 xl:w-80 border-l border-slate-200 bg-slate-50/30 flex flex-col h-full font-sans overflow-y-auto custom-scrollbar overscroll-contain p-5 space-y-6">
+    <div className="hidden lg:flex w-full lg:w-72 xl:w-80 border-l border-slate-200 bg-slate-50/30 flex-col h-full font-sans overflow-y-auto custom-scrollbar overscroll-contain p-5 space-y-6">
       
       {/* User Card */}
       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-3.5">

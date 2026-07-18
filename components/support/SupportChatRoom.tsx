@@ -252,6 +252,36 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
       {/* 2. Active Chat Frame */}
       <div className="lg:col-span-8 flex flex-col h-full overflow-hidden">
         
+        {/* Mobile-Only Header */}
+        <div className="lg:hidden p-3.5 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 bg-teal-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-teal-600/15">
+              V
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-800">
+                Farmacia Vitalis
+              </h4>
+              <p className="text-[9px] text-slate-400 font-bold flex items-center gap-1 mt-0.5">
+                <span className="h-1 w-1 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
+                Soporte Humano Activo
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`p-1.5 rounded-lg transition-all border ${
+              soundEnabled 
+                ? 'bg-teal-50 text-teal-600 border-teal-100' 
+                : 'bg-slate-50 text-slate-400 border-slate-100'
+            }`}
+            title={soundEnabled ? "Silenciar" : "Activar Sonido"}
+          >
+            {soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+          </button>
+        </div>
+
         {/* Scrollable Messages queue */}
         <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50/40 custom-scrollbar overscroll-contain relative">
           {loadingMessages ? (

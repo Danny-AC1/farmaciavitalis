@@ -37,7 +37,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   }, [chats]);
 
   return (
-    <div className="lg:w-2/5 xl:w-1/3 border-r border-slate-200 flex flex-col h-full bg-slate-50/50 font-sans shrink-0">
+    <div className={`${selectedChatId ? 'hidden' : 'flex'} lg:flex lg:w-2/5 xl:w-1/3 border-r border-slate-200 flex-col h-full bg-slate-50/50 font-sans shrink-0`}>
       
       {/* Title & Stats */}
       <div className="p-4 border-b border-slate-200 bg-white space-y-3.5">

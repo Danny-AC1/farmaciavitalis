@@ -3,9 +3,24 @@ import { Product, CartItem, DELIVERY_FEE, Bundle } from '../../types';
 import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 export const useAppCart = () => {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('vitalis_cache_cart');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vitalis_cache_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.error('Error saving cart to cache:', e);
+    }
+  }, [cart]);
 
   useEffect(() => {
     setActiveDiscounts(getActiveDiscounts());
