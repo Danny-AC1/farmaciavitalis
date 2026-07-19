@@ -91,7 +91,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const lowStockItems = props.products.filter(p => p.stock <= 5);
   const pendingBookings = state.bookings.filter(b => b.status === 'PENDING');
   
-  const isPosActive = state.activeTab === 'pos';
+  const isFullHeightTab = state.activeTab === 'pos' || state.activeTab === 'support_chats';
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -117,8 +117,8 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           />
 
           {/* 3. Área de Contenido Dinámico */}
-          <div className="flex-1 overflow-y-auto bg-[#F8FAFC]">
-              <div className={`max-w-[1500px] mx-auto ${isPosActive ? 'p-0 h-full' : 'p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full'}`}>
+          <div className={`flex-1 bg-[#F8FAFC] ${isFullHeightTab ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+              <div className={`max-w-[1500px] mx-auto ${isFullHeightTab ? 'p-0 h-full' : 'p-4 md:p-8 lg:p-10 pb-32 md:pb-10 space-y-8 h-full'}`}>
                 <AdminMainContent 
                     activeTab={state.activeTab} 
                     props={props as any} 

@@ -63,7 +63,7 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
   }, [selectedChat?.id]);
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-md overflow-hidden h-[calc(100vh-190px)] min-h-[550px] lg:h-[calc(100vh-210px)] flex flex-col lg:flex-row font-sans" id="admin-support-chats-container">
+    <div className="bg-white md:rounded-[2rem] md:border border-slate-200/80 shadow-md overflow-hidden h-full flex flex-col lg:flex-row font-sans" id="admin-support-chats-container">
       
       {/* 1. Left Sidebar: Chats Queue */}
       <ChatList 
