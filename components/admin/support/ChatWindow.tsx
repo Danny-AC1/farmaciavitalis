@@ -262,7 +262,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [products, searchProductQuery]);
 
   return (
-    <div className="flex-grow flex flex-col h-full bg-white relative font-sans">
+    <div className="flex-grow flex flex-col h-full min-h-0 bg-white relative font-sans">
       
       {/* Active Chat Header */}
       <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">

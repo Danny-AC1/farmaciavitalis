@@ -73,7 +73,7 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
       />
 
       {/* 2. Main Area: Active Chat or Placeholder */}
-      <div className="flex-grow flex flex-col lg:flex-row min-w-0">
+      <div className="flex-grow flex flex-col lg:flex-row min-w-0 h-full min-h-0">
         {selectedChat ? (
           <>
             {/* Active Message Board */}
