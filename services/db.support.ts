@@ -7,7 +7,9 @@ import {
   query, 
   orderBy, 
   onSnapshot, 
-  Timestamp 
+  Timestamp,
+  deleteDoc,
+  getDoc
 } from 'firebase/firestore';
 import { firestore } from './firebase';
 import { User } from '../types';
@@ -36,6 +38,16 @@ export interface SupportMessage {
   read: boolean;
   mediaUrl?: string;
   mediaType?: string;
+  replyToId?: string;
+  replyToText?: string;
+  replyToSenderName?: string;
+  reactions?: { [emoji: string]: string[] }; // emoji -> list of senderNames or senderIds
+}
+
+export interface ReplyToPayload {
+  id: string;
+  text: string;
+  senderName: string;
 }
 
 const SUPPORT_CHATS_COLLECTION = 'support_chats';
@@ -122,14 +134,15 @@ export const sendMessageAsUser = async (
   user: User, 
   text: string, 
   mediaUrl?: string, 
-  mediaType?: string
+  mediaType?: string,
+  replyTo?: ReplyToPayload
 ) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
   const messagesCollectionRef = collection(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages');
   const now = Timestamp.now();
 
   try {
-    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : 'Archivo'}]`) : text;
+    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : mediaType === 'audio' ? 'Mensaje de voz' : 'Archivo'}]`) : text;
 
     // 1. Create or update the support chat session metadata
     await setDoc(chatRef, {
@@ -159,6 +172,12 @@ export const sendMessageAsUser = async (
       msgData.mediaType = mediaType || 'image';
     }
 
+    if (replyTo) {
+      msgData.replyToId = replyTo.id;
+      msgData.replyToText = replyTo.text;
+      msgData.replyToSenderName = replyTo.senderName;
+    }
+
     await addDoc(messagesCollectionRef, msgData);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);
@@ -173,14 +192,15 @@ export const sendMessageAsAdmin = async (
   admin: User, 
   text: string, 
   mediaUrl?: string, 
-  mediaType?: string
+  mediaType?: string,
+  replyTo?: ReplyToPayload
 ) => {
   const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
   const messagesCollectionRef = collection(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages');
   const now = Timestamp.now();
 
   try {
-    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : 'Archivo'}]`) : text;
+    const lastText = mediaUrl ? (text || `[${mediaType === 'image' ? 'Imagen' : mediaType === 'audio' ? 'Mensaje de voz' : 'Archivo'}]`) : text;
 
     // 1. Update support chat session metadata
     await setDoc(chatRef, {
@@ -204,6 +224,12 @@ export const sendMessageAsAdmin = async (
     if (mediaUrl) {
       msgData.mediaUrl = mediaUrl;
       msgData.mediaType = mediaType || 'image';
+    }
+
+    if (replyTo) {
+      msgData.replyToId = replyTo.id;
+      msgData.replyToText = replyTo.text;
+      msgData.replyToSenderName = replyTo.senderName;
     }
 
     await addDoc(messagesCollectionRef, msgData);
@@ -281,5 +307,69 @@ export const setAdminTypingStatus = async (userId: string, isTyping: boolean) =>
     });
   } catch (error) {
     console.warn("Could not set admin typing status:", error);
+  }
+};
+
+/**
+ * Physically deletes a message from Firestore
+ */
+export const deleteSupportMessage = async (userId: string, messageId: string) => {
+  const messageRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages', messageId);
+  try {
+    await deleteDoc(messageRef);
+  } catch (error) {
+    console.error("Could not delete support message:", error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes a support chat session (including metadata and clean slate)
+ */
+export const deleteSupportChat = async (userId: string) => {
+  const chatRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId);
+  try {
+    await deleteDoc(chatRef);
+  } catch (error) {
+    console.error("Could not delete support chat:", error);
+    throw error;
+  }
+};
+
+/**
+ * Toggles an emoji reaction on a specific message
+ */
+export const reactToMessage = async (userId: string, messageId: string, emoji: string, senderName: string) => {
+  const messageRef = doc(firestore, SUPPORT_CHATS_COLLECTION, userId, 'messages', messageId);
+  try {
+    const snap = await getDoc(messageRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const currentReactions = data.reactions || {};
+    const usersWithReaction = currentReactions[emoji] || [];
+
+    let newUsers: string[];
+    if (usersWithReaction.includes(senderName)) {
+      // Remove reaction if already reacted
+      newUsers = usersWithReaction.filter((name: string) => name !== senderName);
+    } else {
+      // Add reaction
+      newUsers = [...usersWithReaction, senderName];
+    }
+
+    const updatedReactions = { ...currentReactions };
+    if (newUsers.length === 0) {
+      delete updatedReactions[emoji];
+    } else {
+      updatedReactions[emoji] = newUsers;
+    }
+
+    await updateDoc(messageRef, {
+      reactions: updatedReactions
+    });
+  } catch (error) {
+    console.error("Could not react to message:", error);
+    throw error;
   }
 };

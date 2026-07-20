@@ -80,7 +80,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
             );
         
         case 'orders':
-            return <AdminOrders orders={props.orders} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} onShowCashClosure={onShowCashClosure} />;
+            return <AdminOrders orders={props.orders} products={props.products} onUpdateStatus={state.handleOrderStatusUpdate} onDeleteOrder={state.handleDeleteOrder} onShowCashClosure={onShowCashClosure} />;
         
         case 'intelligence':
             return <IntelligenceHub products={props.products} />;
@@ -195,7 +195,13 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
             return <AdminExtensionSuite setActiveTab={state.setActiveTab} products={props.products} suppliers={state.suppliers} />;
         
         case 'support_chats':
-            return <AdminSupportChats currentUser={props.currentUser || null} />;
+            return (
+                <AdminSupportChats 
+                    currentUser={props.currentUser || null} 
+                    initialSelectedChatId={state.initialSelectedChatId}
+                    onClearInitialChatId={state.onClearInitialChatId}
+                />
+            );
         
         default: return null;
     }

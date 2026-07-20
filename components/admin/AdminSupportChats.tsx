@@ -3,6 +3,8 @@ import { User, Product } from '../../types';
 import { 
   streamAdminChats, 
   streamChatMessages, 
+  markChatAsReadByAdmin,
+  deleteSupportChat,
   SupportChat, 
   SupportMessage 
 } from '../../services/db.support';
@@ -16,14 +18,33 @@ import { MessageSquare } from 'lucide-react';
 
 interface AdminSupportChatsProps {
   currentUser: User | null;
+  initialSelectedChatId?: string | null;
+  onClearInitialChatId?: () => void;
 }
 
-export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUser }) => {
+export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ 
+  currentUser, 
+  initialSelectedChatId, 
+  onClearInitialChatId 
+}) => {
   const [chats, setChats] = useState<SupportChat[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedChat, setSelectedChat] = useState<SupportChat | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Auto-select chat when triggered from a floating notification
+  useEffect(() => {
+    if (initialSelectedChatId && chats.length > 0) {
+      const found = chats.find(c => c.id === initialSelectedChatId);
+      if (found) {
+        setSelectedChat(found);
+        if (onClearInitialChatId) {
+          onClearInitialChatId();
+        }
+      }
+    }
+  }, [initialSelectedChatId, chats, onClearInitialChatId]);
 
   // Stream active support chats
   useEffect(() => {
@@ -62,6 +83,13 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
     return () => unsubscribe();
   }, [selectedChat?.id]);
 
+  // Mark active chat as read by admin
+  useEffect(() => {
+    if (selectedChat?.id && selectedChat.unreadByAdmin) {
+      markChatAsReadByAdmin(selectedChat.id);
+    }
+  }, [selectedChat?.id, selectedChat?.unreadByAdmin]);
+
   return (
     <div className="bg-white md:rounded-[2rem] md:border border-slate-200/80 shadow-md overflow-hidden h-full flex flex-col lg:flex-row font-sans" id="admin-support-chats-container">
       
@@ -70,6 +98,16 @@ export const AdminSupportChats: React.FC<AdminSupportChatsProps> = ({ currentUse
         chats={chats}
         selectedChatId={selectedChat?.id}
         onSelectChat={(chat) => setSelectedChat(chat)}
+        onDeleteChat={async (userId) => {
+          try {
+            await deleteSupportChat(userId);
+            if (selectedChat?.id === userId) {
+              setSelectedChat(null);
+            }
+          } catch (error) {
+            console.error("Error deleting support chat:", error);
+          }
+        }}
       />
 
       {/* 2. Main Area: Active Chat or Placeholder */}

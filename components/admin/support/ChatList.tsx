@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { SupportChat } from '../../../services/db.support';
-import { MessageSquare, Search, Mail, Bell } from 'lucide-react';
+import { MessageSquare, Search, Mail, Bell, Trash2 } from 'lucide-react';
 
 interface ChatListProps {
   chats: SupportChat[];
   selectedChatId: string | undefined;
   onSelectChat: (chat: SupportChat) => void;
+  onDeleteChat?: (userId: string) => void;
 }
 
 export const ChatList: React.FC<ChatListProps> = ({
   chats,
   selectedChatId,
   onSelectChat,
+  onDeleteChat,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'unread'>('all');
@@ -106,7 +108,7 @@ export const ChatList: React.FC<ChatListProps> = ({
               <button
                 key={chat.id}
                 onClick={() => onSelectChat(chat)}
-                className={`w-full text-left p-3.5 rounded-2xl transition duration-150 flex items-start gap-3.5 relative border ${
+                className={`w-full text-left p-3.5 rounded-2xl transition duration-150 flex items-start gap-3.5 relative border group ${
                   isSelected 
                     ? 'bg-teal-600 text-white border-teal-600 shadow-lg shadow-teal-600/10' 
                     : 'bg-white text-slate-800 border-slate-100 hover:border-teal-500/30 shadow-xs'
@@ -120,7 +122,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                 </div>
                 
                 {/* Detail */}
-                <div className="min-w-0 flex-grow pr-4">
+                <div className="min-w-0 flex-grow pr-8">
                   <div className="flex justify-between items-start gap-1">
                     <p className={`text-xs font-extrabold truncate ${isSelected ? 'text-white' : 'text-slate-800'}`}>
                       {chat.userDisplayName}
@@ -142,10 +144,30 @@ export const ChatList: React.FC<ChatListProps> = ({
                   )}
                 </div>
 
-                {/* Double Indicator for Unread */}
-                {hasUnread && !isSelected && (
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 bg-rose-500 rounded-full" />
-                )}
+                {/* Right Bottom Actions & Unread Indicator */}
+                <div className="absolute right-3.5 bottom-3.5 flex items-center gap-2">
+                  {onDeleteChat && (
+                    <span 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`¿Estás seguro de que deseas eliminar la conversación con ${chat.userDisplayName}? Esta acción es irreversible.`)) {
+                          onDeleteChat(chat.id);
+                        }
+                      }}
+                      className={`p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus-within:opacity-100 cursor-pointer ${
+                        isSelected 
+                          ? 'hover:bg-teal-700 text-teal-100 hover:text-white' 
+                          : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'
+                      }`}
+                      title="Eliminar conversación"
+                    >
+                      <Trash2 size={13} />
+                    </span>
+                  )}
+                  {hasUnread && !isSelected && (
+                    <span className="h-2 w-2 bg-rose-500 rounded-full shrink-0" />
+                  )}
+                </div>
               </button>
             );
           })

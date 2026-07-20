@@ -36,7 +36,7 @@ export const useAdminPanelState = (
     onDeleteProduct: (id: string) => Promise<void>,
     onUpdateStock: (id: string, newStock: number) => Promise<void>,
     onAddCategory: (c: Category) => Promise<any>,
-    onUpdateOrderStatus: (id: string, status: 'DELIVERED', order: Order) => Promise<void>
+    onUpdateOrderStatus: (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order: Order) => Promise<void>
 ) => {
     // 1. Estados de Navegación y UI General
     const [activeTab, setActiveTab] = useState<string>('dashboard');
