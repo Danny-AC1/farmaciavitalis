@@ -17,6 +17,7 @@ export interface Product {
   requiresPrescription?: boolean;
   activeIngredient?: string; // Nuevo: Para búsqueda por principio activo
   keywords?: string; // Nuevo: Para alias comerciales o síntomas (ej: "uvamin, vías urinarias")
+  originalPrice?: number; // Nuevo: Precio original (antes de descuento) para mostrar tachado
 }
 
 export interface Category {
@@ -233,7 +234,8 @@ export interface MonthlyFinance {
 export const AVAILABLE_SERVICES = [
   { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
   { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
-  { id: 's4', name: 'Suero', price: 5.00, durationMin: 15, description: 'Puesta de suero.' }
+  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
+  { id: 's4', name: 'Suero', price: 10.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
 export type ViewState = 'HOME' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD' | 'CHECKOUT' | 'SUCCESS';

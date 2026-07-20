@@ -49,7 +49,6 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return () => unsubscribe();
   }, []);
 
-  const bannerInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
 
   // Escáner USB Global para el POS
@@ -144,7 +143,6 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       onClearInitialChatId: () => setInitialSelectedChatId(null)
                     } as any} 
                     productInputRef={productInputRef}
-                    bannerInputRef={bannerInputRef}
                     onShowCashClosure={handleShowCustomClosure}
                     onEditClosure={handleEditClosure}
                 />

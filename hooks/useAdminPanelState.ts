@@ -266,7 +266,16 @@ export const useAdminPanelState = (
         monthlyStats, currentMonthExpenses,
         // Handlers Directos y Redireccionamientos
         handleAddBanner, 
-        handleAddCoupon: (c: string, v: number) => addCouponDB({ id: '', code: c.toUpperCase(), value: v, type: 'PERCENTAGE', active: true }),
+        handleAddBannerDirect: async (banner: { title: string, image: string, active: boolean }) => {
+            await addBannerDB({ id: '', ...banner });
+        },
+        handleAddCoupon: async (coupon: string | { code: string, value: number, type: 'PERCENTAGE' | 'FIXED', active: boolean }, val?: number) => {
+            if (typeof coupon === 'string') {
+                await addCouponDB({ id: '', code: coupon.toUpperCase(), value: val || 0, type: 'PERCENTAGE', active: true });
+            } else {
+                await addCouponDB({ id: '', ...coupon });
+            }
+        },
         handleAddSupplier: addSupplierDB, 
         handleAddExpense: addExpenseDB,
         handleUpdateExpense: updateExpenseDB,
@@ -280,7 +289,13 @@ export const useAdminPanelState = (
         handleProcessSubscription,
         handleProductDelete: (id: string) => confirm("¿Eliminar producto?") && onDeleteProduct(id),
         handleStockUpdate: onUpdateStock, 
-        handleCategoryAdd: (n: string) => onAddCategory({ id: '', name: n, image: '' }),
+        handleCategoryAdd: (cat: string | { name: string; image: string }) => {
+            if (typeof cat === 'string') {
+                return onAddCategory({ id: '', name: cat, image: '' });
+            } else {
+                return onAddCategory({ id: '', name: cat.name, image: cat.image || '' });
+            }
+        },
         handleOrderStatusUpdate: onUpdateOrderStatus
     };
 };

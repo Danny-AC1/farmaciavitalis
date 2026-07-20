@@ -11,6 +11,7 @@ interface AdminProductManagementProps {
   editingId: string | null;
   prodName: string; setProdName: (s: string) => void;
   prodPrice: string; setProdPrice: (s: string) => void;
+  prodOriginalPrice: string; setProdOriginalPrice: (s: string) => void;
   prodCostPrice: string; setProdCostPrice: (s: string) => void;
   prodUnitsPerBox: string; setProdUnitsPerBox: (s: string) => void;
   prodBoxPrice: string; setProdBoxPrice: (s: string) => void;
@@ -45,6 +46,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
             editingId={props.editingId}
             prodName={props.prodName} setProdName={props.setProdName}
             prodPrice={props.prodPrice} setProdPrice={props.setProdPrice}
+            prodOriginalPrice={props.prodOriginalPrice} setProdOriginalPrice={props.setProdOriginalPrice}
             prodCostPrice={props.prodCostPrice} setProdCostPrice={props.setProdCostPrice}
             prodUnitsPerBox={props.prodUnitsPerBox} setProdUnitsPerBox={props.setProdUnitsPerBox}
             prodBoxPrice={props.prodBoxPrice} setProdBoxPrice={props.setProdBoxPrice}

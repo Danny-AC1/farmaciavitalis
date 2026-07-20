@@ -4,7 +4,7 @@ import { Product, CartItem } from '../../types';
 import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Tag } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB, streamSubscriptions, addEmailLogDB, getEmailTemplateHTML } from '../../services/db';
 import { getCrossSellSuggestion } from '../../services/gemini';
-import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import { getProductDiscount, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 import ShareSheet from './ShareSheet';
 
 interface ProductDetailProps {
@@ -73,8 +73,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
   const displayBoxPrice = product.publicBoxPrice || product.boxPrice || 0;
   
-  const discountedPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
-  const discountPct = discount ? getDiscountPercentage(product.price, discount) : 0;
+  const finalPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
+  const hasOriginalPrice = !!(product.originalPrice && product.originalPrice > finalPrice);
+  const originalPriceToShow = hasOriginalPrice ? product.originalPrice : (discount ? product.price : undefined);
+  const showDiscountTag = hasOriginalPrice || !!discount;
+  const finalDiscountPct = originalPriceToShow && originalPriceToShow > finalPrice
+    ? Math.round(((originalPriceToShow - finalPrice) / originalPriceToShow) * 100)
+    : 0;
 
   const handleStockAlert = async () => {
       if (!emailAlert) return alert("Ingresa tu correo");
@@ -166,11 +171,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
         </div>
 
         <div className="w-full md:w-1/2 bg-gray-100 relative h-64 md:h-auto shrink-0 flex items-center justify-center p-6">
-          {available > 0 && discount && (
+          {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
              <div className="absolute top-4 left-4 z-10">
                  <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 uppercase tracking-wider animate-pulse">
                      <Tag className="h-4 w-4" />
-                     -{discountPct}%
+                     -{finalDiscountPct}%
                  </span>
              </div>
           )}
@@ -228,11 +233,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                     <div className="flex justify-between items-center mb-3">
                       <div>
                         <span className="block text-xs font-bold text-gray-400 uppercase">Precio Unitario</span>
-                        {discount ? (
+                        {originalPriceToShow && originalPriceToShow > finalPrice ? (
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-black text-teal-700">${discountedPrice.toFixed(2)}</span>
-                            <span className="text-sm text-gray-400 line-through">${product.price.toFixed(2)}</span>
-                            <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">-{discountPct}%</span>
+                            <span className="text-2xl font-black text-teal-700">${finalPrice.toFixed(2)}</span>
+                            <span className="text-sm text-gray-400 line-through">${originalPriceToShow.toFixed(2)}</span>
+                            <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">-{finalDiscountPct}%</span>
                           </div>
                         ) : (
                           <span className="text-2xl font-black text-teal-700">${product.price.toFixed(2)}</span>
@@ -304,7 +309,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
     <ShareSheet 
       product={product}
-      discountedPrice={discountedPrice}
+      discountedPrice={finalPrice}
       isOpen={isShareOpen}
       onClose={() => setIsShareOpen(false)}
     />

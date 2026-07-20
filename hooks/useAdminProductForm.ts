@@ -11,6 +11,8 @@ export interface AdminProductForm {
     setProdName: (val: string) => void;
     prodPrice: string;
     setProdPrice: (val: string) => void;
+    prodOriginalPrice: string;
+    setProdOriginalPrice: (val: string) => void;
     prodCostPrice: string;
     setProdCostPrice: (val: string) => void;
     prodUnitsPerBox: string;
@@ -57,6 +59,7 @@ export const useAdminProductForm = (
     const [editingId, setEditingId] = useState<string | null>(null);
     const [prodName, setProdName] = useState('');
     const [prodPrice, setProdPrice] = useState('');
+    const [prodOriginalPrice, setProdOriginalPrice] = useState('');
     const [prodCostPrice, setProdCostPrice] = useState('');
     const [prodUnitsPerBox, setProdUnitsPerBox] = useState('');
     const [prodBoxPrice, setProdBoxPrice] = useState('');
@@ -96,6 +99,7 @@ export const useAdminProductForm = (
         const productData: Product = {
             id: editingId || '',
             name: prodName, description: prodDesc, price: parseFloat(prodPrice),
+            originalPrice: prodOriginalPrice ? parseFloat(prodOriginalPrice) : undefined,
             costPrice: prodCostPrice ? parseFloat(prodCostPrice) : undefined,
             unitsPerBox: prodUnitsPerBox ? parseInt(prodUnitsPerBox) : undefined,
             boxPrice: prodBoxPrice ? parseFloat(prodBoxPrice) : undefined,
@@ -114,7 +118,7 @@ export const useAdminProductForm = (
     };
 
     const resetForm = () => {
-        setEditingId(null); setProdName(''); setProdPrice(''); setProdCostPrice(''); setProdUnitsPerBox('');
+        setEditingId(null); setProdName(''); setProdPrice(''); setProdOriginalPrice(''); setProdCostPrice(''); setProdUnitsPerBox('');
         setProdBoxPrice(''); setProdPublicBoxPrice(''); setProdDesc(''); setProdImage(''); 
         setProdBarcode(''); setProdExpiry(''); setProdSupplier('');
         setProdActiveIngredient(''); setProdKeywords('');
@@ -151,6 +155,7 @@ export const useAdminProductForm = (
 
     const handleEditClick = (p: Product) => {
         setEditingId(p.id); setProdName(p.name); setProdPrice(p.price.toString()); 
+        setProdOriginalPrice(p.originalPrice?.toString() || '');
         setProdCostPrice(p.costPrice?.toString() || ''); setProdUnitsPerBox(p.unitsPerBox?.toString() || ''); 
         setProdBoxPrice(p.boxPrice?.toString() || ''); setProdPublicBoxPrice(p.publicBoxPrice?.toString() || ''); 
         setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image); 
@@ -161,6 +166,7 @@ export const useAdminProductForm = (
 
     return {
         editingId, setEditingId, prodName, setProdName, prodPrice, setProdPrice, 
+        prodOriginalPrice, setProdOriginalPrice,
         prodCostPrice, setProdCostPrice, prodUnitsPerBox, setProdUnitsPerBox, 
         prodBoxPrice, setProdBoxPrice, prodPublicBoxPrice, setProdPublicBoxPrice,
         prodDesc, setProdDesc, prodCat, setProdCat, prodImage, setProdImage, 

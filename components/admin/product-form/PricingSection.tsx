@@ -4,6 +4,8 @@ import { Coins, TrendingUp, AlertTriangle, Percent } from 'lucide-react';
 interface PricingSectionProps {
   prodPrice: string;
   setProdPrice: (s: string) => void;
+  prodOriginalPrice: string;
+  setProdOriginalPrice: (s: string) => void;
   prodCostPrice: string;
   setProdCostPrice: (s: string) => void;
   prodUnitsPerBox: string;
@@ -17,6 +19,8 @@ interface PricingSectionProps {
 export const PricingSection: React.FC<PricingSectionProps> = ({
   prodPrice,
   setProdPrice,
+  prodOriginalPrice,
+  setProdOriginalPrice,
   prodCostPrice,
   setProdCostPrice,
   prodUnitsPerBox,
@@ -28,6 +32,8 @@ export const PricingSection: React.FC<PricingSectionProps> = ({
 }) => {
   // Parsing inputs
   const uPrice = parseFloat(prodPrice) || 0;
+  const oPrice = parseFloat(prodOriginalPrice) || 0;
+  const fakeDiscount = oPrice > uPrice ? Math.round(((oPrice - uPrice) / oPrice) * 100) : 0;
   const uCost = parseFloat(prodCostPrice) || 0;
   const bCost = parseFloat(prodBoxPrice) || 0;
   const bPrice = parseFloat(prodPublicBoxPrice) || 0;
@@ -161,7 +167,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({
             2. Precios de Venta al Público (P.V.P)
           </span>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                 P.V.P Unitario <span className="text-red-500">*</span>
@@ -180,7 +186,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({
                   id="input-prod-price"
                 />
               </div>
-              <span className="text-[9px] text-slate-400 font-medium block">Precio de venta por pastilla/ampolla/sobre suelto.</span>
+              <span className="text-[9px] text-slate-400 font-medium block">Precio de venta por pastilla/ampolla/sobre.</span>
             </div>
 
             <div className="space-y-1.5">
@@ -200,7 +206,33 @@ export const PricingSection: React.FC<PricingSectionProps> = ({
                   id="input-prod-public-box-price"
                 />
               </div>
-              <span className="text-[9px] text-blue-600 font-medium block">Precio con descuento especial por comprar la caja cerrada.</span>
+              <span className="text-[9px] text-blue-600 font-medium block">Precio con descuento especial por caja cerrada.</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-amber-600 uppercase tracking-wider block flex items-center gap-1">
+                P.V.P Anterior (Tachado) <span className="bg-amber-100 text-amber-800 px-1 rounded text-[8px] font-black uppercase">Opcional</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500 text-xs font-bold">$</span>
+                <input
+                  type="number"
+                  step="0.01;any"
+                  min="0"
+                  className="w-full bg-amber-50/20 border border-amber-200/60 p-3 pl-7 rounded-2xl text-xs font-black text-amber-800 outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all"
+                  value={prodOriginalPrice}
+                  onChange={(e) => setProdOriginalPrice(e.target.value)}
+                  placeholder="Ej: 1.50"
+                  id="input-prod-original-price"
+                />
+              </div>
+              <span className="text-[9px] text-slate-400 font-medium block">
+                {fakeDiscount > 0 ? (
+                  <span className="text-emerald-600 font-bold">🏷️ Muestra {fakeDiscount}% de descuento ficticio</span>
+                ) : (
+                  "Para simular un descuento en la imagen del producto."
+                )}
+              </span>
             </div>
           </div>
 

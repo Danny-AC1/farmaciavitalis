@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Tag } from 'lucide-react';
 import { Product, CartItem } from '../../types';
-import { getProductDiscount, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import { getProductDiscount, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 
 interface ProductCardProps {
   product: Product;
@@ -32,8 +32,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
   const reserved = getReservedStock(product.id, cart);
   const available = Math.max(0, product.stock - reserved);
 
-  const discountedPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
-  const discountPct = discount ? getDiscountPercentage(product.price, discount) : 0;
+  const finalPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
+  const hasOriginalPrice = !!(product.originalPrice && product.originalPrice > finalPrice);
+  const originalPriceToShow = hasOriginalPrice ? product.originalPrice : (discount ? product.price : undefined);
+  const showDiscountTag = hasOriginalPrice || !!discount;
+  const finalDiscountPct = originalPriceToShow && originalPriceToShow > finalPrice
+    ? Math.round(((originalPriceToShow - finalPrice) / originalPriceToShow) * 100)
+    : 0;
   
   return (
       <div 
@@ -42,11 +47,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
       >
           <div className="h-32 md:h-48 bg-gray-50 overflow-hidden relative">
               <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 mix-blend-multiply" />
-              {available > 0 && discount && (
+              {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
                 <div className="absolute top-2 left-2 z-10">
                   <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-[10px] md:text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 uppercase tracking-wider">
                     <Tag className="h-3 w-3 shrink-0" />
-                    -{discountPct}%
+                    -{finalDiscountPct}%
                   </span>
                 </div>
               )}
@@ -64,10 +69,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
               
               <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-gray-100 space-y-2 md:space-y-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between">
-                      {discount ? (
+                      {originalPriceToShow && originalPriceToShow > finalPrice ? (
                         <div className="flex flex-col">
-                          <span className="text-base md:text-lg font-black text-teal-700">${discountedPrice.toFixed(2)}</span>
-                          <span className="text-[10px] md:text-xs text-gray-400 line-through">${product.price.toFixed(2)}</span>
+                          <span className="text-base md:text-lg font-black text-teal-700">${finalPrice.toFixed(2)}</span>
+                          <span className="text-[10px] md:text-xs text-gray-400 line-through">${originalPriceToShow.toFixed(2)}</span>
                         </div>
                       ) : (
                         <span className="text-base md:text-lg font-black text-teal-700">${product.price.toFixed(2)}</span>

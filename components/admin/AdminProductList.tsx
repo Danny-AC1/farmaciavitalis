@@ -87,7 +87,14 @@ const AdminProductList: React.FC<AdminProductListProps> = ({ products, handleEdi
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm font-black text-gray-800 tabular-nums">${p.price.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-gray-800 tabular-nums">${p.price.toFixed(2)}</span>
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <span className="text-[10px] font-semibold text-gray-400 line-through tabular-nums">${p.originalPrice.toFixed(2)}</span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 text-sm font-black text-blue-600 tabular-nums">
                   {p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : '---'}
                 </td>

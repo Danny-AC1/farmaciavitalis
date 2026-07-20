@@ -3,10 +3,9 @@ import React from 'react';
 import AdminDashboard from './AdminDashboard';
 import AdminPOS from '../pos/AdminPOS';
 import AdminProductManagement from './AdminProductManagement';
-import AdminMarketing from './AdminMarketing';
+import { AdminMarketingManagement } from './AdminMarketingManagement';
 import AdminBlogManager from './AdminBlogManager';
 import AdminOrders from './AdminOrders';
-import AdminSimpleTable from './AdminSimpleTable';
 import AdminDemand from './AdminDemand';
 import AdminUsers from './AdminUsers';
 import AdminStockQuick from './AdminStockQuick';
@@ -21,6 +20,7 @@ import AdminBundles from './AdminBundles';
 import AdminFinances from './AdminFinances';
 import IntelligenceHub from './IntelligenceHub';
 import AdminExtensionSuite from './AdminExtensionSuite';
+import { AdminCategoryManagement } from './AdminCategoryManagement';
 import { AdminSupportChats } from './AdminSupportChats';
 
 interface AdminMainContentProps {
@@ -28,12 +28,11 @@ interface AdminMainContentProps {
     props: any; // Props del componente padre AdminPanel
     state: any; // Estado extendido del hook useAdminPanelState
     productInputRef: React.RefObject<HTMLInputElement>;
-    bannerInputRef: React.RefObject<HTMLInputElement>;
     onShowCashClosure?: (cash: number, trans: number, date: string) => void;
     onEditClosure?: (closure: any) => void;
 }
 
-const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, bannerInputRef, onShowCashClosure, onEditClosure }) => {
+const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, onShowCashClosure, onEditClosure }) => {
     switch (activeTab) {
         case 'dashboard':
             return (
@@ -96,6 +95,8 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     setProdName={state.setProdName} 
                     prodPrice={state.prodPrice} 
                     setProdPrice={state.setProdPrice} 
+                    prodOriginalPrice={state.prodOriginalPrice} 
+                    setProdOriginalPrice={state.setProdOriginalPrice} 
                     prodCostPrice={state.prodCostPrice} 
                     setProdCostPrice={state.setProdCostPrice} 
                     prodUnitsPerBox={state.prodUnitsPerBox} 
@@ -143,24 +144,28 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         
         case 'marketing':
             return (
-                <AdminMarketing 
+                <AdminMarketingManagement 
                     banners={state.banners} 
                     coupons={state.coupons} 
-                    bannerTitle={state.bannerTitle} 
-                    setBannerTitle={state.setBannerTitle} 
-                    bannerInputRef={bannerInputRef} 
-                    handleAddBanner={state.handleAddBanner} 
-                    onDeleteBanner={state.handleDeleteBanner} 
-                    isUploadingBanner={state.isUploadingBanner} 
-                    onAddCoupon={state.onAddCoupon} 
+                    onAddCoupon={state.handleAddCoupon} 
                     onDeleteCoupon={state.handleDeleteCoupon} 
+                    onAddBanner={state.handleAddBannerDirect} 
+                    onDeleteBanner={state.handleDeleteBanner} 
                 />
             );
 
         case 'marketing_ai':
             return <AdminBlogManager />;
 
-        case 'categories': return <AdminSimpleTable title="Categorías" data={props.categories} onAdd={state.handleCategoryAdd} onDelete={props.onDeleteCategory} />;
+        case 'categories':
+            return (
+                <AdminCategoryManagement 
+                    categories={props.categories} 
+                    products={props.products} 
+                    onAdd={state.handleCategoryAdd} 
+                    onDelete={props.onDeleteCategory} 
+                />
+            );
         case 'suppliers': return <AdminSuppliers suppliers={state.suppliers} onAdd={state.handleAddSupplier} onDelete={state.handleDeleteSupplier} onAddPurchase={state.handleAddExpense} />;
         case 'ciudadelas': return <AdminCiudadelas />;
         case 'demand': return <AdminDemand logs={state.searchLogs} onDeleteLog={state.handleDeleteSearchLog} />;
