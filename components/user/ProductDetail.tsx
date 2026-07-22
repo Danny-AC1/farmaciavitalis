@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, CartItem } from '../../types';
-import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Sparkles, Share2, Tag } from 'lucide-react';
+import { X, ShoppingCart, Package, CheckCircle, AlertTriangle, Bell, RefreshCw, Plus, Share2, Tag, ShieldCheck, Truck } from 'lucide-react';
 import { addStockAlertDB, addSubscriptionDB, streamSubscriptions, addEmailLogDB, getEmailTemplateHTML } from '../../services/db';
-import { getCrossSellSuggestion } from '../../services/gemini';
 import { getProductDiscount, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 import ShareSheet from './ShareSheet';
+import { RelatedProducts } from './RelatedProducts';
 
 interface ProductDetailProps {
   product: Product;
@@ -14,20 +14,26 @@ interface ProductDetailProps {
   currentUserEmail?: string;
   onClose: () => void;
   onAddToCart: (product: Product, unitType: 'UNIT' | 'BOX') => void;
+  onSelectProduct?: (product: Product) => void;
 }
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products = [], currentUserEmail, onClose, onAddToCart }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products = [], currentUserEmail, onClose, onAddToCart, onSelectProduct }) => {
   const [emailAlert, setEmailAlert] = useState(currentUserEmail || '');
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto scroll to top when active product changes
+  useEffect(() => {
+    if (modalContainerRef.current) {
+      modalContainerRef.current.scrollTop = 0;
+    }
+  }, [product.id]);
+
   const [alertSent, setAlertSent] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [discount, setDiscount] = useState<ActiveDiscount | undefined>(undefined);
   
-  // Cross-Sell Logic
-  const [suggestion, setSuggestion] = useState<{product: Product | undefined, reason: string} | null>(null);
-  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
-
   // Verificar si ya está suscrito a este producto
   useEffect(() => {
     if (!currentUserEmail) return;
@@ -47,16 +53,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
       setDiscount(getProductDiscount(product.id));
     });
   }, [product.id]);
-
-  useEffect(() => {
-      if (products.length > 0) {
-          setLoadingSuggestion(true);
-          getCrossSellSuggestion(product, products).then(res => {
-              setSuggestion(res);
-              setLoadingSuggestion(false);
-          });
-      }
-  }, [product, products]);
 
   const getReservedStock = () => {
     return cart.reduce((acc, item) => {
@@ -151,84 +147,76 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
 
   return (
     <>
-    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200 p-0 md:p-4">
       <div 
-        className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-2xl rounded-none shadow-2xl overflow-hidden flex flex-col md:flex-row relative animate-in slide-in-from-bottom-full md:zoom-in-95 duration-300"
+        ref={modalContainerRef}
+        className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-2xl rounded-none shadow-2xl overflow-y-auto flex flex-col relative animate-in slide-in-from-bottom-full md:zoom-in-95 duration-300 custom-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Absolute Header with close and share buttons */}
         <div className="absolute top-5 right-5 md:top-4 md:right-4 z-10 flex gap-2">
           <button 
             onClick={handleShare} 
-            className="p-2 rounded-full transition-all shadow-sm backdrop-blur-sm flex items-center gap-1 bg-white/80 hover:bg-white text-gray-500 hover:text-teal-600 hover:scale-105"
+            className="p-2 rounded-full transition-all shadow-sm backdrop-blur-sm flex items-center gap-1 bg-white/80 hover:bg-white text-gray-500 hover:text-teal-600 hover:scale-105 border border-slate-100"
             title="Compartir Producto"
           >
             <Share2 className="h-5 w-5" />
             <span className="text-[10px] font-bold pr-1">Compartir</span>
           </button>
-          <button onClick={onClose} className="bg-white/80 p-2 rounded-full hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm backdrop-blur-sm">
+          <button onClick={onClose} className="bg-white/80 p-2 rounded-full hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm backdrop-blur-sm border border-slate-100">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <div className="w-full md:w-1/2 bg-gray-100 relative h-64 md:h-auto shrink-0 flex items-center justify-center p-6">
-          {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
-             <div className="absolute top-4 left-4 z-10">
-                 <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 uppercase tracking-wider animate-pulse">
-                     <Tag className="h-4 w-4" />
-                     -{finalDiscountPct}%
-                 </span>
-             </div>
-          )}
-          <img src={product.image} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform hover:scale-105 duration-500" />
-          {available <= 0 && (
-             <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[1px]">
-                 <span className="bg-red-500 text-white px-6 py-2 font-bold rounded-full text-lg shadow-lg transform -rotate-12 border-2 border-white">AGOTADO</span>
-             </div>
-          )}
-        </div>
+        {/* Main Product Detail Grid (Columns) */}
+        <div className="flex flex-col md:flex-row w-full border-b border-slate-100">
+          
+          {/* Left panel: Image */}
+          <div className="w-full md:w-1/2 bg-slate-50 relative h-72 md:h-auto md:min-h-[480px] shrink-0 flex items-center justify-center p-8">
+            {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
+               <div className="absolute top-4 left-4 z-10">
+                   <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 uppercase tracking-wider animate-pulse">
+                       <Tag className="h-4 w-4" />
+                       -{finalDiscountPct}%
+                   </span>
+               </div>
+            )}
+            <img src={product.image} alt={product.name} className="max-h-64 md:max-h-[380px] max-w-full object-contain mix-blend-multiply transition-transform hover:scale-105 duration-500" />
+            {available <= 0 && (
+               <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[1px]">
+                   <span className="bg-red-500 text-white px-6 py-2 font-bold rounded-full text-lg shadow-lg transform -rotate-12 border-2 border-white">AGOTADO</span>
+               </div>
+            )}
+          </div>
 
-        <div className="w-full md:w-1/2 p-5 md:p-10 flex flex-col overflow-y-auto bg-white">
-          <div className="mb-auto">
-            <span className="inline-block px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-bold uppercase tracking-wider mb-3">{product.category}</span>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2 leading-tight">{product.name}</h2>
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              {available > 0 ? (
-                <span className="flex items-center text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md"><CheckCircle className="h-4 w-4 mr-1" /> Disponible: {available} unid.</span>
-              ) : (
-                <span className="flex items-center text-sm font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md"><AlertTriangle className="h-4 w-4 mr-1" /> Sin Stock</span>
-              )}
+          {/* Right panel: Content and Buy Actions */}
+          <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-between bg-white">
+            <div className="mb-6">
+              <span className="inline-block px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-bold uppercase tracking-wider mb-3">{product.category}</span>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2 leading-tight">{product.name}</h2>
+              <div className="flex items-center gap-2 mb-4">
+                {available > 0 ? (
+                  <span className="flex items-center text-sm font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-md"><CheckCircle className="h-4 w-4 mr-1.5" /> Disponible: {available} unid.</span>
+                ) : (
+                  <span className="flex items-center text-sm font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-md"><AlertTriangle className="h-4 w-4 mr-1.5" /> Sin Stock</span>
+                )}
+              </div>
+
+              <p className="text-gray-600 text-sm md:text-base leading-relaxed mb-6">{product.description}</p>
+
+              {/* Technical Specifications Grid */}
+              <div className="border-t border-slate-100 pt-5 mt-5 space-y-3.5">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Ficha de Información</h4>
+                <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100/50">
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Principio Activo</span>
+                  <span className="text-xs font-black text-slate-800">{product.activeIngredient || 'No especificado'}</span>
+                </div>
+              </div>
             </div>
 
-            <p className="text-gray-600 text-base leading-relaxed mb-6 md:mb-8">{product.description}</p>
-
-            {loadingSuggestion ? (
-                <div className="mb-6 bg-purple-50 border border-purple-100 rounded-lg p-3 flex items-center gap-2 text-purple-700 text-xs animate-pulse">
-                    <Sparkles className="h-4 w-4"/> Buscando recomendación farmacéutica...
-                </div>
-            ) : suggestion && suggestion.product && (
-                <div className="mb-6 bg-gradient-to-r from-purple-50 to-white border border-purple-100 rounded-lg p-3 relative overflow-hidden group">
-                    <div className="flex items-start gap-3 relative z-10">
-                        <img src={suggestion.product.image} className="h-12 w-12 rounded object-cover mix-blend-multiply bg-white border border-gray-100"/>
-                        <div className="flex-grow">
-                            <p className="text-[10px] font-bold text-purple-600 uppercase flex items-center gap-1"><Sparkles size={10}/> Recomendado para ti</p>
-                            <p className="text-sm font-bold text-gray-800 leading-tight">{suggestion.product.name}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 italic">"{suggestion.reason}"</p>
-                            <div className="flex items-center justify-between mt-2">
-                                <span className="font-bold text-purple-700">${suggestion.product.price.toFixed(2)}</span>
-                                <button 
-                                    onClick={() => { onClose(); onAddToCart(suggestion.product!, 'UNIT'); }} 
-                                    className="bg-purple-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-purple-700 transition"
-                                >
-                                    Agregar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            {/* Purchase actions */}
             {available > 0 ? (
-                <div className="space-y-4 pb-20 md:pb-0">
+                <div className="space-y-4">
                   <div className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 transition-colors bg-gray-50/50">
                     <div className="flex justify-between items-center mb-3">
                       <div>
@@ -244,7 +232,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                         )}
                       </div>
                     </div>
-                    <button onClick={() => onAddToCart(product, 'UNIT')} className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-600/20"><ShoppingCart className="h-5 w-5" /> Agregar Unidad</button>
+                    <button onClick={() => onAddToCart(product, 'UNIT')} className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-600/20 transition-all duration-150 active:scale-98"><ShoppingCart className="h-5 w-5" /> Agregar Unidad</button>
                   </div>
 
                   {hasBox && displayBoxPrice > 0 && (
@@ -258,7 +246,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                           <button 
                               onClick={() => onAddToCart(product, 'BOX')} 
                               disabled={available < unitsPerBox}
-                              className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg ${available >= unitsPerBox ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                              className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all duration-150 active:scale-98 ${available >= unitsPerBox ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                           >
                               <Plus className="h-5 w-5" /> Agregar Caja
                           </button>
@@ -294,7 +282,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                     <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><Bell size={18}/> Avísame cuando haya stock</h4>
                     {!alertSent ? (
                         <div className="flex gap-2">
-                            <input className="border p-2 rounded text-sm flex-grow" placeholder="Tu correo..." value={emailAlert} onChange={e => setEmailAlert(e.target.value)}/>
+                            <input className="border p-2 rounded text-sm flex-grow bg-white" placeholder="Tu correo..." value={emailAlert} onChange={e => setEmailAlert(e.target.value)}/>
                             <button onClick={handleStockAlert} className="bg-gray-800 text-white px-3 py-2 rounded text-sm font-bold">Enviar</button>
                         </div>
                     ) : (
@@ -302,8 +290,42 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, cart, products =
                     )}
                 </div>
             )}
+
+            {/* Quality & Trust badges */}
+            <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-5 mt-6">
+              <div className="flex flex-col items-center text-center">
+                <ShieldCheck className="h-5 w-5 text-teal-600 mb-1" />
+                <span className="text-[9px] font-black text-slate-800 uppercase tracking-tight">100% Original</span>
+                <span className="text-[8px] text-slate-400 leading-tight">Medicamentos certificados</span>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <Truck className="h-5 w-5 text-teal-600 mb-1" />
+                <span className="text-[9px] font-black text-slate-800 uppercase tracking-tight">Envío Seguro</span>
+                <span className="text-[8px] text-slate-400 leading-tight">Cadena de frío óptima</span>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <CheckCircle className="h-5 w-5 text-teal-600 mb-1" />
+                <span className="text-[9px] font-black text-slate-800 uppercase tracking-tight">Atención 24/7</span>
+                <span className="text-[8px] text-slate-400 leading-tight">Soporte farmacéutico</span>
+              </div>
+            </div>
+
           </div>
         </div>
+
+        {/* RELATED PRODUCTS SECTION */}
+        <RelatedProducts 
+          currentProduct={product}
+          allProducts={products}
+          onSelectProduct={(selectedProd) => {
+            if (onSelectProduct) {
+              onSelectProduct(selectedProd);
+            }
+          }}
+          onAddToCart={onAddToCart}
+          cart={cart}
+        />
+
       </div>
     </div>
 

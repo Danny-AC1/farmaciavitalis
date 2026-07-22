@@ -25,10 +25,12 @@ import {
   Trash2,
   CornerUpLeft,
   Smile,
-  X
+  X,
+  ClipboardList
 } from 'lucide-react';
 import { VoiceRecorder } from './VoiceRecorder';
 import { AudioPlayer } from './AudioPlayer';
+import PrescriptionModal from '../modals/PrescriptionModal';
 
 interface SupportChatRoomProps {
   products: Product[];
@@ -55,6 +57,7 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [replyingTo, setReplyingTo] = useState<ReplyToPayload | null>(null);
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null); // messageId
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -341,6 +344,14 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
                   <p className="text-slate-400 font-semibold mt-0.5">Tus datos, recetas y consultas están protegidos por secreto farmacéutico.</p>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPrescriptionModal(true)}
+                className="w-full mt-2 py-2.5 px-3 bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                <ClipboardList size={14} /> Subir Receta Médica
+              </button>
             </div>
           </div>
         </div>
@@ -715,6 +726,18 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
             <Paperclip size={15} />
           </button>
 
+          {/* Quick Upload Prescription button */}
+          <button
+            type="button"
+            disabled={isUploading || isSending}
+            onClick={() => setShowPrescriptionModal(true)}
+            className="px-3 py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shrink-0"
+            title="Subir Receta Médica"
+          >
+            <ClipboardList size={14} />
+            <span className="hidden sm:inline">Receta</span>
+          </button>
+
           {/* Voice recorder action button */}
           <VoiceRecorder onSendVoice={handleSendVoice} disabled={isSending || isUploading} />
 
@@ -739,6 +762,13 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
         </div>
 
       </div>
+
+      {showPrescriptionModal && (
+        <PrescriptionModal 
+          currentUser={currentUser} 
+          onClose={() => setShowPrescriptionModal(false)} 
+        />
+      )}
     </div>
   );
 };

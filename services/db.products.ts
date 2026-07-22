@@ -25,7 +25,8 @@ export const addProductDB = async (product: Product) => {
   await sendNotificationToAll({
     title: '¡Nuevo Producto!',
     message: `Hemos añadido "${product.name}" a nuestro catálogo. ¡Ven a descubrirlo!`,
-    type: 'SYSTEM'
+    type: 'SYSTEM',
+    link: `/product/${docRef.id}`
   });
 
   return { id: docRef.id, ...data };
@@ -47,18 +48,28 @@ export const deleteProductDB = async (id: string) => {
 export const updateStockDB = async (id: string, newStock: number) => {
   const productRef = doc(firestore, PRODUCTS_COLLECTION, id);
   
-  // Si queremos notificar cuando vuelve el stock, necesitamos saber el stock anterior
-  if (newStock > 0) {
-    const snap = await getDoc(productRef);
-    if (snap.exists()) {
-        const oldData = snap.data();
-        if (oldData.stock === 0) {
-            await sendNotificationToAll({
-                title: '¡Producto de nuevo en Stock!',
-                message: `"${oldData.name}" ya está disponible nuevamente. ¡Corre que se agotan!`,
-                type: 'STOCK_ALERT'
-            });
-        }
+  const snap = await getDoc(productRef);
+  if (snap.exists()) {
+    const oldData = snap.data();
+    
+    // Notificar si volvió a tener stock
+    if (newStock > 0 && oldData.stock === 0) {
+      await sendNotificationToAll({
+        title: '¡Producto de nuevo en Stock!',
+        message: `"${oldData.name}" ya está disponible nuevamente en Farmacia Vitalis.`,
+        type: 'STOCK_ALERT',
+        link: `/product/${id}`
+      });
+    }
+
+    // Notificar si el stock cayó a un nivel bajo (alerta de stock para la gestión)
+    const minStock = oldData.minStock || 5;
+    if (newStock <= minStock && newStock > 0 && oldData.stock > minStock) {
+      await sendNotificationToAll({
+        title: '⚠️ Alerta de Stock Bajo',
+        message: `El producto "${oldData.name}" tiene solo ${newStock} unidades disponibles. Por favor reabastecer.`,
+        type: 'STOCK_ALERT'
+      });
     }
   }
 

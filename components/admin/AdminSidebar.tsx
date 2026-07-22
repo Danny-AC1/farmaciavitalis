@@ -61,6 +61,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
           title: 'GESTIÓN EXTRA',
           items: [
             { id: 'bookings', label: 'Citas Médicas', icon: CalendarCheck },
+            { id: 'prescriptions', label: 'Recetas Médicas', icon: ClipboardList },
             { id: 'stock_alerts', label: 'Alertas Stock', icon: BellRing },
             { id: 'extension_suite', label: 'Suite Gerencial', icon: Sliders },
           ]

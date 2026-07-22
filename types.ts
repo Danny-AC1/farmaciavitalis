@@ -319,3 +319,15 @@ export interface TreasuryDeposit {
   status: 'CONCILIADO' | 'PENDIENTE';
   notes?: string;
 }
+
+export interface Prescription {
+  id?: string;
+  userId?: string;
+  patientName: string;
+  patientPhone: string;
+  patientEmail?: string;
+  imageUrl: string;
+  status: 'PENDIENTE' | 'COTIZADO' | 'COMPLETADO';
+  createdAt: string;
+  notes?: string;
+}

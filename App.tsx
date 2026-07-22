@@ -117,6 +117,7 @@ const App: React.FC = () => {
         <ProductDetail 
           product={logic.selectedProduct} cart={logic.cart} products={logic.products} 
           currentUserEmail={logic.currentUser?.email} onClose={() => logic.setSelectedProduct(null)} onAddToCart={logic.addToCart} 
+          onSelectProduct={logic.setSelectedProduct}
         />
       )}
 
@@ -185,7 +186,16 @@ const App: React.FC = () => {
         </div>
       )}
       
-      {logic.showPrescriptionModal && <PrescriptionModal onClose={() => logic.setShowPrescriptionModal(false)} />}
+      {logic.showPrescriptionModal && (
+        <PrescriptionModal 
+          currentUser={logic.currentUser} 
+          onClose={() => logic.setShowPrescriptionModal(false)} 
+          onOpenChat={() => {
+            logic.setShowPrescriptionModal(false);
+            logic.handleTabChange('assistant');
+          }}
+        />
+      )}
       
       {logic.currentUser && (
         <NotificationCenter 

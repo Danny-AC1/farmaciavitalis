@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, CheckCheck, BellOff } from 'lucide-react';
+import { Bell, X, CheckCheck, BellOff, Smartphone, Check } from 'lucide-react';
 import { Notification } from '../../notificationTypes';
 import { streamNotifications, markAsRead, markAllAsRead, deleteNotification } from '../../services/db.notifications';
+import { getNotificationPermission, requestNotificationPermission } from '../../services/nativeNotificationService';
 import NotificationItem from './NotificationItem';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,12 +15,25 @@ interface NotificationCenterProps {
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen, onClose, onNavigate }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [permissionState, setPermissionState] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    setPermissionState(getNotificationPermission());
+  }, [isOpen]);
 
   useEffect(() => {
     if (!userId) return;
     const unsub = streamNotifications(userId, (data) => setNotifications(data));
     return () => unsub();
   }, [userId]);
+
+  const handleEnableDeviceNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setPermissionState(getNotificationPermission());
+    if (granted) {
+      alert("¡Notificaciones en el dispositivo activadas correctamente! Recibirás alertas fuera de la página.");
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -64,6 +78,29 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
               <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <X className="h-6 w-6" />
               </button>
+            </div>
+
+            {/* Device Native Push Notifications Banner */}
+            <div className="p-4 bg-teal-50 border-b border-teal-100/80">
+              {permissionState === 'granted' ? (
+                <div className="flex items-center gap-2 text-xs font-extrabold text-teal-800">
+                  <div className="bg-teal-600 text-white p-1 rounded-full"><Check size={12} /></div>
+                  <span>Notificaciones en Celular/Navegador Activas</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 text-xs text-teal-900 font-bold">
+                    <Smartphone size={16} className="text-teal-600 shrink-0 mt-0.5" />
+                    <span>¿Recibir alertas fuera de la página en tu dispositivo?</span>
+                  </div>
+                  <button
+                    onClick={handleEnableDeviceNotifications}
+                    className="w-full py-2 px-3 bg-teal-600 hover:bg-teal-700 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Bell size={13} /> Activar Notificaciones en Celular / PC
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto no-scrollbar">
