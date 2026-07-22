@@ -12,6 +12,7 @@ import AdminHeader from './AdminHeader';
 import AdminMainContent from './AdminMainContent';
 import CashClosureModal from '../modals/CashClosureModal';
 import BarcodeScanner from '../modals/BarcodeScanner';
+import AdminOrderNotificationTray from './orders/AdminOrderNotificationTray';
 
 interface AdminPanelProps {
   products: Product[];
@@ -176,6 +177,15 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         customDate={customClosure?.date}
         onSave={handleSaveWrapper}
         initialClosure={customClosure?.closure}
+      />
+
+      {/* Notificación Intacta de Nuevos Pedidos en Vitalis Admin */}
+      <AdminOrderNotificationTray
+        orders={props.orders}
+        onUpdateOrderStatus={props.onUpdateOrderStatus}
+        onNavigateToOrders={() => {
+          state.setActiveTab('orders');
+        }}
       />
 
       {/* Notificaciones flotantes de Soporte de Chat */}

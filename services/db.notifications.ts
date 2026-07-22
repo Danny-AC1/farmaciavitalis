@@ -29,7 +29,8 @@ export const sendNotification = async (notification: Omit<Notification, 'id' | '
     // Also trigger native browser/phone system notification
     triggerNativeNotification(notification.title || 'Farmacia Vitalis 💊', {
       body: notification.message,
-      tag: `vitalis-${notification.type}-${Date.now()}`
+      tag: `vitalis-${notification.type}-${Date.now()}`,
+      requireInteraction: true
     });
   } catch (error) {
     console.error("Error sending notification:", error);
@@ -59,7 +60,8 @@ export const streamNotifications = (userId: string, callback: (notifications: No
         if (!previousNotificationIds.has(notif.id) && !notif.read) {
           triggerNativeNotification(notif.title || 'Nueva Notificación Vitalis 💊', {
             body: notif.message,
-            tag: `notif-${notif.id}`
+            tag: `notif-${notif.id}`,
+            requireInteraction: true
           });
         }
       }
@@ -100,6 +102,31 @@ export const deleteNotification = async (notificationId: string) => {
     await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
   } catch (error) {
     console.error("Error deleting notification:", error);
+  }
+};
+
+export const sendNotificationToAdmins = async (notification: Omit<Notification, 'id' | 'createdAt' | 'read' | 'userId'>) => {
+  try {
+    const q = query(collection(db, 'users'), where('role', '==', 'ADMIN'));
+    const adminSnapshot = await getDocs(q);
+    const promises = adminSnapshot.docs.map(adminDoc => 
+      addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+        ...notification,
+        userId: adminDoc.id,
+        read: false,
+        createdAt: Timestamp.now().toDate().toISOString()
+      })
+    );
+    await Promise.all(promises);
+
+    // Trigger explicit native notification for admin with requireInteraction (stays until clicked/acted upon)
+    triggerNativeNotification(notification.title || '🚨 ¡ALERTA PARA ADMINISTRADOR!', {
+      body: notification.message,
+      tag: `admin-alert-${Date.now()}`,
+      requireInteraction: true
+    });
+  } catch (error) {
+    console.error("Error sending notification to admins:", error);
   }
 };
 
