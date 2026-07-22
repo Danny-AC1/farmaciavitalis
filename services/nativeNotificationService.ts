@@ -47,6 +47,7 @@ export interface NativeNotificationOptions {
   url?: string;
   silent?: boolean;
   requireInteraction?: boolean;
+  actions?: Array<{ action: string; title: string; icon?: string }>;
 }
 
 export const triggerNativeNotification = async (
@@ -55,6 +56,11 @@ export const triggerNativeNotification = async (
 ) => {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
+
+  const defaultActions = [
+    { action: 'open', title: '👁️ Ver Detalle' },
+    { action: 'dismiss', title: '✅ Marcar Visto' }
+  ];
 
   const notificationOptions = {
     body: options.body,
@@ -66,7 +72,8 @@ export const triggerNativeNotification = async (
     },
     vibrate: [300, 100, 300, 100, 300],
     silent: options.silent || false,
-    requireInteraction: options.requireInteraction ?? true
+    requireInteraction: options.requireInteraction ?? true,
+    actions: options.actions || defaultActions
   };
 
   try {
