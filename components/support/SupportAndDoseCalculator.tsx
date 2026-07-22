@@ -55,9 +55,9 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
   }, [currentUser, activeSubTab]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-1 py-1 sm:px-4 sm:py-2 md:py-6 flex flex-col h-[100dvh] md:h-full overflow-hidden font-sans" id="support-and-dose-container">
+    <div className="w-full max-w-5xl mx-auto px-1 pt-1 pb-0 sm:px-4 sm:py-2 md:py-6 flex flex-col h-[100dvh] md:h-full overflow-hidden font-sans" id="support-and-dose-container">
       {/* Header */}
-      <div className="flex flex-row items-center justify-between gap-2 mb-2 md:mb-6 pb-2 md:pb-4 border-b border-slate-200 shrink-0">
+      <div className="flex flex-row items-center justify-between gap-2 mb-1 sm:mb-2 md:mb-6 pb-1 sm:pb-2 md:pb-4 border-b border-slate-200 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <button 
             onClick={onClose}

@@ -45,7 +45,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="p-2 sm:p-3 border-t border-slate-150 bg-white flex items-end gap-1.5 sm:gap-2 shrink-0 relative">
+    <div className="p-1 sm:p-2.5 border-t border-slate-150 bg-white flex items-center sm:items-end gap-1.5 sm:gap-2 shrink-0 relative">
       <input 
         type="file"
         ref={fileInputRef}

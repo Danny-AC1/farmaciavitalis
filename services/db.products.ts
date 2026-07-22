@@ -4,7 +4,7 @@ import { firestore } from './firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, getDoc, where, getDocs } from 'firebase/firestore';
 import { Product, Category } from '../types';
 import { cleanData } from './db.utils';
-import { sendNotification, sendNotificationToAdmins } from './db.notifications';
+import { sendNotification, sendNotificationToAdmins, sendNotificationToAll } from './db.notifications';
 
 const PRODUCTS_COLLECTION = 'products';
 const CATEGORIES_COLLECTION = 'categories';
@@ -22,7 +22,19 @@ export const streamProducts = (callback: (products: Product[]) => void) => {
 export const addProductDB = async (product: Product) => {
   const { id, ...data } = product;
   const docRef = await addDoc(collection(firestore, PRODUCTS_COLLECTION), cleanData(data));
-  // No enviamos notificación masiva por producto nuevo para no molestar a los usuarios
+  
+  // Notificación masiva de producto nuevo
+  try {
+    await sendNotificationToAll({
+      title: '✨ ¡Nuevo producto registrado!',
+      message: `Se ha añadido "${data.name}" a nuestro catálogo de Farmacia Vitalis. ¡Echa un vistazo!`,
+      type: 'NEW_PRODUCT',
+      link: `/product/${docRef.id}`
+    });
+  } catch (err) {
+    console.error("Error al notificar nuevo producto:", err);
+  }
+
   return { id: docRef.id, ...data };
 };
 

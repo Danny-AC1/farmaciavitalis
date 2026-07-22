@@ -108,12 +108,12 @@ const Navbar: React.FC<NavbarProps> = ({
               {currentUser && (
                   <button 
                     onClick={onNotificationClick}
-                    className="relative p-2 rounded-full hover:bg-teal-700 transition-colors"
-                    title="Notificaciones"
+                    className="relative p-2 rounded-full hover:bg-teal-700 transition-colors group"
+                    title="Centro de Notificaciones"
                   >
-                    <Bell className="h-6 w-6" />
+                    <Bell className={`h-6 w-6 transition-transform group-hover:scale-110 ${unreadNotificationsCount > 0 ? 'text-amber-300' : 'text-white'}`} />
                     {unreadNotificationsCount > 0 && (
-                      <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full border-2 border-teal-600">
+                      <span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-red-500 rounded-full border-2 border-teal-600 shadow-sm animate-pulse">
                         {unreadNotificationsCount}
                       </span>
                     )}

@@ -316,7 +316,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       />
 
       {/* 3. Messages Stream Box */}
-      <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50/50 custom-scrollbar relative">
+      <div className="flex-grow overflow-y-auto p-4 space-y-1.5 bg-slate-50/50 custom-scrollbar relative">
         {loadingMessages ? (
           <div className="h-full flex items-center justify-center flex-col gap-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
@@ -332,7 +332,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-1.5">
             {filteredMessages.map((msg) => (
               <ChatMessageItem
                 key={msg.id}
@@ -399,7 +399,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       />
 
       {/* 6. Message Inputs Panel */}
-      <div className="p-2.5 sm:p-3 border-t border-slate-200 bg-white flex items-end gap-2 shrink-0">
+      <div className="p-1.5 sm:p-3 border-t border-slate-200 bg-white flex items-center sm:items-end gap-2 shrink-0">
         <input 
           type="file"
           ref={fileInputRef}

@@ -98,6 +98,20 @@ export const deleteNotification = async (notificationId: string) => {
   }
 };
 
+export const deleteAllNotifications = async (userId: string) => {
+  try {
+    const q = query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('userId', '==', userId)
+    );
+    const snapshot = await getDocs(q);
+    const promises = snapshot.docs.map(d => deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, d.id)));
+    await Promise.all(promises);
+  } catch (error) {
+    console.error("Error deleting all notifications:", error);
+  }
+};
+
 export const sendNotificationToAdmins = async (notification: Omit<Notification, 'id' | 'createdAt' | 'read' | 'userId'>) => {
   try {
     const q = query(collection(db, 'users'), where('role', '==', 'ADMIN'));

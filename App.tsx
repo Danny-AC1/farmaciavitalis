@@ -164,7 +164,7 @@ const App: React.FC = () => {
       )}
       {logic.activeTab === 'services' && <ServicesModal user={logic.currentUser} onClose={() => logic.setActiveTab('home')} onLoginRequest={() => logic.setShowAuthModal(true)} />}
       {logic.activeTab === 'assistant' && (
-        <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col pt-16 md:pt-20 pb-20 md:pb-6 overflow-hidden">
+        <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col pt-16 md:pt-20 pb-16 md:pb-6 overflow-hidden">
           <SupportAndDoseCalculator 
             products={logic.products} 
             currentUser={logic.currentUser} 
@@ -211,6 +211,17 @@ const App: React.FC = () => {
             logic.setShowAuthModal(false);
             logic.setShowStaffAccess(false);
             
+            // 0. Redirección prioritaria a chat si la notificación es un mensaje de soporte
+            const isChatNotif = n.type === 'CHAT' || 
+              (n.link && (n.link.includes('/assistant') || n.link.includes('/chat') || n.link.includes('/support'))) ||
+              (n.title && (n.title.toLowerCase().includes('soporte') || n.title.toLowerCase().includes('mensaje'))) ||
+              (n.message && n.message.toLowerCase().includes('mensaje de soporte'));
+
+            if (isChatNotif) {
+              logic.handleTabChange('assistant');
+              return;
+            }
+
             let foundProd: Product | null = null;
 
             // 1. Intentar buscar por coincidencia directa de ID dentro del enlace de manera exhaustiva

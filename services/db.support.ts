@@ -239,9 +239,10 @@ export const sendMessageAsAdmin = async (
     // Send in-app notification to the target customer (which will trigger native push on their device)
     await sendNotification({
       userId,
-      title: '💊 Respuesta de Farmacia Vitalis',
+      title: '💬 Mensaje de Soporte Vitalis',
       message: lastText,
-      type: 'SYSTEM'
+      type: 'CHAT',
+      link: '/assistant'
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);

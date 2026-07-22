@@ -429,7 +429,7 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
       )}
 
       {/* Scrollable Messages Stream */}
-      <div className="flex-grow overflow-y-auto p-3 sm:p-4 space-y-4 bg-slate-50/40 custom-scrollbar overscroll-contain relative">
+      <div className="flex-grow overflow-y-auto p-3 sm:p-4 space-y-1.5 bg-slate-50/40 custom-scrollbar overscroll-contain relative">
         {loadingMessages ? (
           <div className="h-full flex items-center justify-center flex-col gap-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
@@ -452,7 +452,7 @@ export const SupportChatRoom: React.FC<SupportChatRoomProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-1.5">
             {filteredMessages.map((msg) => (
               <ChatMessageItem
                 key={msg.id}

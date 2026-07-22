@@ -11,6 +11,8 @@ import {
   requestNotificationPermission, 
   triggerNativeNotification 
 } from '../../services/nativeNotificationService';
+import { notificationAudio } from '../../services/notificationAudioService';
+import VitalisToastEngine, { VitalisToast } from '../notifications/VitalisToastEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AdminHeaderProps {
@@ -27,52 +29,6 @@ interface AdminHeaderProps {
     currentUserRole?: User['role'];
 }
 
-interface LiveToast {
-  id: string;
-  type: 'ORDER' | 'STOCK' | 'BOOKING' | 'CHAT';
-  title: string;
-  desc: string;
-  actionLabel: string;
-  tab: string;
-  chatId?: string;
-}
-
-const playNotificationSound = () => {
-    try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        
-        // Primera nota (Suave y alta)
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-        gain1.gain.setValueAtTime(0.06, ctx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-        osc1.start();
-        osc1.stop(ctx.currentTime + 0.35);
-
-        // Segunda nota en armonía (Un poco más tarde)
-        setTimeout(() => {
-            const osc2 = ctx.createOscillator();
-            const gain2 = ctx.createGain();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
-            gain2.gain.setValueAtTime(0.06, ctx.currentTime);
-            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-            osc2.connect(gain2);
-            gain2.connect(ctx.destination);
-            osc2.start();
-            osc2.stop(ctx.currentTime + 0.45);
-        }, 90);
-    } catch (e) {
-        console.error("Audio error", e);
-    }
-};
-
 const AdminHeader: React.FC<AdminHeaderProps> = ({
     onMenuClick, showNotifications, setShowNotifications, pendingOrders,
     lowStockItems, pendingBookings, unreadChats = [], onSelectChat,
@@ -85,7 +41,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     });
     
     const [activeFilter, setActiveFilter] = useState<'ALL' | 'ORDERS' | 'STOCK' | 'BOOKINGS' | 'CHAT'>('ALL');
-    const [toasts, setToasts] = useState<LiveToast[]>([]);
+    const [toasts, setToasts] = useState<VitalisToast[]>([]);
     const [dismissedIds, setDismissedIds] = useState<string[]>([]);
     const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
 
@@ -156,7 +112,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       });
 
       let hasNew = false;
-      const createdToasts: LiveToast[] = [];
+      const createdToasts: VitalisToast[] = [];
 
       newOrders.forEach(o => {
         hasNew = true;
@@ -168,6 +124,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Ver Orden',
           tab: 'orders'
         });
+        if (soundEnabled) notificationAudio.playOrderChime();
         if (pushPermission === 'granted') {
           triggerNativeNotification('🛒 Nuevo Pedido Web', {
             body: `${o.customerName} - Total: $${o.total.toFixed(2)}`,
@@ -186,6 +143,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Reabastecer',
           tab: 'stock_quick'
         });
+        if (soundEnabled) notificationAudio.playAlertTone();
         if (pushPermission === 'granted') {
           triggerNativeNotification('⚠️ Stock Crítico', {
             body: `${p.name} (${p.stock} un. restantes)`,
@@ -204,6 +162,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Ver Agenda',
           tab: 'bookings'
         });
+        if (soundEnabled) notificationAudio.playAlertTone();
         if (pushPermission === 'granted') {
           triggerNativeNotification('📅 Nueva Cita Médica', {
             body: `${b.patientName} - ${b.serviceName}`,
@@ -212,9 +171,10 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         }
       });
 
-      // Procesar mensajes de chat recibidos (actualizar/acumular notificación existente)
+      // Procesar mensajes de chat recibidos
       updatedChats.forEach(c => {
         hasNew = true;
+        if (soundEnabled) notificationAudio.playChatPing();
         if (pushPermission === 'granted') {
           triggerNativeNotification(`💬 Soporte: ${c.userDisplayName || 'Cliente'}`, {
             body: c.lastMessageText || 'Nuevo mensaje recibido',
@@ -225,10 +185,6 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       });
 
       if (hasNew) {
-        if (soundEnabled) {
-          playNotificationSound();
-        }
-
         setToasts(prevToasts => {
           let nextToasts = [...prevToasts];
 
@@ -238,26 +194,6 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
               nextToasts[existsIndex] = t;
             } else {
               nextToasts.push(t);
-            }
-          });
-
-          updatedChats.forEach(c => {
-            const chatToastId = `toast-chat-${c.id}`;
-            const existingIndex = nextToasts.findIndex(t => t.chatId === c.id || t.id === chatToastId);
-            const newToastItem: LiveToast = {
-              id: chatToastId,
-              type: 'CHAT',
-              title: `Mensaje de ${c.userDisplayName || 'Cliente'} 💬`,
-              desc: `"${c.lastMessageText || 'Consulta de soporte'}"`,
-              actionLabel: 'Responder',
-              tab: 'support',
-              chatId: c.id
-            };
-
-            if (existingIndex >= 0) {
-              nextToasts[existingIndex] = newToastItem;
-            } else {
-              nextToasts.push(newToastItem);
             }
           });
 
@@ -377,7 +313,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
     const currentList = filteredNotifications();
 
-    const handleToastAction = (toast: LiveToast) => {
+    const handleToastAction = (toast: VitalisToast) => {
       if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
         onSelectChat(toast.chatId);
       } else {
@@ -386,64 +322,25 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       removeToast(toast.id);
     };
 
+    const toggleSound = () => {
+      const next = !soundEnabled;
+      setSoundEnabled(next);
+      localStorage.setItem('vitalis_admin_sound', String(next));
+      notificationAudio.setSoundEnabled(next);
+    };
+
     return (
         <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-10 shrink-0 z-30 shadow-sm relative font-sans">
              
-             {/* Toasts Flotantes del Más Alto Nivel */}
-             <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4">
-                <AnimatePresence>
-                  {toasts.map(toast => (
-                    <motion.div
-                      key={toast.id}
-                      initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-                      className="pointer-events-auto w-full bg-slate-900 text-white rounded-2xl shadow-2xl p-4 border border-slate-800 flex flex-col gap-3 relative overflow-hidden"
-                    >
-                      {/* Efecto de barra de progreso */}
-                      <motion.div 
-                        initial={{ width: '100%' }}
-                        animate={{ width: '0%' }}
-                        transition={{ duration: 7, ease: 'linear' }}
-                        onAnimationComplete={() => removeToast(toast.id)}
-                        className="absolute bottom-0 left-0 h-1 bg-teal-400"
-                      />
-
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-xl shrink-0 ${
-                          toast.type === 'ORDER' ? 'bg-orange-500/20 text-orange-400' :
-                          toast.type === 'STOCK' ? 'bg-red-500/20 text-red-400' : 
-                          toast.type === 'CHAT' ? 'bg-teal-500/20 text-teal-400' : 'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {toast.type === 'ORDER' ? <Package size={18}/> :
-                           toast.type === 'STOCK' ? <AlertTriangle size={18}/> : 
-                           toast.type === 'CHAT' ? <MessageSquare size={18}/> : <Calendar size={18}/>}
-                        </div>
-                        <div className="flex-1 min-w-0 pr-4">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">ALERTA VITALIS</p>
-                          <h4 className="text-xs font-black text-white leading-tight">{toast.title}</h4>
-                          <p className="text-[11px] text-slate-300 font-bold leading-tight mt-1 truncate">{toast.desc}</p>
-                        </div>
-                        <button 
-                          onClick={() => removeToast(toast.id)}
-                          className="text-slate-500 hover:text-white transition-colors"
-                        >
-                          <X size={16}/>
-                        </button>
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => handleToastAction(toast)}
-                          className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-[10px] px-3.5 py-1.5 rounded-lg uppercase tracking-wider transition-colors"
-                        >
-                          {toast.actionLabel}
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-             </div>
+             {/* Engine de Notificaciones Flotantes de Primer Nivel */}
+             <VitalisToastEngine 
+               toasts={toasts}
+               onDismiss={removeToast}
+               onDismissAll={() => setToasts([])}
+               onAction={handleToastAction}
+               soundEnabled={soundEnabled}
+               onToggleSound={toggleSound}
+             />
 
              <div className="flex items-center gap-4">
                 <button onClick={onMenuClick} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"><Menu size={24}/></button>
@@ -461,8 +358,11 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                  {/* Botón de Sonido de Notificación */}
                  <button 
                     onClick={() => {
-                      setSoundEnabled(!soundEnabled);
-                      if(!soundEnabled) playNotificationSound();
+                      const next = !soundEnabled;
+                      setSoundEnabled(next);
+                      localStorage.setItem('vitalis_admin_sound', String(next));
+                      notificationAudio.setSoundEnabled(next);
+                      if (next) notificationAudio.playOrderChime();
                     }}
                     className={`p-2 rounded-xl transition-all ${soundEnabled ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 bg-slate-50 hover:bg-slate-100'}`}
                     title={soundEnabled ? "Silenciar alertas" : "Activar sonido de alertas"}
