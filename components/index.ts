@@ -66,6 +66,7 @@ export { default as BottomNav } from './user/BottomNav';
 export { default as ProductCard } from './user/ProductCard';
 export { default as ProductDetail } from './user/ProductDetail';
 export { default as ProductSection } from './user/ProductSection';
+export { default as ProductQuickPeekModal } from './product/ProductQuickPeekModal';
 export { default as PromotionsSection } from './user/PromotionsSection';
 export { default as CategoryGrid } from './user/CategoryGrid';
 export { default as CategoryPills } from './user/CategoryPills';

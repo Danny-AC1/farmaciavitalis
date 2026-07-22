@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Tag } from 'lucide-react';
+import { Plus, Tag, Eye } from 'lucide-react';
 import { Product, CartItem } from '../../types';
 import { getProductDiscount, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import { useLongPress } from '../../hooks/useLongPress';
+import ProductQuickPeekModal from '../product/ProductQuickPeekModal';
 
 interface ProductCardProps {
   product: Product;
   cart: CartItem[];
-  onAddToCart: (product: Product, unitType: 'UNIT' | 'BOX') => void;
+  onAddToCart: (product: Product, unitType: 'UNIT' | 'BOX', quantity?: number) => void;
   onSelect: (product: Product) => void;
+  onConsultPharmacist?: (product: Product) => void;
 }
 
 const getReservedStock = (productId: string, currentCart: CartItem[]) => {
@@ -19,8 +22,15 @@ const getReservedStock = (productId: string, currentCart: CartItem[]) => {
   }, 0);
 };
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, onSelect }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ 
+  product, 
+  cart, 
+  onAddToCart, 
+  onSelect,
+  onConsultPharmacist
+}) => {
   const [discount, setDiscount] = useState<ActiveDiscount | undefined>(undefined);
+  const [showQuickPeek, setShowQuickPeek] = useState(false);
 
   useEffect(() => {
     setDiscount(getProductDiscount(product.id));
@@ -39,59 +49,97 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, cart, onAddToCart, o
   const finalDiscountPct = originalPriceToShow && originalPriceToShow > finalPrice
     ? Math.round(((originalPriceToShow - finalPrice) / originalPriceToShow) * 100)
     : 0;
-  
+
+  // Configure long press gesture hook
+  const longPressProps = useLongPress({
+    threshold: 450,
+    onLongPress: () => {
+      setShowQuickPeek(true);
+    },
+    onClick: () => {
+      onSelect(product);
+    }
+  });
+
   return (
+    <>
       <div 
-          onClick={() => onSelect(product)}
-          className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col h-full cursor-pointer group transform hover:-translate-y-1"
+        {...longPressProps}
+        className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col h-full cursor-pointer group transform hover:-translate-y-1 relative select-none"
       >
-          <div className="h-32 md:h-48 bg-gray-50 overflow-hidden relative">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 mix-blend-multiply" />
-              {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
-                <div className="absolute top-2 left-2 z-10">
-                  <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-[10px] md:text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 uppercase tracking-wider">
-                    <Tag className="h-3 w-3 shrink-0" />
-                    -{finalDiscountPct}%
-                  </span>
+        <div className="h-32 md:h-48 bg-gray-50 overflow-hidden relative">
+            <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 mix-blend-multiply" />
+            
+            {/* Quick Peek Hint Badge */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowQuickPeek(true);
+              }}
+              className="absolute bottom-2 right-2 z-10 bg-black/60 hover:bg-teal-600 text-white p-1.5 rounded-lg backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm flex items-center gap-1 text-[10px] font-bold"
+              title="Manten presionado para Vista Rápida"
+            >
+              <Eye className="h-3 w-3" />
+            </button>
+
+            {available > 0 && showDiscountTag && finalDiscountPct > 0 && (
+              <div className="absolute top-2 left-2 z-10">
+                <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white font-extrabold text-[10px] md:text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 uppercase tracking-wider">
+                  <Tag className="h-3 w-3 shrink-0" />
+                  -{finalDiscountPct}%
+                </span>
+              </div>
+            )}
+            {available <= 0 && (
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center backdrop-blur-[1px]">
+                <span className="bg-red-500 text-white px-2 py-1 text-[10px] md:text-xs font-bold rounded shadow-lg transform -rotate-6">AGOTADO</span>
+            </div>
+            )}
+        </div>
+        <div className="p-3 md:p-5 flex flex-col flex-grow relative">
+            <div className="flex-grow">
+                <h4 className="font-bold text-sm md:text-lg text-gray-900 mb-1 leading-tight group-hover:text-teal-600 transition-colors line-clamp-2">{product.name}</h4>
+                <p className="text-[10px] md:text-sm text-gray-500 line-clamp-1 md:line-clamp-2 mb-2 md:mb-3">{product.description}</p>
+            </div>
+            
+            <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-gray-100 space-y-2 md:space-y-3" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                    {originalPriceToShow && originalPriceToShow > finalPrice ? (
+                      <div className="flex flex-col">
+                        <span className="text-base md:text-lg font-black text-teal-700">${finalPrice.toFixed(2)}</span>
+                        <span className="text-[10px] md:text-xs text-gray-400 line-through">${originalPriceToShow.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-base md:text-lg font-black text-teal-700">${product.price.toFixed(2)}</span>
+                    )}
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAddToCart(product, 'UNIT');
+                        }}
+                        disabled={available <= 0}
+                        className={`p-1.5 md:px-3 md:py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1 ${available > 0 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    >
+                        <Plus className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="hidden md:inline">Agregar</span>
+                    </button>
                 </div>
-              )}
-              {available <= 0 && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center backdrop-blur-[1px]">
-                  <span className="bg-red-500 text-white px-2 py-1 text-[10px] md:text-xs font-bold rounded shadow-lg transform -rotate-6">AGOTADO</span>
-              </div>
-              )}
-          </div>
-          <div className="p-3 md:p-5 flex flex-col flex-grow relative">
-              <div className="flex-grow">
-                  <h4 className="font-bold text-sm md:text-lg text-gray-900 mb-1 leading-tight group-hover:text-teal-600 transition-colors line-clamp-2">{product.name}</h4>
-                  <p className="text-[10px] md:text-sm text-gray-500 line-clamp-1 md:line-clamp-2 mb-2 md:mb-3">{product.description}</p>
-              </div>
-              
-              <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-gray-100 space-y-2 md:space-y-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between">
-                      {originalPriceToShow && originalPriceToShow > finalPrice ? (
-                        <div className="flex flex-col">
-                          <span className="text-base md:text-lg font-black text-teal-700">${finalPrice.toFixed(2)}</span>
-                          <span className="text-[10px] md:text-xs text-gray-400 line-through">${originalPriceToShow.toFixed(2)}</span>
-                        </div>
-                      ) : (
-                        <span className="text-base md:text-lg font-black text-teal-700">${product.price.toFixed(2)}</span>
-                      )}
-                      <button 
-                          onClick={(e) => {
-                              e.stopPropagation();
-                              onAddToCart(product, 'UNIT');
-                          }}
-                          disabled={available <= 0}
-                          className={`p-1.5 md:px-3 md:py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1 ${available > 0 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                      >
-                          <Plus className="h-3 w-3 md:h-4 md:w-4" />
-                          <span className="hidden md:inline">Agregar</span>
-                      </button>
-                  </div>
-              </div>
-          </div>
+            </div>
+        </div>
       </div>
+
+      {showQuickPeek && (
+        <ProductQuickPeekModal
+          product={product}
+          cart={cart}
+          onClose={() => setShowQuickPeek(false)}
+          onAddToCart={onAddToCart}
+          onSelectProduct={onSelect}
+          onConsultPharmacist={onConsultPharmacist}
+        />
+      )}
+    </>
   );
 };
 
