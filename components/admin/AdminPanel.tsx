@@ -127,6 +127,11 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             pendingOrders={pendingOrders}
             lowStockItems={lowStockItems}
             pendingBookings={pendingBookings}
+            unreadChats={unreadChats}
+            onSelectChat={(chatId) => {
+              setInitialSelectedChatId(chatId);
+              state.setActiveTab('support');
+            }}
             setActiveTab={state.setActiveTab}
             onLogout={props.onLogout}
             currentUserRole={props.currentUserRole}

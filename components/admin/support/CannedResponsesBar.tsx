@@ -16,7 +16,7 @@ export const CannedResponsesBar: React.FC<CannedResponsesBarProps> = ({
 }) => {
   return (
     <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0">
-      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider whitespace-nowrap mr-1">Respuestas Rápidas:</span>
+      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider whitespace-nowrap mr-1"></span>
       {cannedResponses.map((item, idx) => (
         <button
           key={idx}

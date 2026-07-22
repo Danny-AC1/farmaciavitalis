@@ -1,9 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { 
   Menu, Bell, Layout, ChevronRight, Volume2, VolumeX, X, 
-  Package, AlertTriangle, Calendar, BellRing, Sparkles
+  Package, AlertTriangle, Calendar, BellRing, Sparkles,
+  MessageSquare, CheckCheck, Radio
 } from 'lucide-react';
 import { Order, Product, ServiceBooking, User } from '../../types';
+import { SupportChat } from '../../services/db.support';
+import { 
+  getNotificationPermission, 
+  requestNotificationPermission, 
+  triggerNativeNotification 
+} from '../../services/nativeNotificationService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AdminHeaderProps {
@@ -13,6 +20,8 @@ interface AdminHeaderProps {
     pendingOrders: Order[];
     lowStockItems: Product[];
     pendingBookings: ServiceBooking[];
+    unreadChats?: SupportChat[];
+    onSelectChat?: (chatId: string) => void;
     setActiveTab: (tab: string) => void;
     onLogout: () => void;
     currentUserRole?: User['role'];
@@ -20,11 +29,12 @@ interface AdminHeaderProps {
 
 interface LiveToast {
   id: string;
-  type: 'ORDER' | 'STOCK' | 'BOOKING';
+  type: 'ORDER' | 'STOCK' | 'BOOKING' | 'CHAT';
   title: string;
   desc: string;
   actionLabel: string;
   tab: string;
+  chatId?: string;
 }
 
 const playNotificationSound = () => {
@@ -65,7 +75,8 @@ const playNotificationSound = () => {
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({
     onMenuClick, showNotifications, setShowNotifications, pendingOrders,
-    lowStockItems, pendingBookings, setActiveTab, onLogout, currentUserRole
+    lowStockItems, pendingBookings, unreadChats = [], onSelectChat,
+    setActiveTab, onLogout, currentUserRole
 }) => {
     const notificationRef = useRef<HTMLDivElement>(null);
     const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -73,31 +84,58 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       return saved !== 'false';
     });
     
-    const [activeFilter, setActiveFilter] = useState<'ALL' | 'ORDERS' | 'STOCK' | 'BOOKINGS'>('ALL');
+    const [activeFilter, setActiveFilter] = useState<'ALL' | 'ORDERS' | 'STOCK' | 'BOOKINGS' | 'CHAT'>('ALL');
     const [toasts, setToasts] = useState<LiveToast[]>([]);
+    const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+    const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
 
     const prevOrdersRef = useRef<string[]>([]);
     const prevLowStockRef = useRef<string[]>([]);
     const prevBookingsRef = useRef<string[]>([]);
+    const prevChatsRef = useRef<string[]>([]);
     const isFirstRender = useRef(true);
 
-    const totalNotifications = pendingOrders.length + lowStockItems.length + pendingBookings.length;
+    // Verificar permiso de notificaciones push de escritorio
+    useEffect(() => {
+      setPushPermission(getNotificationPermission());
+    }, []);
+
+    const handleEnablePush = async () => {
+      const granted = await requestNotificationPermission();
+      const newPerm = getNotificationPermission();
+      setPushPermission(newPerm);
+      if (granted) {
+        triggerNativeNotification('Alertas Vitalis Activas 🔔', {
+          body: 'Notificaciones del sistema configuradas correctamente en este navegador.'
+        });
+      }
+    };
+
+    // Conteos activos no descartados
+    const activeOrders = pendingOrders.filter(o => !dismissedIds.includes(`order-${o.id}`));
+    const activeLowStock = lowStockItems.filter(p => !dismissedIds.includes(`stock-${p.id}`));
+    const activeBookings = pendingBookings.filter(b => !dismissedIds.includes(`booking-${b.id}`));
+    const activeChats = unreadChats.filter(c => !dismissedIds.includes(`chat-${c.id}`));
+
+    const totalNotifications = activeOrders.length + activeLowStock.length + activeBookings.length + activeChats.length;
 
     // Sincronizar preferencia de sonido en localStorage
     useEffect(() => {
       localStorage.setItem('vitalis_admin_sound', String(soundEnabled));
     }, [soundEnabled]);
 
-    // Escuchar cambios para emitir alertas acústicas y visuales en tiempo real
+    // Escuchar cambios para emitir alertas acústicas, visuales y Push
     useEffect(() => {
       const currentOrderIds = pendingOrders.map(o => o.id);
       const currentLowStockIds = lowStockItems.map(p => p.id);
       const currentBookingIds = pendingBookings.map(b => b.id);
+      const currentChatIds = unreadChats.map(c => c.id);
 
       if (isFirstRender.current) {
         prevOrdersRef.current = currentOrderIds;
         prevLowStockRef.current = currentLowStockIds;
         prevBookingsRef.current = currentBookingIds;
+        prevChatsRef.current = currentChatIds;
         isFirstRender.current = false;
         return;
       }
@@ -105,6 +143,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       const newOrders = pendingOrders.filter(o => !prevOrdersRef.current.includes(o.id));
       const newLowStocks = lowStockItems.filter(p => !prevLowStockRef.current.includes(p.id));
       const newBookings = pendingBookings.filter(b => !prevBookingsRef.current.includes(b.id));
+      const newChats = unreadChats.filter(c => !prevChatsRef.current.includes(c.id));
 
       let hasNew = false;
       const createdToasts: LiveToast[] = [];
@@ -119,6 +158,11 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Ver Orden',
           tab: 'orders'
         });
+        if (pushPermission === 'granted') {
+          triggerNativeNotification('🛒 Nuevo Pedido Web', {
+            body: `${o.customerName} - Total: $${o.total.toFixed(2)}`
+          });
+        }
       });
 
       newLowStocks.forEach(p => {
@@ -131,6 +175,11 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Reabastecer',
           tab: 'stock_quick'
         });
+        if (pushPermission === 'granted') {
+          triggerNativeNotification('⚠️ Stock Crítico', {
+            body: `${p.name} (${p.stock} un. restantes)`
+          });
+        }
       });
 
       newBookings.forEach(b => {
@@ -143,13 +192,35 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           actionLabel: 'Ver Agenda',
           tab: 'bookings'
         });
+        if (pushPermission === 'granted') {
+          triggerNativeNotification('📅 Nueva Cita Médica', {
+            body: `${b.patientName} - ${b.serviceName}`
+          });
+        }
+      });
+
+      newChats.forEach(c => {
+        hasNew = true;
+        createdToasts.push({
+          id: `toast-chat-${c.id}-${Date.now()}`,
+          type: 'CHAT',
+          title: 'Nuevo Mensaje de Cliente 💬',
+          desc: `${c.userDisplayName || 'Cliente'}: "${c.lastMessageText || 'Consulta de soporte'}"`,
+          actionLabel: 'Responder',
+          tab: 'support',
+          chatId: c.id
+        });
+        if (pushPermission === 'granted') {
+          triggerNativeNotification('💬 Mensaje de Soporte', {
+            body: `${c.userDisplayName || 'Cliente'}: ${c.lastMessageText || 'Nuevo mensaje'}`
+          });
+        }
       });
 
       if (hasNew) {
         if (soundEnabled) {
           playNotificationSound();
         }
-        // Agregar nuevos toasts
         setToasts(prev => [...prev, ...createdToasts]);
       }
 
@@ -157,7 +228,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       prevOrdersRef.current = currentOrderIds;
       prevLowStockRef.current = currentLowStockIds;
       prevBookingsRef.current = currentBookingIds;
-    }, [pendingOrders, lowStockItems, pendingBookings, soundEnabled]);
+      prevChatsRef.current = currentChatIds;
+    }, [pendingOrders, lowStockItems, pendingBookings, unreadChats, soundEnabled, pushPermission]);
 
     // Manejar el cierre de clics externos
     useEffect(() => {
@@ -170,9 +242,25 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [setShowNotifications]);
 
-    // Eliminar Toast automáticamente después de 7 segundos
+    // Eliminar Toast automáticamente
     const removeToast = (id: string) => {
       setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
+    // Descartar notificación individual
+    const dismissNotification = (id: string) => {
+      setDismissedIds(prev => [...prev, id]);
+    };
+
+    // Descartar todas las activas
+    const dismissAllNotifications = () => {
+      const allIds = [
+        ...activeOrders.map(o => `order-${o.id}`),
+        ...activeLowStock.map(p => `stock-${p.id}`),
+        ...activeBookings.map(b => `booking-${b.id}`),
+        ...activeChats.map(c => `chat-${c.id}`)
+      ];
+      setDismissedIds(prev => [...prev, ...allIds]);
     };
 
     // Filtrar notificaciones para el panel
@@ -180,7 +268,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       const list: any[] = [];
       
       if (activeFilter === 'ALL' || activeFilter === 'ORDERS') {
-        pendingOrders.forEach(order => {
+        activeOrders.forEach(order => {
           list.push({
             id: `order-${order.id}`,
             type: 'ORDER',
@@ -195,7 +283,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       }
 
       if (activeFilter === 'ALL' || activeFilter === 'STOCK') {
-        lowStockItems.forEach(item => {
+        activeLowStock.forEach(item => {
           list.push({
             id: `stock-${item.id}`,
             type: 'STOCK',
@@ -210,7 +298,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       }
 
       if (activeFilter === 'ALL' || activeFilter === 'BOOKINGS') {
-        pendingBookings.forEach(booking => {
+        activeBookings.forEach(booking => {
           list.push({
             id: `booking-${booking.id}`,
             type: 'BOOKING',
@@ -224,13 +312,36 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
       }
 
+      if (activeFilter === 'ALL' || activeFilter === 'CHAT') {
+        activeChats.forEach(chat => {
+          list.push({
+            id: `chat-${chat.id}`,
+            type: 'CHAT',
+            icon: MessageSquare,
+            title: 'Soporte Cliente',
+            desc: `${chat.userDisplayName || 'Cliente'}: "${chat.lastMessageText || 'Consulta pendiente'}"`,
+            color: 'bg-teal-50 text-teal-600 border-teal-100',
+            actionLabel: 'Atender Chat',
+            onClick: () => {
+              if (onSelectChat) onSelectChat(chat.id);
+              else setActiveTab('support');
+              setShowNotifications(false);
+            }
+          });
+        });
+      }
+
       return list;
     };
 
     const currentList = filteredNotifications();
 
     const handleToastAction = (toast: LiveToast) => {
-      setActiveTab(toast.tab);
+      if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
+        onSelectChat(toast.chatId);
+      } else {
+        setActiveTab(toast.tab);
+      }
       removeToast(toast.id);
     };
 
@@ -260,15 +371,17 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-xl shrink-0 ${
                           toast.type === 'ORDER' ? 'bg-orange-500/20 text-orange-400' :
-                          toast.type === 'STOCK' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+                          toast.type === 'STOCK' ? 'bg-red-500/20 text-red-400' : 
+                          toast.type === 'CHAT' ? 'bg-teal-500/20 text-teal-400' : 'bg-blue-500/20 text-blue-400'
                         }`}>
                           {toast.type === 'ORDER' ? <Package size={18}/> :
-                           toast.type === 'STOCK' ? <AlertTriangle size={18}/> : <Calendar size={18}/>}
+                           toast.type === 'STOCK' ? <AlertTriangle size={18}/> : 
+                           toast.type === 'CHAT' ? <MessageSquare size={18}/> : <Calendar size={18}/>}
                         </div>
                         <div className="flex-1 min-w-0 pr-4">
                           <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">ALERTA VITALIS</p>
                           <h4 className="text-xs font-black text-white leading-tight">{toast.title}</h4>
-                          <p className="text-[11px] text-slate-300 font-bold leading-tight mt-1">{toast.desc}</p>
+                          <p className="text-[11px] text-slate-300 font-bold leading-tight mt-1 truncate">{toast.desc}</p>
                         </div>
                         <button 
                           onClick={() => removeToast(toast.id)}
@@ -323,7 +436,9 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                  >
                     <Bell size={22} className={totalNotifications > 0 ? "animate-swing origin-top" : ""} />
                     {totalNotifications > 0 && (
-                        <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                        <span className="absolute top-1.5 right-1.5 h-3 w-3 bg-red-500 rounded-full border-2 border-white animate-pulse flex items-center justify-center">
+                          <span className="h-1 w-1 bg-white rounded-full"></span>
+                        </span>
                     )}
                  </button>
 
@@ -337,53 +452,93 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                       className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in-50 duration-250"
                     >
                         {/* Cabecera del Centro de Alertas */}
-                        <div className="bg-slate-900 p-5 text-white">
-                            <div className="flex justify-between items-center mb-3">
+                        <div className="bg-slate-900 p-4 text-white space-y-3">
+                            <div className="flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <Sparkles className="text-teal-400" size={14} />
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Panel de Alertas</h4>
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-300">Panel de Alertas</h4>
                               </div>
-                              <span className="bg-teal-500 text-slate-900 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase">{totalNotifications} Activas</span>
+                              <div className="flex items-center gap-2">
+                                {totalNotifications > 0 && (
+                                  <button
+                                    onClick={dismissAllNotifications}
+                                    className="text-[9px] font-bold text-slate-400 hover:text-teal-300 transition-colors flex items-center gap-1"
+                                    title="Marcar todas como vistas"
+                                  >
+                                    <CheckCheck size={12} />
+                                    <span>Limpiar</span>
+                                  </button>
+                                )}
+                                <span className="bg-teal-500 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                  {totalNotifications} Activas
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Push Notification Banner Config */}
+                            <div className="bg-slate-800/90 rounded-xl p-2.5 flex items-center justify-between gap-2 border border-slate-700/60">
+                              <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-300 min-w-0">
+                                <Radio size={14} className={pushPermission === 'granted' ? 'text-emerald-400 shrink-0' : 'text-amber-400 shrink-0'} />
+                                <span className="truncate">
+                                  {pushPermission === 'granted' ? 'Notificaciones Web Activas' : 'Alertas Escritorio Desactivadas'}
+                                </span>
+                              </div>
+                              {pushPermission !== 'granted' && (
+                                <button
+                                  onClick={handleEnablePush}
+                                  className="text-[9px] font-black bg-teal-500 hover:bg-teal-400 text-slate-950 px-2.5 py-1 rounded-lg uppercase tracking-wider transition-colors shrink-0"
+                                >
+                                  Activar
+                                </button>
+                              )}
                             </div>
                             
                             {/* Filtros de Pestaña */}
-                            <div className="flex gap-1.5 mt-2 bg-slate-800 p-1 rounded-xl">
+                            <div className="flex gap-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
                               <button 
                                 onClick={() => setActiveFilter('ALL')}
-                                className={`flex-1 text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ALL' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ALL' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
                               >
-                                Todos
+                                Todos ({totalNotifications})
                               </button>
                               <button 
                                 onClick={() => setActiveFilter('ORDERS')}
-                                className={`flex-1 text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ORDERS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ORDERS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
                               >
-                                Pedidos
+                                Pedidos ({activeOrders.length})
                               </button>
                               <button 
                                 onClick={() => setActiveFilter('STOCK')}
-                                className={`flex-1 text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'STOCK' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'STOCK' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
                               >
-                                Stock
+                                Stock ({activeLowStock.length})
                               </button>
                               <button 
                                 onClick={() => setActiveFilter('BOOKINGS')}
-                                className={`flex-1 text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'BOOKINGS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'BOOKINGS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
                               >
-                                Citas
+                                Citas ({activeBookings.length})
                               </button>
+                              {activeChats.length > 0 && (
+                                <button 
+                                  onClick={() => setActiveFilter('CHAT')}
+                                  className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'CHAT' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                  Chat ({activeChats.length})
+                                </button>
+                              )}
                             </div>
                         </div>
 
                         {/* Listado de Notificaciones */}
-                        <div className="max-h-[380px] overflow-y-auto no-scrollbar divide-y divide-slate-100 bg-slate-50/50">
+                        <div className="max-h-[380px] overflow-y-auto custom-scrollbar divide-y divide-slate-100 bg-slate-50/50">
                             {currentList.length === 0 ? (
-                                <div className="p-12 text-center flex flex-col items-center">
-                                    <div className="bg-slate-100 p-4 rounded-full mb-3 text-slate-400">
-                                      <BellRing size={28}/>
+                                <div className="p-10 text-center flex flex-col items-center">
+                                    <div className="bg-slate-100 p-3.5 rounded-full mb-2.5 text-slate-400">
+                                      <BellRing size={26}/>
                                     </div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Sin novedades filtradas</p>
-                                    <p className="text-[9px] text-slate-400 mt-1">¡Buen trabajo! No hay alertas pendientes en esta categoría.</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Sin novedades pendientes</p>
+                                    <p className="text-[9px] text-slate-400 mt-1 max-w-[200px]">¡Todo al día! No hay alertas sin responder en esta sección.</p>
                                 </div>
                             ) : (
                                 <div className="p-2 space-y-1.5">
@@ -392,15 +547,27 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                                         return (
                                             <div 
                                                 key={item.id}
-                                                className={`flex items-start gap-3 p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all border border-slate-100 shadow-sm relative group`}
+                                                className={`flex items-start gap-3 p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all border border-slate-100 shadow-2xs relative group`}
                                             >
-                                                <div className={`p-2.5 rounded-xl shrink-0 border ${item.color}`}>
+                                                <div className={`p-2 rounded-xl shrink-0 border ${item.color}`}>
                                                   <Icon size={16} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between gap-1 mb-1">
                                                       <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{item.title}</span>
-                                                      <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
+                                                      <div className="flex items-center gap-1.5">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
+                                                        <button 
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            dismissNotification(item.id);
+                                                          }}
+                                                          className="text-slate-300 hover:text-slate-500 p-0.5 rounded transition"
+                                                          title="Descartar"
+                                                        >
+                                                          <X size={12} />
+                                                        </button>
+                                                      </div>
                                                     </div>
                                                     <p className="text-[11px] text-slate-700 font-bold leading-snug mb-2">{item.desc}</p>
                                                     
@@ -425,7 +592,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
                  {/* Botón de Perfil */}
                  <button onClick={onLogout} className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white hover:bg-slate-850 transition-colors">{currentUserRole?.charAt(0) || 'A'}</button>
-             </div>
+              </div>
         </header>
     );
 };
