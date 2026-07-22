@@ -55,53 +55,54 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
   }, [currentUser, activeSubTab]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-2 font-sans md:py-6 flex flex-col h-full overflow-hidden" id="support-and-dose-container">
+    <div className="w-full max-w-5xl mx-auto px-1 py-1 sm:px-4 sm:py-2 md:py-6 flex flex-col h-[100dvh] md:h-full overflow-hidden font-sans" id="support-and-dose-container">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-row items-center justify-between gap-2 mb-2 md:mb-6 pb-2 md:pb-4 border-b border-slate-200 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-500"
+            className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-500 shrink-0"
             title="Volver"
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
-            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
-              <span>Soporte Vitalis y Dosificación</span>
-              <span className="bg-teal-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest animate-pulse">
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-xl font-extrabold text-slate-800 tracking-tight flex items-center gap-1.5 truncate">
+              <span className="truncate">Soporte y Dosificación</span>
+              <span className="bg-teal-500 text-white text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-widest animate-pulse shrink-0">
                 En Línea
               </span>
             </h2>
-            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+            <p className="hidden sm:block text-xs text-slate-400 font-semibold mt-0.5">
               Chat privado de primera línea con farmacéuticos y calculadora de dosis pediátrica.
             </p>
           </div>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner shrink-0">
+        <div className="flex bg-slate-100 p-1 rounded-xl sm:rounded-2xl border border-slate-200 shadow-inner shrink-0">
           <button
             onClick={() => setActiveSubTab('chat')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-200 ${
               activeSubTab === 'chat'
                 ? 'bg-teal-600 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <MessageSquare size={14} />
-            <span>Chat de Soporte</span>
+            <MessageSquare size={13} />
+            <span>Chat</span>
           </button>
           <button
             onClick={() => setActiveSubTab('calculator')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-200 ${
               activeSubTab === 'calculator'
                 ? 'bg-teal-600 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Calculator size={14} />
-            <span>Calculadora de Dosis</span>
+            <Calculator size={13} />
+            <span className="hidden sm:inline">Calculadora</span>
+            <span className="sm:hidden">Dosis</span>
           </button>
         </div>
       </div>
@@ -113,12 +114,12 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
           <div className="w-full flex-grow overflow-hidden flex flex-col min-h-0">
             {!currentUser ? (
               /* PROMPT USER TO LOG IN */
-              <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl p-8 md:p-12 text-center max-w-xl mx-auto space-y-6">
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl p-6 sm:p-12 text-center max-w-xl mx-auto space-y-6 my-auto">
                 <div className="h-16 w-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto text-teal-600 shadow-inner">
                   <ShieldCheck size={32} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                  <h3 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tight">
                     Chat de Soporte Médico Seguro
                   </h3>
                   <p className="text-xs text-slate-400 font-semibold leading-relaxed">
@@ -140,13 +141,14 @@ export const SupportAndDoseCalculator: React.FC<SupportAndDoseCalculatorProps> =
                 messages={messages}
                 loadingMessages={loadingMessages}
                 onAddToCart={onAddToCart}
+                onOpenCalculator={() => setActiveSubTab('calculator')}
               />
             )}
           </div>
         ) : (
           /* DOSAGE CALCULATOR TAB */
-          <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl p-6 md:p-8 overflow-y-auto custom-scrollbar flex-grow">
-            <div className="mb-4 bg-teal-50/50 rounded-2xl p-4 border border-teal-100/50 flex items-start gap-3">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] border border-slate-200/80 shadow-xl p-4 sm:p-8 overflow-y-auto custom-scrollbar flex-grow">
+            <div className="mb-4 bg-teal-50/50 rounded-2xl p-3 sm:p-4 border border-teal-100/50 flex items-start gap-3">
               <Sparkles className="text-teal-600 mt-0.5 shrink-0" size={16} />
               <div className="text-[11px] text-teal-800 leading-normal font-semibold">
                 <span className="font-extrabold uppercase">Instrucciones de Uso:</span> Seleccione el principio activo en la calculadora, configure el peso del niño en KG o Libras y la concentración de la presentación para obtener la dosis exacta recomendada por toma.
