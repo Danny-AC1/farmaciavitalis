@@ -39,7 +39,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   onSendVoice,
   onOpenPrescriptionModal,
   onOpenCalculator,
-  placeholder = "Escribe tu consulta... (Enter para salto de línea)",
+  placeholder = "Escribe tu consulta...",
   textareaRef,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);

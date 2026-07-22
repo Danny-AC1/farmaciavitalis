@@ -436,7 +436,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
             disabled={isUploading || isSending}
-            placeholder={isUploading ? "Cargando archivo..." : "Escribe la respuesta... (Enter para salto de línea)"}
+            placeholder={isUploading ? "Cargando archivo..." : "Escribe la respuesta.."}
             className="flex-grow bg-slate-50 border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 outline-none rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition min-w-0 resize-none max-h-28 overflow-y-auto leading-relaxed"
           />
           <button
