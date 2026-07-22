@@ -92,7 +92,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     const prevOrdersRef = useRef<string[]>([]);
     const prevLowStockRef = useRef<string[]>([]);
     const prevBookingsRef = useRef<string[]>([]);
-    const prevChatsRef = useRef<string[]>([]);
+    const prevChatsSignaturesRef = useRef<Record<string, string>>({});
     const isFirstRender = useRef(true);
 
     // Verificar permiso de notificaciones push de escritorio
@@ -129,13 +129,18 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       const currentOrderIds = pendingOrders.map(o => o.id);
       const currentLowStockIds = lowStockItems.map(p => p.id);
       const currentBookingIds = pendingBookings.map(b => b.id);
-      const currentChatIds = unreadChats.map(c => c.id);
+
+      const currentChatSignatures: Record<string, string> = {};
+      unreadChats.forEach(c => {
+        const timeKey = c.lastMessageTime?.seconds || c.lastMessageTime || '';
+        currentChatSignatures[c.id] = `${c.lastMessageText || ''}_${timeKey}`;
+      });
 
       if (isFirstRender.current) {
         prevOrdersRef.current = currentOrderIds;
         prevLowStockRef.current = currentLowStockIds;
         prevBookingsRef.current = currentBookingIds;
-        prevChatsRef.current = currentChatIds;
+        prevChatsSignaturesRef.current = currentChatSignatures;
         isFirstRender.current = false;
         return;
       }
@@ -143,7 +148,12 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       const newOrders = pendingOrders.filter(o => !prevOrdersRef.current.includes(o.id));
       const newLowStocks = lowStockItems.filter(p => !prevLowStockRef.current.includes(p.id));
       const newBookings = pendingBookings.filter(b => !prevBookingsRef.current.includes(b.id));
-      const newChats = unreadChats.filter(c => !prevChatsRef.current.includes(c.id));
+
+      const updatedChats = unreadChats.filter(c => {
+        const prevSig = prevChatsSignaturesRef.current[c.id];
+        const currentSig = currentChatSignatures[c.id];
+        return !prevSig || prevSig !== currentSig;
+      });
 
       let hasNew = false;
       const createdToasts: LiveToast[] = [];
@@ -151,7 +161,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       newOrders.forEach(o => {
         hasNew = true;
         createdToasts.push({
-          id: `toast-order-${o.id}-${Date.now()}`,
+          id: `toast-order-${o.id}`,
           type: 'ORDER',
           title: 'Nuevo Pedido Web',
           desc: `${o.customerName} • Total: $${o.total.toFixed(2)}`,
@@ -160,7 +170,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
         if (pushPermission === 'granted') {
           triggerNativeNotification('🛒 Nuevo Pedido Web', {
-            body: `${o.customerName} - Total: $${o.total.toFixed(2)}`
+            body: `${o.customerName} - Total: $${o.total.toFixed(2)}`,
+            tag: `vitalis-admin-order-${o.id}`
           });
         }
       });
@@ -168,7 +179,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       newLowStocks.forEach(p => {
         hasNew = true;
         createdToasts.push({
-          id: `toast-stock-${p.id}-${Date.now()}`,
+          id: `toast-stock-${p.id}`,
           type: 'STOCK',
           title: 'Stock Crítico 🚨',
           desc: `${p.name} se está agotando (${p.stock} un.)`,
@@ -177,7 +188,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
         if (pushPermission === 'granted') {
           triggerNativeNotification('⚠️ Stock Crítico', {
-            body: `${p.name} (${p.stock} un. restantes)`
+            body: `${p.name} (${p.stock} un. restantes)`,
+            tag: `vitalis-admin-stock-${p.id}`
           });
         }
       });
@@ -185,7 +197,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       newBookings.forEach(b => {
         hasNew = true;
         createdToasts.push({
-          id: `toast-booking-${b.id}-${Date.now()}`,
+          id: `toast-booking-${b.id}`,
           type: 'BOOKING',
           title: 'Nueva Cita Médica 📅',
           desc: `${b.patientName} • ${b.serviceName}`,
@@ -194,25 +206,20 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
         if (pushPermission === 'granted') {
           triggerNativeNotification('📅 Nueva Cita Médica', {
-            body: `${b.patientName} - ${b.serviceName}`
+            body: `${b.patientName} - ${b.serviceName}`,
+            tag: `vitalis-admin-booking-${b.id}`
           });
         }
       });
 
-      newChats.forEach(c => {
+      // Procesar mensajes de chat recibidos (actualizar/acumular notificación existente)
+      updatedChats.forEach(c => {
         hasNew = true;
-        createdToasts.push({
-          id: `toast-chat-${c.id}-${Date.now()}`,
-          type: 'CHAT',
-          title: 'Nuevo Mensaje de Cliente 💬',
-          desc: `${c.userDisplayName || 'Cliente'}: "${c.lastMessageText || 'Consulta de soporte'}"`,
-          actionLabel: 'Responder',
-          tab: 'support',
-          chatId: c.id
-        });
         if (pushPermission === 'granted') {
-          triggerNativeNotification('💬 Mensaje de Soporte', {
-            body: `${c.userDisplayName || 'Cliente'}: ${c.lastMessageText || 'Nuevo mensaje'}`
+          triggerNativeNotification(`💬 Soporte: ${c.userDisplayName || 'Cliente'}`, {
+            body: c.lastMessageText || 'Nuevo mensaje recibido',
+            tag: `vitalis-admin-chat-${c.id}`,
+            requireInteraction: true
           });
         }
       });
@@ -221,14 +228,48 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         if (soundEnabled) {
           playNotificationSound();
         }
-        setToasts(prev => [...prev, ...createdToasts]);
+
+        setToasts(prevToasts => {
+          let nextToasts = [...prevToasts];
+
+          createdToasts.forEach(t => {
+            const existsIndex = nextToasts.findIndex(x => x.id === t.id);
+            if (existsIndex >= 0) {
+              nextToasts[existsIndex] = t;
+            } else {
+              nextToasts.push(t);
+            }
+          });
+
+          updatedChats.forEach(c => {
+            const chatToastId = `toast-chat-${c.id}`;
+            const existingIndex = nextToasts.findIndex(t => t.chatId === c.id || t.id === chatToastId);
+            const newToastItem: LiveToast = {
+              id: chatToastId,
+              type: 'CHAT',
+              title: `Mensaje de ${c.userDisplayName || 'Cliente'} 💬`,
+              desc: `"${c.lastMessageText || 'Consulta de soporte'}"`,
+              actionLabel: 'Responder',
+              tab: 'support',
+              chatId: c.id
+            };
+
+            if (existingIndex >= 0) {
+              nextToasts[existingIndex] = newToastItem;
+            } else {
+              nextToasts.push(newToastItem);
+            }
+          });
+
+          return nextToasts;
+        });
       }
 
-      // Actualizar referencias
+      // Actualizar referencias de comparación
       prevOrdersRef.current = currentOrderIds;
       prevLowStockRef.current = currentLowStockIds;
       prevBookingsRef.current = currentBookingIds;
-      prevChatsRef.current = currentChatIds;
+      prevChatsSignaturesRef.current = currentChatSignatures;
     }, [pendingOrders, lowStockItems, pendingBookings, unreadChats, soundEnabled, pushPermission]);
 
     // Manejar el cierre de clics externos

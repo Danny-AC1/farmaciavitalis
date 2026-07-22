@@ -5,7 +5,6 @@ import { collection, onSnapshot, deleteDoc, doc, query, orderBy, setDoc, where, 
 import { Order } from '../types';
 import { cleanData } from './db.utils';
 import { sendNotification } from './db.notifications';
-import { triggerNativeNotification } from './nativeNotificationService';
 
 const ORDERS_COLLECTION = 'orders';
 const USERS_COLLECTION = 'users';
@@ -32,7 +31,7 @@ export const addOrderDB = async (order: Order) => {
   await setDoc(orderRef, cleanedOrder);
 
   // ACTUALIZACIÓN INMEDIATA DE PUNTOS AL CREAR LA ORDEN
-  if (order.userId) {
+  if (order.userId && order.userId !== 'GUEST') {
       const pointsEarned = Math.floor(order.subtotal);
       const pointsRedeemed = order.pointsRedeemed || 0;
       const netChange = pointsEarned - pointsRedeemed;
@@ -42,31 +41,29 @@ export const addOrderDB = async (order: Order) => {
           await updateDoc(userRef, { points: increment(netChange) });
       }
 
-      // Enviar notificación de pedido recibido al cliente
-      const shortId = order.id.slice(-6);
-      await sendNotification({
-        userId: order.userId,
-        title: '📦 ¡Pedido Confirmado!',
-        message: `Tu pedido #${shortId} ($${order.total.toFixed(2)}) ha sido recibido con éxito. Te avisaremos cuando salga en camino.`,
-        type: 'ORDER_UPDATE'
-      });
+      // Enviar notificación de pedido recibido al cliente solo para compras Web
+      if (order.source !== 'POS' && order.status === 'PENDING') {
+        const shortId = order.id.slice(-6);
+        await sendNotification({
+          userId: order.userId,
+          title: '📦 ¡Pedido Confirmado!',
+          message: `Tu pedido #${shortId} ($${order.total.toFixed(2)}) ha sido recibido con éxito. Te avisaremos cuando salga en camino.`,
+          type: 'ORDER_UPDATE'
+        });
+      }
   }
 
-  // NOTIFICACIÓN EXCLUSIVA PARA EL ADMINISTRADOR (Permanente e Intacta con requireInteraction)
-  const shortId = order.id.slice(-6);
-  import('./db.notifications').then(({ sendNotificationToAdmins }) => {
-    sendNotificationToAdmins({
-      title: '🚨 ¡NUEVO PEDIDO REALIZADO!',
-      message: `Nuevo pedido #${shortId} de $${order.total.toFixed(2)} realizado por ${order.customerName || 'Cliente'}. Requiere atención en el panel.`,
-      type: 'ORDER_UPDATE'
+  // NOTIFICACIÓN EXCLUSIVA PARA EL ADMINISTRADOR (Solo cuando un cliente realiza un pedido WEB)
+  if (order.source !== 'POS' && order.status === 'PENDING') {
+    const shortId = order.id.slice(-6);
+    import('./db.notifications').then(({ sendNotificationToAdmins }) => {
+      sendNotificationToAdmins({
+        title: '🚨 ¡NUEVO PEDIDO WEB REALIZADO!',
+        message: `Nuevo pedido web #${shortId} de $${order.total.toFixed(2)} realizado por ${order.customerName || 'Cliente'}. Requiere atención en el panel.`,
+        type: 'ORDER_UPDATE'
+      });
     });
-  });
-
-  triggerNativeNotification(`🚨 ¡NUEVO PEDIDO #${shortId}!`, {
-    body: `Pedido de $${order.total.toFixed(2)} por ${order.customerName || 'Cliente'}. Toca para abrir la gestión de pedidos.`,
-    tag: `admin-order-${order.id}`,
-    requireInteraction: true
-  });
+  }
 };
 
 export const deleteOrderDB = async (id: string) => {
@@ -87,12 +84,6 @@ export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DE
       title: '🚚 Actualización de Pedido',
       message: `Tu pedido #${shortId} ${statusText}.`,
       type: 'ORDER_UPDATE'
-    });
-
-    triggerNativeNotification(`🚚 Pedido #${shortId} ${status === 'IN_TRANSIT' ? 'En Camino' : 'Entregado'}`, {
-      body: `Tu pedido #${shortId} ${statusText}. Toca para más información.`,
-      tag: `order-status-${id}`,
-      requireInteraction: true
     });
   }
 };

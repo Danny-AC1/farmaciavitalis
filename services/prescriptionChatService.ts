@@ -1,7 +1,6 @@
 import { addPrescriptionDB, uploadImageToStorage, sendNotification } from './db';
 import { sendMessageAsUser } from './db.support';
 import { User, Prescription } from '../types';
-import { triggerNativeNotification } from './nativeNotificationService';
 
 export interface SendPrescriptionParams {
   file: File;
@@ -69,7 +68,7 @@ export const sendPrescriptionToChatAndDB = async ({
     'image'
   );
 
-  // 6. Trigger native notifications and in-app notifications
+  // 6. Trigger in-app confirmation notification
   if (currentUser?.uid) {
     await sendNotification({
       userId: currentUser.uid,
@@ -78,11 +77,6 @@ export const sendPrescriptionToChatAndDB = async ({
       type: 'SYSTEM'
     });
   }
-
-  // Trigger immediate native notification on device
-  triggerNativeNotification(`📋 Receta Médica Registrada`, {
-    body: `Receta de ${patientName.trim()} enviada con éxito. Te cotizaremos en breve.`
-  });
 
   return {
     prescriptionId,

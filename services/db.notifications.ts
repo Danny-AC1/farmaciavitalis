@@ -25,13 +25,6 @@ export const sendNotification = async (notification: Omit<Notification, 'id' | '
       read: false,
       createdAt: Timestamp.now().toDate().toISOString()
     });
-
-    // Also trigger native browser/phone system notification
-    triggerNativeNotification(notification.title || 'Farmacia Vitalis 💊', {
-      body: notification.message,
-      tag: `vitalis-${notification.type}-${Date.now()}`,
-      requireInteraction: true
-    });
   } catch (error) {
     console.error("Error sending notification:", error);
   }
@@ -60,7 +53,7 @@ export const streamNotifications = (userId: string, callback: (notifications: No
         if (!previousNotificationIds.has(notif.id) && !notif.read) {
           triggerNativeNotification(notif.title || 'Nueva Notificación Vitalis 💊', {
             body: notif.message,
-            tag: `notif-${notif.id}`,
+            tag: `vitalis-user-${userId}-${notif.type || 'general'}`,
             requireInteraction: true
           });
         }
@@ -118,13 +111,6 @@ export const sendNotificationToAdmins = async (notification: Omit<Notification, 
       })
     );
     await Promise.all(promises);
-
-    // Trigger explicit native notification for admin with requireInteraction (stays until clicked/acted upon)
-    triggerNativeNotification(notification.title || '🚨 ¡ALERTA PARA ADMINISTRADOR!', {
-      body: notification.message,
-      tag: `admin-alert-${Date.now()}`,
-      requireInteraction: true
-    });
   } catch (error) {
     console.error("Error sending notification to admins:", error);
   }

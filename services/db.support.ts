@@ -126,7 +126,6 @@ export const streamChatMessages = (userId: string, callback: (messages: SupportM
   });
 };
 
-import { triggerNativeNotification } from './nativeNotificationService';
 import { sendNotification } from './db.notifications';
 
 /**
@@ -182,12 +181,6 @@ export const sendMessageAsUser = async (
     }
 
     await addDoc(messagesCollectionRef, msgData);
-
-    // Trigger device native push notification for admin
-    triggerNativeNotification(`💬 Mensaje de ${user.displayName || 'Cliente'}`, {
-      body: lastText,
-      tag: `chat-${userId}`
-    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);
   }
@@ -243,17 +236,12 @@ export const sendMessageAsAdmin = async (
 
     await addDoc(messagesCollectionRef, msgData);
 
-    // Also send in-app notification & device native notification
+    // Send in-app notification to the target customer (which will trigger native push on their device)
     await sendNotification({
       userId,
       title: '💊 Respuesta de Farmacia Vitalis',
       message: lastText,
       type: 'SYSTEM'
-    });
-
-    triggerNativeNotification(`💊 Respuesta de Soporte Vitalis`, {
-      body: lastText,
-      tag: `chat-reply-${userId}`
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUPPORT_CHATS_COLLECTION}/${userId}`);
