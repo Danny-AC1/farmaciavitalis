@@ -188,8 +188,14 @@ export interface FamilyMember {
   id: string;
   userId: string;
   name: string;
-  relationship: 'PARENT' | 'CHILD' | 'PARTNER' | 'OTHER';
+  relationship: 'SELF' | 'PARENT' | 'CHILD' | 'PARTNER' | 'GRANDPARENT' | 'PET' | 'OTHER';
   color: string;
+  allergies?: string;
+  medicalConditions?: string;
+  bloodType?: string;
+  birthDate?: string;
+  doctorName?: string;
+  notes?: string;
 }
 
 export interface MedicationSchedule {
@@ -201,9 +207,12 @@ export interface MedicationSchedule {
   currentStock: number;
   dose: string;
   frequencyLabel: string;
+  timesOfDay?: string[]; // ej: ["08:00", "14:00", "20:00"]
   productId?: string;
   lastTaken?: string;
   active: boolean;
+  autoRefillEnabled?: boolean; // Habilitar programa de recarga continua
+  refillDaysBefore?: number;   // Días antes de agotarse para sugerir/ejecutar refill (ej: 5)
 }
 
 export interface CashClosure {

@@ -100,7 +100,8 @@ const App: React.FC = () => {
           categories={logic.categories} bundles={logic.bundles} activeCategory={logic.activeCategory} setActiveCategory={logic.setActiveCategory}
           displayedProducts={logic.displayedProducts} allProducts={logic.products} searchTerm={logic.searchTerm} 
           onOpenPrescription={() => logic.setShowPrescriptionModal(true)}
-          onOpenServices={() => logic.setActiveTab('services')} onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
+          onOpenServices={() => logic.setActiveTab('services')}
+          onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
           cart={logic.cart}
         />
         <Footer />
@@ -143,7 +144,9 @@ const App: React.FC = () => {
       {logic.showProfileModal && logic.currentUser && (
         <ProfileModal 
           user={logic.currentUser} 
+          products={logic.products}
           onClose={() => logic.setShowProfileModal(false)} 
+          onAddToCart={(p) => logic.addToCart(p, 'UNIT')}
           onOpenSubscriptions={() => logic.setShowUserSubscriptionsModal(true)}
         />
       )}

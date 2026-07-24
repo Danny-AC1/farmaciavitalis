@@ -1,101 +1,216 @@
-
-import React from 'react';
-import { User } from '../../types';
-import { X, LogOut, Mail, Phone, Award, ShieldCheck, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Product, FamilyMember, MedicationSchedule } from '../../types';
+import { streamFamilyMembers, streamMedications } from '../../services/db';
 import { auth } from '../../services/firebase';
+import { ProfileOverviewTab } from '../user/profile/ProfileOverviewTab';
+import { FamilyProfilesTab } from '../user/profile/FamilyProfilesTab';
+import { TreatmentCalendarTab } from '../user/profile/TreatmentCalendarTab';
+import { ContinuousRefillTab } from '../user/profile/ContinuousRefillTab';
+import { OrdersAndPrescriptionsTab } from '../user/profile/OrdersAndPrescriptionsTab';
+import { calculateRemainingDays } from '../../services/treatmentReminderService';
+import { X, LogOut, UserCheck, Users, Pill, RefreshCw, Package } from 'lucide-react';
 
 interface ProfileModalProps {
   user: User;
+  products: Product[];
   onClose: () => void;
-  onOpenSubscriptions: () => void;
+  onAddToCart: (product: Product, unitType: 'UNIT' | 'BOX') => void;
+  onOpenSubscriptions?: () => void;
+  initialTab?: 'overview' | 'family' | 'calendar' | 'refill' | 'orders';
 }
 
-const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onOpenSubscriptions }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({
+  user,
+  products,
+  onClose,
+  onAddToCart,
+  initialTab = 'overview',
+}) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'family' | 'calendar' | 'refill' | 'orders'>(initialTab);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [medications, setMedications] = useState<MedicationSchedule[]>([]);
+  const [selectedMemberForMed, setSelectedMemberForMed] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user.uid) return;
+    const unsubFamily = streamFamilyMembers(user.uid, (data) => setFamilyMembers(data));
+    const unsubMeds = streamMedications(user.uid, (data) => setMedications(data));
+    return () => {
+      unsubFamily();
+      unsubMeds();
+    };
+  }, [user.uid]);
+
+  const refillCount = medications.filter((m) => {
+    const days = calculateRemainingDays(m);
+    return m.active && days <= 5;
+  }).length;
+
   const handleLogout = () => {
-    if (confirm("¿Estás seguro de que deseas cerrar tu sesión?")) {
+    if (confirm("¿Estás seguro de que deseas cerrar tu sesión en Farmacia Vitalis?")) {
       auth.signOut();
       onClose();
     }
   };
 
+  const handleSelectMemberForMed = (memberId: string) => {
+    setSelectedMemberForMed(memberId);
+    setActiveTab('calendar');
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="bg-slate-900 p-8 text-center text-white relative">
-          <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
-          >
-            <X size={20} />
-          </button>
-          <div className="w-24 h-24 bg-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-slate-800 shadow-xl text-3xl font-black">
-            {user.displayName.charAt(0).toUpperCase()}
+    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-slate-50 rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden border border-white/20 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300">
+        
+        {/* Header Modal */}
+        <div className="bg-slate-900 text-white p-6 shrink-0 relative overflow-hidden border-b border-slate-800">
+          <div className="flex justify-between items-center relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg border border-teal-400/30">
+                {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black uppercase tracking-tight text-white leading-none">
+                    {user.displayName || 'Mi Perfil Vitalis'}
+                  </h3>
+                  <span className="bg-teal-500/20 text-teal-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-teal-500/30">
+                    {user.points || 0} PTS
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs font-medium mt-0.5">{user.email}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleLogout}
+                className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-2xl transition-all font-bold text-xs flex items-center gap-1.5"
+                title="Cerrar Sesión"
+              >
+                <LogOut size={16} /> <span className="hidden sm:inline uppercase text-[10px] font-black">Salir</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-2xl transition-all text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
-          <h3 className="text-xl font-black uppercase tracking-tight">{user.displayName}</h3>
-          <p className="text-teal-400 text-xs font-bold uppercase tracking-widest mt-1 flex items-center justify-center gap-1">
-            <ShieldCheck size={12}/> Cliente Vitalis
-          </p>
+
+          {/* Navegación por Pestañas */}
+          <div className="flex items-center gap-2 overflow-x-auto mt-6 no-scrollbar pt-1">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 ${
+                activeTab === 'overview'
+                  ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-900/50 scale-105'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <UserCheck size={16} /> Mi Cuenta
+            </button>
+
+            <button
+              onClick={() => setActiveTab('family')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 ${
+                activeTab === 'family'
+                  ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-900/50 scale-105'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Users size={16} /> Familia ({familyMembers.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 ${
+                activeTab === 'calendar'
+                  ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-900/50 scale-105'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Pill size={16} /> Tomas ({medications.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('refill')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 relative ${
+                activeTab === 'refill'
+                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/50 scale-105'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <RefreshCw size={16} /> Refill 1-Clic
+              {refillCount > 0 && (
+                <span className="bg-amber-400 text-slate-950 font-black text-[9px] px-1.5 py-0.2 rounded-full animate-pulse">
+                  {refillCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 ${
+                activeTab === 'orders'
+                  ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-900/50 scale-105'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Package size={16} /> Historial
+            </button>
+          </div>
         </div>
 
-        <div className="p-8 space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 group">
-              <div className="p-3 bg-slate-50 rounded-2xl text-slate-400 group-hover:text-teal-600 transition-colors">
-                <Mail size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Correo Electrónico</p>
-                <p className="text-sm font-bold text-slate-800">{user.email}</p>
-              </div>
-            </div>
+        {/* Contenido Dinámico de la Pestaña */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-grow no-scrollbar">
+          {activeTab === 'overview' && (
+            <ProfileOverviewTab
+              user={user}
+              familyCount={familyMembers.length}
+              medsCount={medications.length}
+              refillCount={refillCount}
+              onNavigateTab={(tab) => {
+                if (tab === 'family') setActiveTab('family');
+                if (tab === 'calendar') setActiveTab('calendar');
+                if (tab === 'refill') setActiveTab('refill');
+                if (tab === 'orders') setActiveTab('orders');
+              }}
+            />
+          )}
 
-            {user.phone && (
-              <div className="flex items-center gap-4 group">
-                <div className="p-3 bg-slate-50 rounded-2xl text-slate-400 group-hover:text-teal-600 transition-colors">
-                  <Phone size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Teléfono</p>
-                  <p className="text-sm font-bold text-slate-800">{user.phone}</p>
-                </div>
-              </div>
-            )}
+          {activeTab === 'family' && (
+            <FamilyProfilesTab
+              user={user}
+              members={familyMembers}
+              medications={medications}
+              onSelectMemberForMed={handleSelectMemberForMed}
+            />
+          )}
 
-            <div className="flex items-center gap-4 group">
-              <div className="p-3 bg-slate-50 rounded-2xl text-slate-400 group-hover:text-teal-600 transition-colors">
-                <Award size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Puntos Acumulados</p>
-                <p className="text-sm font-black text-teal-600">{user.points} PTS</p>
-                {user.accumulatedSpend !== undefined && user.accumulatedSpend > 0 && (
-                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
-                    Faltan ${(1 - user.accumulatedSpend).toFixed(2)} para +1 punto
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          {activeTab === 'calendar' && (
+            <TreatmentCalendarTab
+              user={user}
+              members={familyMembers}
+              medications={medications}
+              products={products}
+              selectedMemberId={selectedMemberForMed}
+              onAddToCart={onAddToCart}
+            />
+          )}
 
-          <div className="pt-6 border-t border-slate-100 space-y-3">
-            <button 
-              onClick={() => { onClose(); onOpenSubscriptions(); }}
-              className="w-full py-4 bg-teal-50 text-teal-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-teal-600 hover:text-white transition-all flex items-center justify-center gap-2 border border-teal-100"
-            >
-              <RefreshCw size={18} /> Mis Suscripciones
-            </button>
+          {activeTab === 'refill' && (
+            <ContinuousRefillTab
+              user={user}
+              medications={medications}
+              products={products}
+              members={familyMembers}
+              onAddToCart={onAddToCart}
+            />
+          )}
 
-            <button 
-              onClick={handleLogout}
-              className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
-            >
-              <LogOut size={18} /> Cerrar Sesión
-            </button>
-          </div>
-          
-          <p className="text-[9px] text-center text-slate-300 font-bold uppercase tracking-widest">
-            Vitalis Machalilla v2.5
-          </p>
+          {activeTab === 'orders' && <OrdersAndPrescriptionsTab user={user} />}
         </div>
       </div>
     </div>

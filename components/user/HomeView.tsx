@@ -101,6 +101,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               </div>
             ) : (
               <div className="animate-in fade-in duration-300 space-y-6">
+                
                 {/* Botones de Receta y Servicios */}
                 <div className="flex flex-row gap-3 md:gap-4">
                   <button 
@@ -160,3 +161,4 @@ const HomeView: React.FC<HomeViewProps> = ({
 };
 
 export default HomeView;
+

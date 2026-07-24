@@ -59,6 +59,10 @@ export const addFamilyMemberDB = async (member: FamilyMember) => {
     await addDoc(collection(firestore, FAMILY_COLLECTION), cleanData(data));
 };
 
+export const updateFamilyMemberDB = async (memberId: string, data: Partial<FamilyMember>) => {
+    await updateDoc(doc(firestore, FAMILY_COLLECTION, memberId), cleanData(data));
+};
+
 export const deleteFamilyMemberDB = async (memberId: string) => {
     // 1. Eliminar al miembro
     await deleteDoc(doc(firestore, FAMILY_COLLECTION, memberId));
@@ -89,6 +93,10 @@ export const addMedicationDB = async (med: MedicationSchedule) => {
 export const takeDoseDB = async (medId: string, newStock: number) => {
     const medRef = doc(firestore, MEDICATIONS_COLLECTION, medId);
     await updateDoc(medRef, { currentStock: newStock, lastTaken: new Date().toISOString() });
+};
+
+export const updateMedicationDB = async (medId: string, data: Partial<MedicationSchedule>) => {
+    await updateDoc(doc(firestore, MEDICATIONS_COLLECTION, medId), cleanData(data));
 };
 
 export const deleteMedicationDB = async (medId: string) => {
