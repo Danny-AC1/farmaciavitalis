@@ -1,6 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initNotificationServiceWorker } from './services/nativeNotificationService';
+
+// Initialize PWA Service Worker for Push Notifications and Offline Capabilities
+if (typeof window !== 'undefined') {
+  initNotificationServiceWorker();
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

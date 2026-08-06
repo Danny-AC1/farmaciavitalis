@@ -5,6 +5,7 @@ import { addOrderDB } from '../services/db.orders';
 import { updateStockDB } from '../services/db.products';
 import { saveUserDB } from '../services/db.users';
 import { getProductDiscount, getDiscountedPrice } from '../utils/discounts';
+import { saveOfflineSale } from '../services/posOfflineService';
 
 export const useAdminPOS = (products: Product[]) => {
     const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -140,6 +141,14 @@ export const useAdminPOS = (products: Product[]) => {
 
         if (posCashReceived && !isNaN(parseFloat(posCashReceived))) orderData.cashGiven = parseFloat(posCashReceived);
 
+        // Si el navegador está en modo offline, guardar directamente en la cola local
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            saveOfflineSale(orderData);
+            setPosCart([]); setPosCashReceived(''); 
+            alert("📶 Modo Offline Activo: Venta guardada en memoria local. Se sincronizará automáticamente cuando regrese la conexión.");
+            return orderData;
+        }
+
         try {
             await addOrderDB(orderData);
 
@@ -168,8 +177,11 @@ export const useAdminPOS = (products: Product[]) => {
             setPosCart([]); setPosCashReceived(''); alert("¡Venta exitosa!");
             return orderData;
         } catch (error: any) { 
-            alert("Error al procesar venta."); 
-            return undefined;
+            console.warn("Fallo de red al registrar venta en la nube, guardando offline:", error);
+            saveOfflineSale(orderData);
+            setPosCart([]); setPosCashReceived('');
+            alert("📶 Venta guardada localmente en Modo Offline. Se sincronizará automáticamente cuando vuelva internet.");
+            return orderData;
         }
     };
 

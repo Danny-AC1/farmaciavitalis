@@ -5,6 +5,8 @@ export interface Product {
   description: string;
   price: number; 
   costPrice?: number;
+  supplierPriceRangeMin?: number; // Precio mínimo de venta sugerido/permitido por distribuidora (ej: Difare)
+  supplierPriceRangeMax?: number; // Precio máximo de venta sugerido/permitido por distribuidora (ej: Difare)
   image: string;
   category: string;
   stock: number; 
@@ -46,6 +48,8 @@ export interface Order {
   cashGiven?: number; 
   status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   source?: 'ONLINE' | 'POS';
+  isOfflineSale?: boolean;
+  notes?: string;
   date: string;
   userId?: string;
   lat?: number;

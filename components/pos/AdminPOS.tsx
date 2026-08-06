@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ScanBarcode, Calculator, Package, Sparkles, X, Plus } from 'lucide-react';
+import { ScanBarcode, Calculator, Package, Sparkles, X, Plus, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Product, CartItem, User, Order, Bundle } from '../../types';
 import { saveUserDB } from '../../services/db';
 import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import { subscribeOfflineSync, syncPendingOfflineSales, getPendingOfflineSales } from '../../services/posOfflineService';
 
 // Sub-componentes
 import POSCustomerSelect from './POSCustomerSelect';
@@ -49,15 +50,39 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [substitutionTerm, setSubstitutionTerm] = useState('');
   const [showSubstitution, setShowSubstitution] = useState(false);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
 
-  // EFECTO PARA LIMPIAR EL FEEDBACK DEL SCANNER
-  React.useEffect(() => {
-    if (lastScanned) {
-        const timer = setTimeout(() => setLastScanned(null), 3000);
-        return () => clearTimeout(timer);
+  // ESTADO DE RED Y SINCRONIZACIÓN OFFLINE POS
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeOfflineSync((onlineStatus, pendingCount) => {
+      setIsOnline(onlineStatus);
+      setPendingSyncCount(pendingCount);
+    });
+    setPendingSyncCount(getPendingOfflineSales().length);
+    return () => unsubscribe();
+  }, []);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await syncPendingOfflineSales();
+      setPendingSyncCount(getPendingOfflineSales().length);
+      if (res.syncedCount > 0) {
+        alert(`✅ ¡Sincronizadas ${res.syncedCount} ventas pendientes con la nube!`);
+      } else if (res.errors > 0) {
+        alert(`⚠️ Se detectaron ${res.errors} errores al sincronizar.`);
+      } else {
+        alert('ℹ️ No hay ventas pendientes por sincronizar.');
+      }
+    } catch (err) {
+      alert('Error al intentar sincronizar con la nube.');
+    } finally {
+      setIsSyncing(false);
     }
-  }, [lastScanned]);
+  };
 
   // DESCUENTOS ACTIVOS (Suite Gerencial)
   const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
@@ -109,8 +134,8 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       setShowSubstitution(true);
       return;
     }
+    
     addToPosCart(p, unitType);
-    setLastScanned(p.name);
     
     // Buscar si hay un combo de upgrade para este producto
     const upgrade = bundles.find(b => b.active && b.isUpgrade && b.baseProductId === p.id);
@@ -338,15 +363,6 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative font-sans">
       
       {/* 1. PANEL SUPERIOR (Buscadores) */}
-      {lastScanned && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-4">
-              <div className="bg-teal-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 font-bold text-xs ring-4 ring-teal-600/20">
-                  <ScanBarcode size={16} className="animate-pulse" />
-                  <span>AGREGADO: <span className="uppercase">{lastScanned}</span></span>
-              </div>
-          </div>
-      )}
-
       <div className="bg-white border-b border-slate-200 p-2 md:p-4 shrink-0 shadow-sm z-20">
         <div className="max-w-[1600px] mx-auto space-y-2 md:space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
@@ -364,6 +380,31 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
             />
 
             <div className="flex gap-1 md:gap-2 shrink-0">
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] border transition ${
+                  !isOnline 
+                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse' 
+                    : pendingSyncCount > 0 
+                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}
+                title={!isOnline ? 'Modo Offline Activo' : 'Sincronizar ventas con la nube'}
+              >
+                {!isOnline ? <WifiOff size={14}/> : <Wifi size={14}/>}
+                <span className="hidden sm:inline">
+                  {!isOnline 
+                    ? `OFFLINE (${pendingSyncCount})` 
+                    : pendingSyncCount > 0 
+                    ? `SINCRONIZAR (${pendingSyncCount})` 
+                    : 'ONLINE'}
+                </span>
+                <span className="sm:hidden">
+                  {!isOnline ? `OFF (${pendingSyncCount})` : pendingSyncCount > 0 ? `SYNC (${pendingSyncCount})` : 'ON'}
+                </span>
+                {pendingSyncCount > 0 && <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />}
+              </button>
               <button onClick={() => setShowScanner(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] text-slate-600 hover:bg-slate-50 transition">
                 <ScanBarcode size={14}/> <span className="hidden sm:inline">SCANNER</span>
               </button>

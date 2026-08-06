@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins } from 'lucide-react';
+import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins, Building2 } from 'lucide-react';
 import { Product, Supplier } from '../../types';
 import AdminShoppingList from './AdminShoppingList';
 import AdminDiscounts from './AdminDiscounts';
 import AdminCredits from '../credits/AdminCredits';
 import AdminTreasury from './AdminTreasury';
+import AdminSupplierPrices from './AdminSupplierPrices';
 
 interface AdminExtensionSuiteProps {
   setActiveTab: (tab: string) => void;
@@ -13,7 +14,7 @@ interface AdminExtensionSuiteProps {
 }
 
 const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, suppliers }) => {
-  const [subTab, setSubTab] = useState<'hub' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('discounts'); // Mostrar por defecto la pestaña de descuentos solicitada
+  const [subTab, setSubTab] = useState<'hub' | 'supplier_prices' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('supplier_prices'); // Mostrar por defecto la pestaña de precios de compra solicitada
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -41,6 +42,23 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
       {/* Selector de Pestañas de la Extensión */}
       <div className="flex overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-slate-200/80 -mt-2 whitespace-nowrap">
+        <button
+          onClick={() => setSubTab('supplier_prices')}
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
+            subTab === 'supplier_prices'
+              ? 'border-teal-500 text-teal-600 font-black'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Building2 size={14} />
+            Precios de Compra (Difare / Distribuidoras)
+            <span className="bg-teal-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black font-mono">
+              {products.filter(p => p.costPrice && p.costPrice > 0).length}
+            </span>
+          </span>
+        </button>
+
         <button
           onClick={() => setSubTab('discounts')}
           className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
@@ -129,7 +147,12 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
         </button>
       </div>
 
-      {subTab === 'discounts' ? (
+      {subTab === 'supplier_prices' ? (
+        /* Vista de la Funcionalidad Real: Precios de Compra y Distribuidoras */
+        <div className="space-y-6">
+          <AdminSupplierPrices products={products} suppliers={suppliers} />
+        </div>
+      ) : subTab === 'discounts' ? (
         /* Vista de la Funcionalidad Real: Sistema de Descuentos */
         <div className="space-y-6">
           <AdminDiscounts products={products} />
