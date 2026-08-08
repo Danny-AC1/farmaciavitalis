@@ -3,7 +3,8 @@ import { Product, Supplier } from '../../types';
 import { updateProductDB } from '../../services/db.products';
 import { 
   Search, 
-
+  DollarSign, 
+  TrendingUp, 
   AlertTriangle, 
   CheckCircle2, 
   Save, 
@@ -11,6 +12,8 @@ import {
   Building2, 
   Sparkles,
   RefreshCw,
+  Sliders,
+  HelpCircle
 } from 'lucide-react';
 
 interface AdminSupplierPricesProps {
@@ -69,12 +72,28 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
 
   const handleValueChange = (productId: string, field: string, value: string, originalProduct: Product) => {
     const current = getProductValues(originalProduct);
+    const updated = { ...current, [field]: value };
+
+    // Autocalcular inteligente si el producto especifica unidades por caja
+    if (originalProduct.unitsPerBox && originalProduct.unitsPerBox > 0) {
+      if (field === 'boxPrice' && value !== '') {
+        const boxVal = parseFloat(value);
+        if (!isNaN(boxVal) && boxVal >= 0) {
+          const calculatedCost = (boxVal / originalProduct.unitsPerBox).toFixed(4);
+          updated.costPrice = parseFloat(calculatedCost).toString();
+        }
+      } else if (field === 'costPrice' && value !== '') {
+        const costVal = parseFloat(value);
+        if (!isNaN(costVal) && costVal >= 0) {
+          const calculatedBox = (costVal * originalProduct.unitsPerBox).toFixed(2);
+          updated.boxPrice = parseFloat(calculatedBox).toString();
+        }
+      }
+    }
+
     setEditedPrices(prev => ({
       ...prev,
-      [productId]: {
-        ...current,
-        [field]: value
-      }
+      [productId]: updated
     }));
   };
 
@@ -491,11 +510,11 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                             placeholder="0.00"
                             value={values.boxPrice}
                             onChange={(e) => handleValueChange(p.id, 'boxPrice', e.target.value, p)}
-                            className="w-24 pl-6 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white"
+                            className="w-24 pl-6 pr-2 py-1.5 bg-indigo-50/60 border border-indigo-200/90 rounded-xl text-xs font-black text-indigo-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
                           />
                         </div>
-                        <span className="text-[9px] text-slate-400 font-medium block mt-0.5">
-                          {p.unitsPerBox ? `${p.unitsPerBox} un/caja` : 'Costo Caja'}
+                        <span className="text-[9px] text-indigo-700 font-semibold block mt-0.5">
+                          {p.unitsPerBox ? `Costo Caja (${p.unitsPerBox} un)` : 'Costo Caja'}
                         </span>
                       </td>
 
