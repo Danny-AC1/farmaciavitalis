@@ -33,6 +33,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
     boxPrice: string;
     supplierPriceRangeMin: string;
     supplierPriceRangeMax: string;
+    suggestedRetailPrice: string;
     price: string; // PVP Actual
   }>>({});
 
@@ -66,34 +67,20 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
       boxPrice: p.boxPrice !== undefined ? p.boxPrice.toString() : '',
       supplierPriceRangeMin: p.supplierPriceRangeMin !== undefined ? p.supplierPriceRangeMin.toString() : '',
       supplierPriceRangeMax: p.supplierPriceRangeMax !== undefined ? p.supplierPriceRangeMax.toString() : '',
+      suggestedRetailPrice: p.suggestedRetailPrice !== undefined ? p.suggestedRetailPrice.toString() : '',
       price: p.price !== undefined ? p.price.toString() : '',
     };
   };
 
   const handleValueChange = (productId: string, field: string, value: string, originalProduct: Product) => {
     const current = getProductValues(originalProduct);
-    const updated = { ...current, [field]: value };
-
-    // Autocalcular inteligente si el producto especifica unidades por caja
-    if (originalProduct.unitsPerBox && originalProduct.unitsPerBox > 0) {
-      if (field === 'boxPrice' && value !== '') {
-        const boxVal = parseFloat(value);
-        if (!isNaN(boxVal) && boxVal >= 0) {
-          const calculatedCost = (boxVal / originalProduct.unitsPerBox).toFixed(4);
-          updated.costPrice = parseFloat(calculatedCost).toString();
-        }
-      } else if (field === 'costPrice' && value !== '') {
-        const costVal = parseFloat(value);
-        if (!isNaN(costVal) && costVal >= 0) {
-          const calculatedBox = (costVal * originalProduct.unitsPerBox).toFixed(2);
-          updated.boxPrice = parseFloat(calculatedBox).toString();
-        }
-      }
-    }
-
+    // Cada campo es 100% independiente para no afectar o sobreescribir 'Precio Costo' al cambiar 'Costo Caja'
     setEditedPrices(prev => ({
       ...prev,
-      [productId]: updated
+      [productId]: {
+        ...current,
+        [field]: value
+      }
     }));
   };
 
@@ -107,6 +94,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
       const parsedBoxPrice = values.boxPrice !== '' ? parseFloat(values.boxPrice) : undefined;
       const parsedMinRange = values.supplierPriceRangeMin !== '' ? parseFloat(values.supplierPriceRangeMin) : undefined;
       const parsedMaxRange = values.supplierPriceRangeMax !== '' ? parseFloat(values.supplierPriceRangeMax) : undefined;
+      const parsedSuggestedRetail = values.suggestedRetailPrice !== '' ? parseFloat(values.suggestedRetailPrice) : undefined;
       const parsedPrice = values.price !== '' ? parseFloat(values.price) : p.price;
 
       const updatedProduct: Product = {
@@ -115,6 +103,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
         boxPrice: parsedBoxPrice,
         supplierPriceRangeMin: parsedMinRange,
         supplierPriceRangeMax: parsedMaxRange,
+        suggestedRetailPrice: parsedSuggestedRetail,
         price: parsedPrice,
       };
 
@@ -232,6 +221,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                 <th class="num">Costo Caja</th>
                 <th class="num">Rango Mínimo Sug.</th>
                 <th class="num">Rango Máximo Sug.</th>
+                <th class="num">PVP Sugerido (Recom.)</th>
                 <th class="num">PVP Actual</th>
                 <th class="num">Margen Real</th>
               </tr>
@@ -242,6 +232,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                 const box = p.boxPrice !== undefined ? `$${p.boxPrice.toFixed(2)}` : 'N/A';
                 const min = p.supplierPriceRangeMin !== undefined ? `$${p.supplierPriceRangeMin.toFixed(2)}` : '-';
                 const max = p.supplierPriceRangeMax !== undefined ? `$${p.supplierPriceRangeMax.toFixed(2)}` : '-';
+                const rec = p.suggestedRetailPrice !== undefined ? `$${p.suggestedRetailPrice.toFixed(2)}` : '-';
                 const pvp = `$${p.price.toFixed(2)}`;
                 const margin = p.costPrice ? `${(((p.price - p.costPrice) / p.price) * 100).toFixed(1)}%` : 'N/A';
 
@@ -253,6 +244,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                     <td class="num">${box}</td>
                     <td class="num">${min}</td>
                     <td class="num">${max}</td>
+                    <td class="num">${rec}</td>
                     <td class="num">${pvp}</td>
                     <td class="num">${margin}</td>
                   </tr>
@@ -431,8 +423,9 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                   <th className="p-4 pl-6 min-w-[200px]">Medicamento / Info</th>
                   <th className="p-4 min-w-[130px]">P. Compra Unit. ($)</th>
                   <th className="p-4 min-w-[120px]">Costo Caja ($)</th>
-                  <th className="p-4 min-w-[150px]">Rango Mín. Sugerido ($)</th>
-                  <th className="p-4 min-w-[150px]">Rango Máx. Sugerido ($)</th>
+                  <th className="p-4 min-w-[140px]">Rango Mín. Sugerido ($)</th>
+                  <th className="p-4 min-w-[140px]">Rango Máx. Sugerido ($)</th>
+                  <th className="p-4 min-w-[160px]">PVP Recomendado ($)</th>
                   <th className="p-4 min-w-[130px]">PVP Actual ($)</th>
                   <th className="p-4 text-center min-w-[120px]">Margen / Estado</th>
                   <th className="p-4 pr-6 text-right min-w-[110px]">Acción</th>
@@ -550,6 +543,27 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                           />
                         </div>
                         <span className="text-[9px] text-teal-600 font-medium block mt-0.5">PVP Máximo Sug.</span>
+                      </td>
+
+                      {/* 4. PVP Sugerido / Recomendación de Venta */}
+                      <td className="p-4">
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={
+                              minRangeVal > 0 && maxRangeVal > 0 
+                                ? ((minRangeVal + maxRangeVal) / 2).toFixed(2)
+                                : costVal > 0 ? (costVal * 1.3).toFixed(2) : 'Recomendado'
+                            }
+                            value={values.suggestedRetailPrice}
+                            onChange={(e) => handleValueChange(p.id, 'suggestedRetailPrice', e.target.value, p)}
+                            className="w-28 pl-6 pr-2 py-1.5 bg-blue-50/60 border border-blue-200/90 rounded-xl text-xs font-black text-blue-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                          />
+                        </div>
+                        <span className="text-[9px] text-blue-700 font-semibold block mt-0.5">PVP Recomendado</span>
                       </td>
 
                       {/* PVP Actual de Venta */}
