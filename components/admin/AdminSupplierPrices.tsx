@@ -30,7 +30,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
   // Estado local para los campos editados por producto id
   const [editedPrices, setEditedPrices] = useState<Record<string, {
     costPrice: string;
-    boxPrice: string;
+    supplierBoxPrice: string;
     supplierPriceRangeMin: string;
     supplierPriceRangeMax: string;
     suggestedRetailPrice: string;
@@ -64,7 +64,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
     if (edit) return edit;
     return {
       costPrice: p.costPrice !== undefined ? p.costPrice.toString() : '',
-      boxPrice: p.boxPrice !== undefined ? p.boxPrice.toString() : '',
+      supplierBoxPrice: p.supplierBoxPrice !== undefined ? p.supplierBoxPrice.toString() : (p.boxPrice !== undefined ? p.boxPrice.toString() : ''),
       supplierPriceRangeMin: p.supplierPriceRangeMin !== undefined ? p.supplierPriceRangeMin.toString() : '',
       supplierPriceRangeMax: p.supplierPriceRangeMax !== undefined ? p.supplierPriceRangeMax.toString() : '',
       suggestedRetailPrice: p.suggestedRetailPrice !== undefined ? p.suggestedRetailPrice.toString() : '',
@@ -74,7 +74,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
 
   const handleValueChange = (productId: string, field: string, value: string, originalProduct: Product) => {
     const current = getProductValues(originalProduct);
-    // Cada campo es 100% independiente para no afectar o sobreescribir 'Precio Costo' al cambiar 'Costo Caja'
+    // Cada campo es 100% independiente para no afectar o sobreescribir otros valores en la sección de productos
     setEditedPrices(prev => ({
       ...prev,
       [productId]: {
@@ -90,8 +90,8 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
     setSavingId(p.id);
 
     try {
-      const parsedCostPrice = values.costPrice !== '' ? parseFloat(values.costPrice) : undefined;
-      const parsedBoxPrice = values.boxPrice !== '' ? parseFloat(values.boxPrice) : undefined;
+      const parsedCostPrice = values.costPrice !== '' ? parseFloat(values.costPrice) : p.costPrice;
+      const parsedSupplierBoxPrice = values.supplierBoxPrice !== '' ? parseFloat(values.supplierBoxPrice) : undefined;
       const parsedMinRange = values.supplierPriceRangeMin !== '' ? parseFloat(values.supplierPriceRangeMin) : undefined;
       const parsedMaxRange = values.supplierPriceRangeMax !== '' ? parseFloat(values.supplierPriceRangeMax) : undefined;
       const parsedSuggestedRetail = values.suggestedRetailPrice !== '' ? parseFloat(values.suggestedRetailPrice) : undefined;
@@ -100,7 +100,9 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
       const updatedProduct: Product = {
         ...p,
         costPrice: parsedCostPrice,
-        boxPrice: parsedBoxPrice,
+        // Conservamos boxPrice intacto para la sesión de productos principal y guardamos supplierBoxPrice independientemente
+        boxPrice: p.boxPrice, 
+        supplierBoxPrice: parsedSupplierBoxPrice,
         supplierPriceRangeMin: parsedMinRange,
         supplierPriceRangeMax: parsedMaxRange,
         suggestedRetailPrice: parsedSuggestedRetail,
@@ -229,7 +231,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
             <tbody>
               ${filteredProducts.map(p => {
                 const cost = p.costPrice !== undefined ? `$${p.costPrice.toFixed(2)}` : 'N/A';
-                const box = p.boxPrice !== undefined ? `$${p.boxPrice.toFixed(2)}` : 'N/A';
+                const box = p.supplierBoxPrice !== undefined ? `$${p.supplierBoxPrice.toFixed(2)}` : (p.boxPrice !== undefined ? `$${p.boxPrice.toFixed(2)}` : 'N/A');
                 const min = p.supplierPriceRangeMin !== undefined ? `$${p.supplierPriceRangeMin.toFixed(2)}` : '-';
                 const max = p.supplierPriceRangeMax !== undefined ? `$${p.supplierPriceRangeMax.toFixed(2)}` : '-';
                 const rec = p.suggestedRetailPrice !== undefined ? `$${p.suggestedRetailPrice.toFixed(2)}` : '-';
@@ -501,8 +503,8 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                             step="0.01"
                             min="0"
                             placeholder="0.00"
-                            value={values.boxPrice}
-                            onChange={(e) => handleValueChange(p.id, 'boxPrice', e.target.value, p)}
+                            value={values.supplierBoxPrice}
+                            onChange={(e) => handleValueChange(p.id, 'supplierBoxPrice', e.target.value, p)}
                             className="w-24 pl-6 pr-2 py-1.5 bg-indigo-50/60 border border-indigo-200/90 rounded-xl text-xs font-black text-indigo-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
                           />
                         </div>

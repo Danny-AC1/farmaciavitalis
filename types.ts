@@ -12,6 +12,7 @@ export interface Product {
   stock: number; 
   unitsPerBox?: number; 
   boxPrice?: number; // Este se usará como costo de caja para cálculos internos
+  supplierBoxPrice?: number; // Costo por caja específico de la distribuidora (Suite Gerencial)
   suggestedRetailPrice?: number; // Precio sugerido / recomendación de venta al público
   publicBoxPrice?: number; // Nuevo: Precio de venta al público por caja
   barcode?: string;
