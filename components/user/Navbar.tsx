@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, User as UserIcon, Gift, Plus, Leaf, Home, ClipboardList, HeartPulse, Stethoscope, QrCode, Bell, BookOpen, MessageSquare } from 'lucide-react';
 import { User } from '../../types';
+import { PwaInstallButton } from '../../src/components/PwaInstallButton';
 
 interface NavbarProps {
   cartCount: number;
@@ -77,6 +78,7 @@ const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             <div className="flex items-center space-x-3 shrink-0">
+              <PwaInstallButton variant="navbar" />
               {currentUser && (
                   <button 
                     onClick={() => setShowQR(true)}

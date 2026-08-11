@@ -99,3 +99,6 @@ export { default as DriverDashboard } from './driver/DriverDashboard';
 // 9. Modulo de Soporte y Chat Privado
 export { SupportAndDoseCalculator } from './support/SupportAndDoseCalculator';
 export { AdminSupportChats } from './admin/AdminSupportChats';
+
+// 10. PWA Instalación
+export { PwaInstallButton } from '../src/components/PwaInstallButton';

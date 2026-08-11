@@ -31,7 +31,8 @@ import {
   Footer,
   NotificationCenter,
   BlogSection,
-  DeliveryInfo
+  DeliveryInfo,
+  PwaInstallButton
 } from './components';
 
 const App: React.FC = () => {
@@ -71,6 +72,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16 md:pb-0">
+      <PwaInstallButton variant="banner" />
       <Navbar 
         cartCount={logic.cart.length} 
         onCartClick={() => logic.setIsCartOpen(true)}
