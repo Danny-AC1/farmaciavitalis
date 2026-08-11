@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Product, Category, Supplier } from '../../types';
 import AdminProductForm from './AdminProductForm';
 import AdminProductList from './AdminProductList';
+import AdminProductEditModal from './AdminProductEditModal';
 
 interface AdminProductManagementProps {
   products: Product[];
@@ -30,8 +30,8 @@ interface AdminProductManagementProps {
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
-  onDeleteProduct: (id: string) => void | Promise<void>;
-  onUpdateStock: (id: string, s: number) => void | Promise<void>;
+  onDeleteProduct: (id: string) => void;
+  onUpdateStock: (id: string, newStock: number) => void;
   resetProductForm: () => void;
   isGenerating: boolean;
   isSubmitting: boolean;
@@ -42,42 +42,24 @@ interface AdminProductManagementProps {
 const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) => {
   return (
     <div className="space-y-8 animate-in fade-in">
+        {/* Formulario Estático para creación de nuevos productos */}
         <AdminProductForm 
-            editingId={props.editingId}
-            prodName={props.prodName} setProdName={props.setProdName}
-            prodPrice={props.prodPrice} setProdPrice={props.setProdPrice}
-            prodOriginalPrice={props.prodOriginalPrice} setProdOriginalPrice={props.setProdOriginalPrice}
-            prodCostPrice={props.prodCostPrice} setProdCostPrice={props.setProdCostPrice}
-            prodUnitsPerBox={props.prodUnitsPerBox} setProdUnitsPerBox={props.setProdUnitsPerBox}
-            prodBoxPrice={props.prodBoxPrice} setProdBoxPrice={props.setProdBoxPrice}
-            prodPublicBoxPrice={props.prodPublicBoxPrice} setProdPublicBoxPrice={props.setProdPublicBoxPrice}
-            prodDesc={props.prodDesc} setProdDesc={props.setProdDesc}
-            prodCat={props.prodCat} setProdCat={props.setProdCat}
-            prodImage={props.prodImage} setProdImage={props.setProdImage}
-            prodBarcode={props.prodBarcode} setProdBarcode={props.setProdBarcode}
-            prodExpiry={props.prodExpiry} setProdExpiry={props.setProdExpiry}
-            prodSupplier={props.prodSupplier} setProdSupplier={props.setProdSupplier}
-            prodActiveIngredient={props.prodActiveIngredient} setProdActiveIngredient={props.setProdActiveIngredient}
-            prodKeywords={props.prodKeywords} setProdKeywords={props.setProdKeywords}
-            handleProductSubmit={props.handleProductSubmit}
-            handleGenerateDescription={props.handleGenerateDescription}
-            handleGenerateKeywords={props.handleGenerateKeywords}
-            handleImageUpload={props.handleImageUpload}
-            setShowProductScanner={props.setShowProductScanner}
-            resetProductForm={props.resetProductForm}
-            isGenerating={props.isGenerating}
-            isSubmitting={props.isSubmitting}
-            isUploadingImage={props.isUploadingImage}
-            fileInputRef={props.fileInputRef}
-            categories={props.categories}
-            suppliers={props.suppliers}
+            {...props}
+            editingId={null}
         />
 
+        {/* Lista de productos */}
         <AdminProductList 
             products={props.products}
             handleEditClick={props.handleEditClick}
             onDeleteProduct={props.onDeleteProduct}
             onUpdateStock={props.onUpdateStock}
+        />
+
+        {/* Modal Emergente para Editar un Producto sin tener que hacer scroll hacia arriba */}
+        <AdminProductEditModal
+            {...props}
+            onClose={props.resetProductForm}
         />
     </div>
   );

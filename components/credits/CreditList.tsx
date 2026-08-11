@@ -8,7 +8,9 @@ import {
   Calendar, 
   CreditCard, 
   Trash2, 
-  Check 
+  Check,
+  PlusCircle,
+  TrendingUp
 } from 'lucide-react';
 
 interface CreditListProps {
@@ -19,6 +21,7 @@ interface CreditListProps {
   setListFilter: (filter: 'ALL' | 'PENDIENTE' | 'PAGADO') => void;
   onSelectPaymentCredit: (credit: CreditTicket) => void;
   onDeleteCredit: (credit: CreditTicket) => void;
+  onAddDebtClick?: (credit: CreditTicket) => void;
 }
 
 export const CreditList: React.FC<CreditListProps> = ({
@@ -29,6 +32,7 @@ export const CreditList: React.FC<CreditListProps> = ({
   setListFilter,
   onSelectPaymentCredit,
   onDeleteCredit,
+  onAddDebtClick,
 }) => {
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
@@ -133,6 +137,26 @@ export const CreditList: React.FC<CreditListProps> = ({
                 </div>
               </div>
 
+              {/* Historial de Recargos / Deudas Adicionales Sumadas */}
+              {credit.additionalDebts && credit.additionalDebts.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100/70 bg-indigo-50/40 p-2.5 rounded-2xl space-y-1.5">
+                  <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1">
+                    <TrendingUp size={10} /> Deudas Adicionales Recargadas:
+                  </span>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {credit.additionalDebts.map((add, idx) => (
+                      <div key={add.id || idx} className="text-[10px] text-slate-700 bg-white p-1.5 rounded-lg border border-indigo-100">
+                        <div className="flex justify-between items-center font-bold">
+                          <span>+ {new Date(add.date).toLocaleDateString('es-ES')}</span>
+                          <span className="font-mono text-indigo-700">+${add.subtotal.toFixed(2)}</span>
+                        </div>
+                        {add.note && <p className="text-[9px] text-slate-400 italic mt-0.5">{add.note}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Historial de abonos de este crédito */}
               {credit.payments && credit.payments.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-100/70 bg-slate-50/50 p-2.5 rounded-2xl space-y-1.5">
@@ -151,7 +175,7 @@ export const CreditList: React.FC<CreditListProps> = ({
               )}
 
               {/* Pie de la tarjeta */}
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                 <div>
                   {credit.paidAmount && credit.paidAmount > 0 ? (
                     <div className="space-y-0.5">
@@ -168,13 +192,23 @@ export const CreditList: React.FC<CreditListProps> = ({
                 </div>
 
                 {credit.status === 'PENDIENTE' ? (
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 flex-wrap justify-end">
+                    {onAddDebtClick && (
+                      <button
+                        onClick={() => onAddDebtClick(credit)}
+                        title="Sumar nueva entrega / recargar deuda"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-2 rounded-xl text-[11px] font-black flex items-center gap-1 shadow-sm transition-colors"
+                      >
+                        <PlusCircle size={12} />
+                        Sumar Deuda
+                      </button>
+                    )}
                     <button
                       onClick={() => onSelectPaymentCredit(credit)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-xl text-[11px] font-black flex items-center gap-1 shadow-sm transition-colors"
+                      className="bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-2 rounded-xl text-[11px] font-black flex items-center gap-1 shadow-sm transition-colors"
                     >
                       <CreditCard size={12} />
-                      Abonar / Pagar
+                      Abonar
                     </button>
                     <button
                       onClick={() => onDeleteCredit(credit)}

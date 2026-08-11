@@ -161,7 +161,6 @@ export const useAdminProductForm = (
         setProdDesc(p.description); setProdCat(p.category); setProdImage(p.image); 
         setProdBarcode(p.barcode || ''); setProdExpiry(p.expiryDate || ''); setProdSupplier(p.supplierId || '');
         setProdActiveIngredient(p.activeIngredient || ''); setProdKeywords(p.keywords || '');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     return {

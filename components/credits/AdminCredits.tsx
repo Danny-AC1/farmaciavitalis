@@ -15,6 +15,7 @@ import { CreditStatsCards } from './CreditStatsCards';
 import { CreditPaymentModal } from './CreditPaymentModal';
 import { CreditCreateForm } from './CreditCreateForm';
 import { CreditList } from './CreditList';
+import { CreditAddDebtModal } from './CreditAddDebtModal';
 
 interface AdminCreditsProps {
   products: Product[];
@@ -45,6 +46,9 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
   const [paymentType, setPaymentType] = useState<'FULL' | 'PARTIAL'>('FULL');
   const [partialPaymentAmount, setPartialPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+
+  // Proceso de adición de nueva deuda a ticket existente
+  const [selectedAddDebtCredit, setSelectedAddDebtCredit] = useState<CreditTicket | null>(null);
 
   // Resetear estados del modal de pago cuando cambia el crédito seleccionado
   useEffect(() => {
@@ -385,6 +389,30 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
     }
   };
 
+  // Guardar nueva deuda acumulada dentro de un crédito existente
+  const handleAddDebtSubmit = async (
+    updatedCredit: CreditTicket,
+    stockAdjustments: { productId: string; newStock: number }[],
+    additionSummary: { amount: number; itemCount: number }
+  ) => {
+    try {
+      // 1. Descontar el stock de los productos recargados
+      for (const adj of stockAdjustments) {
+        await updateStockDB(adj.productId, adj.newStock);
+      }
+
+      // 2. Actualizar la cuenta del cliente
+      await updateCreditDB(updatedCredit);
+
+      setSelectedAddDebtCredit(null);
+      setSuccessMessage(`¡Se sumó una nueva deuda de $${additionSummary.amount.toFixed(2)} a la cuenta de ${updatedCredit.customerName}! Stock descontado.`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err) {
+      console.error(err);
+      alert("Error al recargar la deuda.");
+    }
+  };
+
   const handleDeleteCredit = async (credit: CreditTicket) => {
     if (!confirm(`¿Está seguro de eliminar el crédito de ${credit.customerName}? Esto no devolverá el stock automáticamente, hágalo de forma manual si es necesario.`)) {
       return;
@@ -475,6 +503,7 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
           setListFilter={setListFilter}
           onSelectPaymentCredit={setSelectedPaymentCredit}
           onDeleteCredit={handleDeleteCredit}
+          onAddDebtClick={(credit) => setSelectedAddDebtCredit(credit)}
         />
       ) : (
         <CreditCreateForm
@@ -516,6 +545,16 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
           setPartialPaymentAmount={setPartialPaymentAmount}
           paymentNote={paymentNote}
           setPaymentNote={setPaymentNote}
+        />
+      )}
+
+      {/* MODAL PARA RECARGAR / SUMAR UNA NUEVA DEUDA A UN TICKET EXISTENTE */}
+      {selectedAddDebtCredit && (
+        <CreditAddDebtModal
+          credit={selectedAddDebtCredit}
+          products={products}
+          onClose={() => setSelectedAddDebtCredit(null)}
+          onAddDebt={handleAddDebtSubmit}
         />
       )}
 

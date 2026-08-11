@@ -12,10 +12,8 @@ export function usePwaInstall() {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
 
   useEffect(() => {
-    // Detectar si la app ya está instalada o ejecutándose en modo standalone
     const checkStandalone = () => {
       const isStandaloneMedia = window.matchMedia('(display-mode: standalone)').matches;
-      // Compatibilidad con iOS Safari
       const isIOSStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
       const runningStandalone = isStandaloneMedia || isIOSStandalone;
       setIsStandalone(runningStandalone);
@@ -23,19 +21,16 @@ export function usePwaInstall() {
 
     checkStandalone();
 
-    // Evento disparado cuando el navegador detecta que el sitio cumple los requisitos de PWA
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
 
-    // Evento disparado cuando el usuario completa la instalación
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setIsInstallable(false);
       setIsStandalone(true);
-      console.log('¡Aplicación instalada exitosamente!');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -54,11 +49,8 @@ export function usePwaInstall() {
       await deferredPrompt.prompt();
       const choiceResult = await deferredPrompt.userChoice;
       if (choiceResult.outcome === 'accepted') {
-        console.log('El usuario aceptó instalar la app');
         setIsInstallable(false);
         setDeferredPrompt(null);
-      } else {
-        console.log('El usuario rechazó la instalación');
       }
     } catch (err) {
       console.error('Error al solicitar la instalación de la PWA:', err);
