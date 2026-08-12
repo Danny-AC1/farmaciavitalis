@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LogOut, LayoutDashboard, Store, Package, ClipboardList, Grid, Truck, TrendingUp, Megaphone, Users, Wallet, CalendarCheck, BellRing, X, Activity, Map, MapPin, BookOpen, BrainCircuit, Sliders, MessageSquare } from 'lucide-react';
+import { LogOut, LayoutDashboard, Store, Package, ClipboardList, Grid, Truck, TrendingUp, Megaphone, Users, Wallet, CalendarCheck, BellRing, X, Activity, Map, MapPin, BookOpen, BrainCircuit, Sliders, MessageSquare, Scale } from 'lucide-react';
 import { User } from '../../types';
 
 interface AdminSidebarProps {
@@ -54,6 +54,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
             { id: 'users', label: 'Usuarios', icon: Users },
             { id: 'finances', label: 'Cierres y Registro', icon: Wallet },
             { id: 'expenses', label: 'Gastos (Caja)', icon: Wallet },
+            { id: 'accounting', label: 'Sistema Contable', icon: Scale },
             { id: 'subscriptions', label: 'Suscripciones', icon: Activity },
           ]
         },

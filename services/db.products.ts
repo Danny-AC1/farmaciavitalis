@@ -14,14 +14,62 @@ const USERS_COLLECTION = 'users';
 export const streamProducts = (callback: (products: Product[]) => void) => {
   const q = query(collection(firestore, PRODUCTS_COLLECTION), orderBy('name'));
   return onSnapshot(q, (snapshot) => {
-        const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-        callback(products);
-  }, () => callback([]));
+    if (snapshot.empty) {
+      // Si Firestore está vacío, intentar recuperar desde caché local o guardar semillas
+      const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.length > 0) {
+            callback(parsed);
+            return;
+          }
+        } catch (e) {}
+      }
+    }
+    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+    if (products.length > 0) {
+      try {
+        localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+        localStorage.setItem('vitales_products_v2', JSON.stringify(products));
+      } catch (e) {}
+    }
+    callback(products);
+  }, (err) => {
+    console.warn("Error en streamProducts de Firestore, usando respaldo local:", err);
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    if (cached) {
+      try {
+        callback(JSON.parse(cached));
+        return;
+      } catch (e) {}
+    }
+    callback([]);
+  });
 };
 
 export const addProductDB = async (product: Product) => {
   const { id, ...data } = product;
-  const docRef = await addDoc(collection(firestore, PRODUCTS_COLLECTION), cleanData(data));
+  let finalId = id || `prod_${Date.now()}`;
+  try {
+    const docRef = await addDoc(collection(firestore, PRODUCTS_COLLECTION), cleanData(data));
+    finalId = docRef.id;
+  } catch (err) {
+    console.warn("Error guardando producto en Firestore, resguardando en local:", err);
+  }
+
+  const savedProduct = { id: finalId, ...data };
+
+  // Respaldo inmediato e incondicional en localStorage
+  try {
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    const list: Product[] = cached ? JSON.parse(cached) : [];
+    const updated = [savedProduct, ...list.filter(p => p.id !== finalId)];
+    localStorage.setItem('vitalis_cache_products', JSON.stringify(updated));
+    localStorage.setItem('vitales_products_v2', JSON.stringify(updated));
+  } catch (e) {
+    console.error("Error guardando en localStorage:", e);
+  }
   
   // Notificación masiva de producto nuevo
   try {
@@ -29,89 +77,135 @@ export const addProductDB = async (product: Product) => {
       title: '✨ ¡Nuevo producto registrado!',
       message: `Se ha añadido "${data.name}" a nuestro catálogo de Farmacia Vitalis. ¡Echa un vistazo!`,
       type: 'NEW_PRODUCT',
-      link: `/product/${docRef.id}`
+      link: `/product/${finalId}`
     });
   } catch (err) {
     console.error("Error al notificar nuevo producto:", err);
   }
 
-  return { id: docRef.id, ...data };
+  return savedProduct;
 };
 
 export const updateProductDB = async (product: Product) => {
-  const productRef = doc(firestore, PRODUCTS_COLLECTION, product.id);
-  
   const { id, ...data } = product;
-  await updateDoc(productRef, cleanData(data));
+  try {
+    const productRef = doc(firestore, PRODUCTS_COLLECTION, product.id);
+    await updateDoc(productRef, cleanData(data));
+  } catch (err) {
+    console.warn("Error actualizando producto en Firestore, resguardando en local:", err);
+  }
+
+  // Respaldo inmediato en localStorage
+  try {
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    if (cached) {
+      const list: Product[] = JSON.parse(cached);
+      const updated = list.map(p => p.id === product.id ? product : p);
+      localStorage.setItem('vitalis_cache_products', JSON.stringify(updated));
+      localStorage.setItem('vitales_products_v2', JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error("Error actualizando localStorage:", e);
+  }
 };
 
 export const deleteProductDB = async (id: string) => {
-  await deleteDoc(doc(firestore, PRODUCTS_COLLECTION, id));
+  try {
+    await deleteDoc(doc(firestore, PRODUCTS_COLLECTION, id));
+  } catch (err) {
+    console.warn("Error eliminando producto en Firestore, resguardando en local:", err);
+  }
+
+  // Respaldo inmediato en localStorage
+  try {
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    if (cached) {
+      const list: Product[] = JSON.parse(cached);
+      const updated = list.filter(p => p.id !== id);
+      localStorage.setItem('vitalis_cache_products', JSON.stringify(updated));
+      localStorage.setItem('vitales_products_v2', JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error("Error al eliminar de localStorage:", e);
+  }
 };
 
 export const updateStockDB = async (id: string, newStock: number) => {
-  const productRef = doc(firestore, PRODUCTS_COLLECTION, id);
-  
-  const snap = await getDoc(productRef);
-  if (snap.exists()) {
-    const oldData = snap.data();
-    
-    // Notificar ÚNICAMENTE a las personas que se suscribieron con su correo ("Avísame cuando hay stock")
-    if (newStock > 0 && oldData.stock === 0) {
-      try {
-        const qAlerts = query(
-          collection(firestore, STOCK_ALERTS_COLLECTION),
-          where('productId', '==', id)
-        );
-        const alertsSnap = await getDocs(qAlerts);
-        
-        if (!alertsSnap.empty) {
-          const notifiedUserIds = new Set<string>();
+  try {
+    const productRef = doc(firestore, PRODUCTS_COLLECTION, id);
+    const snap = await getDoc(productRef);
+    if (snap.exists()) {
+      const oldData = snap.data();
+      
+      // Notificar ÚNICAMENTE a las personas que se suscribieron con su correo ("Avísame cuando hay stock")
+      if (newStock > 0 && oldData.stock === 0) {
+        try {
+          const qAlerts = query(
+            collection(firestore, STOCK_ALERTS_COLLECTION),
+            where('productId', '==', id)
+          );
+          const alertsSnap = await getDocs(qAlerts);
+          
+          if (!alertsSnap.empty) {
+            const notifiedUserIds = new Set<string>();
 
-          for (const alertDoc of alertsSnap.docs) {
-            const alertData = alertDoc.data();
-            const email = alertData.email;
+            for (const alertDoc of alertsSnap.docs) {
+              const alertData = alertDoc.data();
+              const email = alertData.email;
 
-            if (email) {
-              // Buscar si existe un usuario registrado con este correo
-              const qUsers = query(
-                collection(firestore, USERS_COLLECTION),
-                where('email', '==', email.toLowerCase().trim())
-              );
-              const usersSnap = await getDocs(qUsers);
+              if (email) {
+                const qUsers = query(
+                  collection(firestore, USERS_COLLECTION),
+                  where('email', '==', email.toLowerCase().trim())
+                );
+                const usersSnap = await getDocs(qUsers);
 
-              for (const uDoc of usersSnap.docs) {
-                if (!notifiedUserIds.has(uDoc.id)) {
-                  notifiedUserIds.add(uDoc.id);
-                  await sendNotification({
-                    userId: uDoc.id,
-                    title: '¡Producto de nuevo en Stock! 💊',
-                    message: `El producto "${oldData.name}" que solicitaste ya está disponible en Farmacia Vitalis.`,
-                    type: 'STOCK_ALERT',
-                    link: `/product/${id}`
-                  });
+                for (const uDoc of usersSnap.docs) {
+                  if (!notifiedUserIds.has(uDoc.id)) {
+                    notifiedUserIds.add(uDoc.id);
+                    await sendNotification({
+                      userId: uDoc.id,
+                      title: '¡Producto de nuevo en Stock! 💊',
+                      message: `El producto "${oldData.name}" que solicitaste ya está disponible en Farmacia Vitalis.`,
+                      type: 'STOCK_ALERT',
+                      link: `/product/${id}`
+                    });
+                  }
                 }
               }
             }
           }
+        } catch (err) {
+          console.error("Error al enviar notificaciones de alerta de stock:", err);
         }
-      } catch (err) {
-        console.error("Error al enviar notificaciones de alerta de stock:", err);
+      }
+
+      // Notificar ÚNICAMENTE a los ADMINISTRADORES si el stock cayó a un nivel bajo
+      const minStock = oldData.minStock || 5;
+      if (newStock <= minStock && newStock > 0 && oldData.stock > minStock) {
+        await sendNotificationToAdmins({
+          title: '⚠️ Alerta de Stock Bajo (Inventario)',
+          message: `El producto "${oldData.name}" tiene solo ${newStock} unidades disponibles. Por favor reabastecer.`,
+          type: 'STOCK_ALERT'
+        });
       }
     }
 
-    // Notificar ÚNICAMENTE a los ADMINISTRADORES si el stock cayó a un nivel bajo
-    const minStock = oldData.minStock || 5;
-    if (newStock <= minStock && newStock > 0 && oldData.stock > minStock) {
-      await sendNotificationToAdmins({
-        title: '⚠️ Alerta de Stock Bajo (Inventario)',
-        message: `El producto "${oldData.name}" tiene solo ${newStock} unidades disponibles. Por favor reabastecer.`,
-        type: 'STOCK_ALERT'
-      });
-    }
+    await updateDoc(productRef, { stock: newStock });
+  } catch (err) {
+    console.warn("Error actualizando stock en Firestore, respaldando en local:", err);
   }
 
-  await updateDoc(productRef, { stock: newStock });
+  // Actualizar copia local
+  try {
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    if (cached) {
+      const list: Product[] = JSON.parse(cached);
+      const updated = list.map(p => p.id === id ? { ...p, stock: newStock } : p);
+      localStorage.setItem('vitalis_cache_products', JSON.stringify(updated));
+      localStorage.setItem('vitales_products_v2', JSON.stringify(updated));
+    }
+  } catch (e) {}
 };
 
 export const streamCategories = (callback: (categories: Category[]) => void) => {

@@ -23,6 +23,7 @@ import AdminExtensionSuite from './AdminExtensionSuite';
 import { AdminCategoryManagement } from './AdminCategoryManagement';
 import { AdminSupportChats } from './AdminSupportChats';
 import AdminPrescriptions from './AdminPrescriptions';
+import { AdminAccountingHub } from './accounting/AdminAccountingHub';
 
 interface AdminMainContentProps {
     activeTab: string;
@@ -198,8 +199,24 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
         case 'bookings': return <AdminBookings bookings={state.bookings} onUpdateStatus={state.handleUpdateBookingStatus} onDelete={state.handleDeleteBooking} />;
         case 'prescriptions': return <AdminPrescriptions />;
         case 'stock_alerts': return <AdminStockAlerts alerts={state.stockAlerts} products={props.products} onDelete={state.handleDeleteStockAlert} />;
+        case 'accounting':
+            return (
+                <AdminAccountingHub 
+                    orders={props.orders || []} 
+                    credits={state.credits || []} 
+                    expenses={state.expenses || []} 
+                />
+            );
         case 'extension_suite':
-            return <AdminExtensionSuite setActiveTab={state.setActiveTab} products={props.products} suppliers={state.suppliers} />;
+            return (
+                <AdminExtensionSuite 
+                    setActiveTab={state.setActiveTab} 
+                    products={props.products} 
+                    suppliers={state.suppliers} 
+                    orders={props.orders || []}
+                    expenses={state.expenses || []}
+                />
+            );
         
         case 'support_chats':
             return (

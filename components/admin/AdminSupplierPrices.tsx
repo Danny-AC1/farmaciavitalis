@@ -3,17 +3,13 @@ import { Product, Supplier } from '../../types';
 import { updateProductDB } from '../../services/db.products';
 import { 
   Search, 
-  DollarSign, 
-  TrendingUp, 
   AlertTriangle, 
   CheckCircle2, 
   Save, 
   Printer, 
   Building2, 
   Sparkles,
-  RefreshCw,
-  Sliders,
-  HelpCircle
+  RefreshCw
 } from 'lucide-react';
 
 interface AdminSupplierPricesProps {

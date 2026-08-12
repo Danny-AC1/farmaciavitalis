@@ -9,7 +9,7 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
   // Cargar estado inicial desde localStorage (Backup/Caché instantáneo)
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const cached = localStorage.getItem('vitalis_cache_products');
+      const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
@@ -126,7 +126,7 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
-    const unsubAuth = auth.onAuthStateChanged((user) => {
+    const unsubAuth = auth.onAuthStateChanged((user: any) => {
       if (user) {
         if (unsubUser) unsubUser();
         unsubUser = streamUser(user.uid, (userData) => {

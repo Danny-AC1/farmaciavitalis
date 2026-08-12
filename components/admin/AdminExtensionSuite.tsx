@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins, Building2 } from 'lucide-react';
-import { Product, Supplier } from '../../types';
+import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins, Building2, Scale } from 'lucide-react';
+import { Product, Supplier, Order, Expense } from '../../types';
 import AdminShoppingList from './AdminShoppingList';
 import AdminDiscounts from './AdminDiscounts';
 import AdminCredits from '../credits/AdminCredits';
 import AdminTreasury from './AdminTreasury';
 import AdminSupplierPrices from './AdminSupplierPrices';
+import { AdminAccountingHub } from './accounting/AdminAccountingHub';
 
 interface AdminExtensionSuiteProps {
   setActiveTab: (tab: string) => void;
   products: Product[];
   suppliers: Supplier[];
+  orders?: Order[];
+  expenses?: Expense[];
 }
 
-const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, suppliers }) => {
-  const [subTab, setSubTab] = useState<'hub' | 'supplier_prices' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('supplier_prices'); // Mostrar por defecto la pestaña de precios de compra solicitada
+const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, suppliers, orders = [], expenses = [] }) => {
+  const [subTab, setSubTab] = useState<'hub' | 'accounting' | 'supplier_prices' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('accounting'); // Mostrar por defecto la contabilidad gerencial de primer nivel
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -42,6 +45,23 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
 
       {/* Selector de Pestañas de la Extensión */}
       <div className="flex overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-slate-200/80 -mt-2 whitespace-nowrap">
+        <button
+          onClick={() => setSubTab('accounting')}
+          className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
+            subTab === 'accounting'
+              ? 'border-teal-500 text-teal-600 font-black'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Scale size={14} />
+            Sistema Contable (Partida Doble)
+            <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              Nuevo
+            </span>
+          </span>
+        </button>
+
         <button
           onClick={() => setSubTab('supplier_prices')}
           className={`px-6 py-3 text-xs font-extrabold tracking-tight border-b-2 transition-all relative flex-shrink-0 ${
@@ -147,7 +167,12 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
         </button>
       </div>
 
-      {subTab === 'supplier_prices' ? (
+      {subTab === 'accounting' ? (
+        /* Vista del Módulo Contable Gerencial (Partida Doble) */
+        <div className="space-y-6">
+          <AdminAccountingHub orders={orders} credits={[]} expenses={expenses} />
+        </div>
+      ) : subTab === 'supplier_prices' ? (
         /* Vista de la Funcionalidad Real: Precios de Compra y Distribuidoras */
         <div className="space-y-6">
           <AdminSupplierPrices products={products} suppliers={suppliers} />
