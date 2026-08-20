@@ -76,7 +76,7 @@ const AdminProductList: React.FC<AdminProductListProps> = ({ products, handleEdi
                     >
                       <Minus size={14} strokeWidth={3} />
                     </button>
-                    <span className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner ${p.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <span className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner ${p.stock <= 3 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                       {p.stock}
                     </span>
                     <button 

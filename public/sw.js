@@ -1,9 +1,11 @@
-// Service Worker for Farmacia Vitalis Web Push Notifications & Offline Support
-const CACHE_NAME = 'vitalis-pwa-v1';
+// Service Worker for Farmacia Vitalis Web Push Notifications & 100% Offline Support
+const CACHE_NAME = 'vitalis-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/index.css',
+  '/icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,34 +30,56 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache with network fallback strategy for static assets
+// Cache with network fallback strategy for static assets, scripts and images
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and skip API or cross-origin requests
-  if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
+  if (event.request.method !== 'GET') {
     return;
   }
 
+  const url = new URL(event.request.url);
+
+  // Exclude Firebase API write operations or backend API routes from cache
+  if (url.pathname.startsWith('/api/') || url.hostname.includes('firestore.googleapis.com')) {
+    return;
+  }
+
+  // Network First with Cache Fallback for navigation (HTML documents)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for scripts, styles, fonts, CDN bundles and images
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
-      })
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
+    })
   );
 });
 

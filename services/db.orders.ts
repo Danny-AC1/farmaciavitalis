@@ -28,7 +28,25 @@ export const getOrdersByUserDB = (userId: string, callback: (orders: Order[]) =>
 export const addOrderDB = async (order: Order) => {
   const orderRef = doc(firestore, ORDERS_COLLECTION, order.id);
   const cleanedOrder = cleanData(order);
-  await setDoc(orderRef, cleanedOrder);
+
+  // Intentar guardar en Firestore directamente
+  try {
+    await setDoc(orderRef, cleanedOrder);
+  } catch (err) {
+    console.warn("No hay conexión con Firestore o error de red. Encolando orden en modo Offline:", err);
+    // Encolar en el motor Offline Universal para sincronización automática
+    import('./offline/syncQueue').then(({ enqueueOfflineAction }) => {
+      enqueueOfflineAction('ORDER', 'CREATE', order);
+    });
+  }
+
+  // Backup inmediato en localStorage para disponibilidad instantánea offline
+  try {
+    const cached = localStorage.getItem('vitalis_cache_orders');
+    const list: Order[] = cached ? JSON.parse(cached) : [];
+    const updated = [order, ...list.filter(o => o.id !== order.id)];
+    localStorage.setItem('vitalis_cache_orders', JSON.stringify(updated));
+  } catch (e) {}
 
   // ACTUALIZACIÓN INMEDIATA DE PUNTOS AL CREAR LA ORDEN
   if (order.userId && order.userId !== 'GUEST') {
@@ -37,19 +55,25 @@ export const addOrderDB = async (order: Order) => {
       const netChange = pointsEarned - pointsRedeemed;
       
       if (netChange !== 0) {
+        try {
           const userRef = doc(firestore, USERS_COLLECTION, order.userId);
           await updateDoc(userRef, { points: increment(netChange) });
+        } catch (e) {
+          console.warn("No se pudieron actualizar puntos en línea (se procesará offline):", e);
+        }
       }
 
       // Enviar notificación de pedido recibido al cliente solo para compras Web
       if (order.source !== 'POS' && order.status === 'PENDING') {
         const shortId = order.id.slice(-6);
-        await sendNotification({
-          userId: order.userId,
-          title: '📦 ¡Pedido Confirmado!',
-          message: `Tu pedido #${shortId} ($${order.total.toFixed(2)}) ha sido recibido con éxito. Te avisaremos cuando salga en camino.`,
-          type: 'ORDER_UPDATE'
-        });
+        try {
+          await sendNotification({
+            userId: order.userId,
+            title: '📦 ¡Pedido Confirmado!',
+            message: `Tu pedido #${shortId} ($${order.total.toFixed(2)}) ha sido recibido con éxito. Te avisaremos cuando salga en camino.`,
+            type: 'ORDER_UPDATE'
+          });
+        } catch (e) {}
       }
   }
 
@@ -61,7 +85,7 @@ export const addOrderDB = async (order: Order) => {
         title: '🚨 ¡NUEVO PEDIDO WEB REALIZADO!',
         message: `Nuevo pedido web #${shortId} de $${order.total.toFixed(2)} realizado por ${order.customerName || 'Cliente'}. Requiere atención en el panel.`,
         type: 'ORDER_UPDATE'
-      });
+      }).catch(() => {});
     });
   }
 };

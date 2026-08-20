@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Order } from '../../types';
 import { updateOrderStatusDB, updateOrderLocationDB } from '../../services/db';
 import { Truck, CheckCircle, MapPin, Phone, Clock, LogOut, Navigation, Radio, Loader2, Map as MapIcon } from 'lucide-react';
+import OfflineStatusBar from '../OfflineStatusBar';
 
 interface DriverDashboardProps {
     orders: Order[];
@@ -106,6 +107,7 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
 
     return (
         <div className="min-h-screen bg-gray-100 pb-10">
+            <OfflineStatusBar />
             <div className="bg-teal-800 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <Truck className="h-6 w-6" />

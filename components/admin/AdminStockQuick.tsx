@@ -48,9 +48,9 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
         
         // Filtro por estado de stock
         let matchesStatus = true;
-        if (stockStatusFilter === 'critical') matchesStatus = p.stock <= 5;
+        if (stockStatusFilter === 'critical') matchesStatus = p.stock <= 3;
         else if (stockStatusFilter === 'outOfStock') matchesStatus = p.stock === 0;
-        else if (stockStatusFilter === 'healthy') matchesStatus = p.stock > 5;
+        else if (stockStatusFilter === 'healthy') matchesStatus = p.stock > 3;
         
         return matchesSearch && matchesCategory && matchesStatus;
       })
@@ -152,7 +152,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
   };
 
   const handleSendStockAlert = () => {
-    const lowStockList = products.filter(p => p.stock <= 5);
+    const lowStockList = products.filter(p => p.stock <= 3);
     if (lowStockList.length === 0) {
         return alert("¡Excelente! No hay productos en nivel crítico.");
     }
@@ -165,9 +165,9 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
   };
 
   const handleGenerateShoppingList = () => {
-    const lowStockList = products.filter(p => p.stock <= 5);
+    const lowStockList = products.filter(p => p.stock <= 3);
     if (lowStockList.length === 0) {
-        return alert("No hay productos con bajo stock (≤ 5) para generar lista.");
+        return alert("No hay productos con bajo stock (≤ 3) para generar lista.");
     }
 
     const printFrame = document.createElement('iframe');
@@ -659,20 +659,20 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 flex items-center gap-4">
           <div className="h-10 w-10 bg-rose-500 rounded-xl flex items-center justify-center text-white font-bold shrink-0">
-            {products.filter(p => p.stock <= 5).length}
+            {products.filter(p => p.stock <= 3).length}
           </div>
           <div>
-            <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Stock Crítico</p>
+            <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Stock Crítico (≤ 3)</p>
             <p className="text-xs text-rose-900 font-semibold">Requieren reposición inmediata</p>
           </div>
         </div>
         
         <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 flex items-center gap-4">
           <div className="h-10 w-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold shrink-0">
-            {products.filter(p => p.stock > 5).length}
+            {products.filter(p => p.stock > 3).length}
           </div>
           <div>
-            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Nivel Óptimo</p>
+            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Nivel Óptimo (&gt; 3)</p>
             <p className="text-xs text-emerald-900 font-semibold">Productos con stock saludable</p>
           </div>
         </div>

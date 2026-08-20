@@ -180,8 +180,8 @@ export const updateStockDB = async (id: string, newStock: number) => {
         }
       }
 
-      // Notificar ÚNICAMENTE a los ADMINISTRADORES si el stock cayó a un nivel bajo
-      const minStock = oldData.minStock || 5;
+      // Notificar ÚNICAMENTE a los ADMINISTRADORES si el stock cayó a un nivel bajo (<= 3)
+      const minStock = oldData.minStock || 3;
       if (newStock <= minStock && newStock > 0 && oldData.stock > minStock) {
         await sendNotificationToAdmins({
           title: '⚠️ Alerta de Stock Bajo (Inventario)',

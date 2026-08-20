@@ -321,7 +321,7 @@ const AdminBundles: React.FC<AdminBundlesProps> = ({ products, bundles, onDelete
                                                             <span className="text-[10px] text-teal-600 font-semibold bg-teal-50 px-1.5 py-0.5 rounded">
                                                                 {p.category}
                                                             </span>
-                                                            {p.stock <= 5 && (
+                                                            {p.stock <= 3 && (
                                                                 <span className="text-[9px] text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded">
                                                                     Stock Crítico: {p.stock} u
                                                                 </span>

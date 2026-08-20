@@ -45,7 +45,7 @@ export const ProtocolBotiquin: React.FC<ProtocolBotiquinProps> = ({
           <div className="space-y-3">
             {recommendedProducts.map((prod) => {
               const isAdded = addedItemsMap[prod.id];
-              const isLowStock = prod.stock <= 5;
+              const isLowStock = prod.stock <= 3;
 
               return (
                 <div 

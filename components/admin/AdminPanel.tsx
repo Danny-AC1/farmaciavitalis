@@ -13,6 +13,7 @@ import AdminMainContent from './AdminMainContent';
 import CashClosureModal from '../modals/CashClosureModal';
 import BarcodeScanner from '../modals/BarcodeScanner';
 import AdminOrderNotificationTray from './orders/AdminOrderNotificationTray';
+import OfflineStatusBar from '../OfflineStatusBar';
 
 interface AdminPanelProps {
   products: Product[];
@@ -102,7 +103,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   // Filtros para el Header
   const pendingOrders = props.orders.filter(o => o.status === 'PENDING');
-  const lowStockItems = props.products.filter(p => p.stock <= 5);
+  const lowStockItems = props.products.filter(p => p.stock <= 3);
   const pendingBookings = state.bookings.filter(b => b.status === 'PENDING');
   
   const isFullHeightTab = state.activeTab === 'pos' || state.activeTab === 'support_chats';
@@ -111,6 +112,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      <OfflineStatusBar />
       {/* 1. Barra Lateral de Navegación */}
       <AdminSidebar 
         activeTab={state.activeTab} setActiveTab={state.setActiveTab} onLogout={props.onLogout} 

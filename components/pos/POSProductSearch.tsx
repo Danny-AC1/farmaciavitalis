@@ -63,7 +63,7 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
                         )}
                       </div>
                       <div className="flex flex-wrap gap-1 items-center">
-                        <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 5 ? 'text-red-500' : 'text-slate-400'}`}>
+                        <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 3 ? 'text-red-500' : 'text-slate-400'}`}>
                             {p.category} • STOCK: {p.stock}
                         </p>
                         {p.activeIngredient?.toLowerCase().includes(posSearch.toLowerCase()) && (

@@ -34,6 +34,7 @@ import {
   DeliveryInfo,
   PwaInstallButton
 } from './components';
+import OfflineStatusBar from './components/OfflineStatusBar';
 
 const App: React.FC = () => {
   const logic = useAppLogic();
@@ -73,6 +74,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16 md:pb-0">
       <PwaInstallButton variant="banner" />
+      <OfflineStatusBar />
       <Navbar 
         cartCount={logic.cart.length} 
         onCartClick={() => logic.setIsCartOpen(true)}
