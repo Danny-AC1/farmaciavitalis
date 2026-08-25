@@ -219,8 +219,8 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                 <th class="num">Costo Caja</th>
                 <th class="num">Rango Mínimo Sug.</th>
                 <th class="num">Rango Máximo Sug.</th>
-                <th class="num">PVP Sugerido (Recom.)</th>
-                <th class="num">PVP Actual</th>
+                <th class="num">PVP Recom. Unit. (Pastilla/Sobre)</th>
+                <th class="num">PVP Actual Unit.</th>
                 <th class="num">Margen Real</th>
               </tr>
             </thead>
@@ -387,9 +387,10 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
         <div className="bg-teal-50/60 border border-teal-100 p-3.5 rounded-2xl flex items-start gap-3">
           <Sparkles className="text-teal-600 shrink-0 mt-0.5" size={18} />
           <div className="text-[11px] text-teal-900 leading-snug font-medium">
-            <strong>Estructura de Precios Distribuidora Difare:</strong> <br />
-            <strong>1. Precio de Compra:</strong> El precio neto con el que adquieres el medicamento. <br />
-            <strong>2. Rango Mínimo - Máximo Sugerido:</strong> El rango permitido o recomendado de venta al público (PVP). El sistema te indicará en verde si tu PVP actual se encuentra dentro de dicho rango.
+            <strong>Estructura de Precios Distribuidora Difare / Proveedores:</strong> <br />
+            <strong>1. Precio de Compra:</strong> El precio neto unitario y por caja con el que adquieres el medicamento. <br />
+            <strong>2. Rango Mínimo - Máximo Sugerido:</strong> Rango referencial de venta al público sugerido por la distribuidora. <br />
+            <strong>3. PVP Recomendado (Unitario):</strong> Precio de venta al público recomendado por unidad (pastilla, sobre o ampolla), no por caja.
           </div>
         </div>
       </div>
@@ -423,8 +424,8 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                   <th className="p-4 min-w-[120px]">Costo Caja ($)</th>
                   <th className="p-4 min-w-[140px]">Rango Mín. Sugerido ($)</th>
                   <th className="p-4 min-w-[140px]">Rango Máx. Sugerido ($)</th>
-                  <th className="p-4 min-w-[160px]">PVP Recomendado ($)</th>
-                  <th className="p-4 min-w-[130px]">PVP Actual ($)</th>
+                  <th className="p-4 min-w-[170px]">PVP Recom. Unitario ($)</th>
+                  <th className="p-4 min-w-[130px]">PVP Actual Unit. ($)</th>
                   <th className="p-4 text-center min-w-[120px]">Margen / Estado</th>
                   <th className="p-4 pr-6 text-right min-w-[110px]">Acción</th>
                 </tr>
@@ -543,7 +544,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                         <span className="text-[9px] text-teal-600 font-medium block mt-0.5">PVP Máximo Sug.</span>
                       </td>
 
-                      {/* 4. PVP Sugerido / Recomendación de Venta */}
+                      {/* 4. PVP Sugerido / Recomendación de Venta por Unidad */}
                       <td className="p-4">
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
@@ -554,17 +555,17 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                             placeholder={
                               minRangeVal > 0 && maxRangeVal > 0 
                                 ? ((minRangeVal + maxRangeVal) / 2).toFixed(2)
-                                : costVal > 0 ? (costVal * 1.3).toFixed(2) : 'Recomendado'
+                                : costVal > 0 ? (costVal * 1.3).toFixed(2) : '0.00'
                             }
                             value={values.suggestedRetailPrice}
                             onChange={(e) => handleValueChange(p.id, 'suggestedRetailPrice', e.target.value, p)}
                             className="w-28 pl-6 pr-2 py-1.5 bg-blue-50/60 border border-blue-200/90 rounded-xl text-xs font-black text-blue-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
                           />
                         </div>
-                        <span className="text-[9px] text-blue-700 font-semibold block mt-0.5">PVP Recomendado</span>
+                        <span className="text-[9px] text-blue-700 font-semibold block mt-0.5">PVP Recom. Unit.</span>
                       </td>
 
-                      {/* PVP Actual de Venta */}
+                      {/* PVP Actual de Venta Unitario */}
                       <td className="p-4">
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
@@ -578,7 +579,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                             className="w-24 pl-6 pr-2 py-1.5 bg-emerald-50/60 border border-emerald-200 rounded-xl text-xs font-black text-emerald-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white"
                           />
                         </div>
-                        <span className="text-[9px] text-emerald-700 font-medium block mt-0.5">Precio Venta Público</span>
+                        <span className="text-[9px] text-emerald-700 font-medium block mt-0.5">PVP Venta Unit.</span>
                       </td>
 
                       {/* Margen y Diagnóstico Rango */}
