@@ -212,6 +212,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                 <AdminExtensionSuite 
                     setActiveTab={state.setActiveTab} 
                     products={props.products} 
+                    categories={props.categories || []}
                     suppliers={state.suppliers} 
                     orders={props.orders || []}
                     expenses={state.expenses || []}

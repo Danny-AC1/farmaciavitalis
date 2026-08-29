@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins, Building2, Scale } from 'lucide-react';
-import { Product, Supplier, Order, Expense } from '../../types';
+import { Product, Supplier, Order, Expense, Category } from '../../types';
 import AdminShoppingList from './AdminShoppingList';
 import AdminDiscounts from './AdminDiscounts';
 import AdminCredits from '../credits/AdminCredits';
@@ -11,12 +11,13 @@ import { AdminAccountingHub } from './accounting/AdminAccountingHub';
 interface AdminExtensionSuiteProps {
   setActiveTab: (tab: string) => void;
   products: Product[];
+  categories?: Category[];
   suppliers: Supplier[];
   orders?: Order[];
   expenses?: Expense[];
 }
 
-const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, suppliers, orders = [], expenses = [] }) => {
+const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, categories = [], suppliers, orders = [], expenses = [] }) => {
   const [subTab, setSubTab] = useState<'hub' | 'accounting' | 'supplier_prices' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('accounting'); // Mostrar por defecto la contabilidad gerencial de primer nivel
 
   return (
@@ -175,7 +176,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
       ) : subTab === 'supplier_prices' ? (
         /* Vista de la Funcionalidad Real: Precios de Compra y Distribuidoras */
         <div className="space-y-6">
-          <AdminSupplierPrices products={products} suppliers={suppliers} />
+          <AdminSupplierPrices products={products} suppliers={suppliers} categoriesList={categories} />
         </div>
       ) : subTab === 'discounts' ? (
         /* Vista de la Funcionalidad Real: Sistema de Descuentos */

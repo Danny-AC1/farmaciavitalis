@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Package, Trash2, Edit2, Search, Plus, Minus } from 'lucide-react';
+import { Package, Trash2, Edit2, Search, Plus, Minus, Building2 } from 'lucide-react';
 import { Product } from '../../types';
 
 interface AdminProductListProps {
@@ -8,9 +8,16 @@ interface AdminProductListProps {
   handleEditClick: (p: Product) => void;
   onDeleteProduct: (id: string) => void | Promise<void>;
   onUpdateStock: (id: string, s: number) => void | Promise<void>;
+  onOpenSupplierPrices?: (p: Product) => void;
 }
 
-const AdminProductList: React.FC<AdminProductListProps> = ({ products, handleEditClick, onDeleteProduct, onUpdateStock }) => {
+const AdminProductList: React.FC<AdminProductListProps> = ({ 
+  products, 
+  handleEditClick, 
+  onDeleteProduct, 
+  onUpdateStock,
+  onOpenSupplierPrices
+}) => {
   const [listSearch, setListSearch] = useState('');
 
   const filteredProducts = products.filter(p => 
@@ -98,9 +105,20 @@ const AdminProductList: React.FC<AdminProductListProps> = ({ products, handleEdi
                 <td className="px-6 py-4 text-sm font-black text-blue-600 tabular-nums">
                   {p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : '---'}
                 </td>
-                <td className="px-6 py-4 text-right space-x-1">
-                  <button onClick={() => handleEditClick(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all" title="Editar"><Edit2 size={16}/></button>
-                  <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Eliminar"><Trash2 size={16}/></button>
+                <td className="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
+                  <button 
+                    onClick={() => {
+                      if (onOpenSupplierPrices) {
+                        onOpenSupplierPrices(p);
+                      }
+                    }} 
+                    className="p-2 text-teal-600 hover:text-white hover:bg-teal-600 bg-teal-50 border border-teal-200 rounded-xl transition-all shadow-xs inline-flex items-center justify-center" 
+                    title="Precios de Compra (Difare / Distribuidoras)"
+                  >
+                    <Building2 size={16}/>
+                  </button>
+                  <button onClick={() => handleEditClick(p)} className="p-2 text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 rounded-xl transition-all inline-flex items-center justify-center" title="Editar"><Edit2 size={16}/></button>
+                  <button onClick={() => onDeleteProduct(p.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-all inline-flex items-center justify-center" title="Eliminar"><Trash2 size={16}/></button>
                 </td>
               </tr>
             ))}

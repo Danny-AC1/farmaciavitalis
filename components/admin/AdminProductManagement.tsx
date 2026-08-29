@@ -1,8 +1,10 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Product, Category, Supplier } from '../../types';
 import AdminProductForm from './AdminProductForm';
 import AdminProductList from './AdminProductList';
 import AdminProductEditModal from './AdminProductEditModal';
+import AdminSupplierPriceModal from './AdminSupplierPriceModal';
 
 interface AdminProductManagementProps {
   products: Product[];
@@ -30,8 +32,8 @@ interface AdminProductManagementProps {
   handleImageUpload: (e: any, setter: any) => void | Promise<void>;
   setShowProductScanner: (b: boolean) => void;
   handleEditClick: (p: Product) => void;
-  onDeleteProduct: (id: string) => void;
-  onUpdateStock: (id: string, newStock: number) => void;
+  onDeleteProduct: (id: string) => void | Promise<void>;
+  onUpdateStock: (id: string, s: number) => void | Promise<void>;
   resetProductForm: () => void;
   isGenerating: boolean;
   isSubmitting: boolean;
@@ -40,12 +42,14 @@ interface AdminProductManagementProps {
 }
 
 const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) => {
+  const [supplierPriceProduct, setSupplierPriceProduct] = useState<Product | null>(null);
+
   return (
     <div className="space-y-8 animate-in fade-in">
         {/* Formulario Estático para creación de nuevos productos */}
         <AdminProductForm 
             {...props}
-            editingId={null}
+            editingId={null} // El formulario superior se mantiene limpio para agregar nuevos
         />
 
         {/* Lista de productos */}
@@ -54,13 +58,22 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
             handleEditClick={props.handleEditClick}
             onDeleteProduct={props.onDeleteProduct}
             onUpdateStock={props.onUpdateStock}
+            onOpenSupplierPrices={(p) => setSupplierPriceProduct(p)}
         />
 
-        {/* Modal Emergente para Editar un Producto sin tener que hacer scroll hacia arriba */}
+        {/* Modal Emergente para Editar un Producto sin tener que subir la página */}
         <AdminProductEditModal
             {...props}
             onClose={props.resetProductForm}
         />
+
+        {/* Modal Emergente para Precios de Compra (Difare / Distribuidoras) */}
+        {supplierPriceProduct && (
+          <AdminSupplierPriceModal 
+            product={supplierPriceProduct}
+            onClose={() => setSupplierPriceProduct(null)}
+          />
+        )}
     </div>
   );
 };

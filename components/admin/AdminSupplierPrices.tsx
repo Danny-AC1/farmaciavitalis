@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Product, Supplier } from '../../types';
+import { Product, Supplier, Category } from '../../types';
 import { updateProductDB } from '../../services/db.products';
 import { 
   Search, 
@@ -9,19 +9,23 @@ import {
   Printer, 
   Building2, 
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Edit2
 } from 'lucide-react';
+import AdminSupplierProductEditModal from './AdminSupplierProductEditModal';
 
 interface AdminSupplierPricesProps {
   products: Product[];
   suppliers: Supplier[];
+  categoriesList?: Category[];
 }
 
-export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ products, suppliers }) => {
+export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ products, suppliers, categoriesList = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [onlyOutRange, setOnlyOutRange] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Estado local para los campos editados por producto id
   const [editedPrices, setEditedPrices] = useState<Record<string, {
@@ -427,7 +431,7 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                   <th className="p-4 min-w-[170px]">PVP Recom. Unitario ($)</th>
                   <th className="p-4 min-w-[130px]">PVP Actual Unit. ($)</th>
                   <th className="p-4 text-center min-w-[120px]">Margen / Estado</th>
-                  <th className="p-4 pr-6 text-right min-w-[110px]">Acción</th>
+                  <th className="p-4 pr-6 text-right min-w-[150px]">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -617,29 +621,41 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
                         )}
                       </td>
 
-                      {/* Botón Guardar */}
-                      <td className="p-4 pr-6 text-right">
-                        <button
-                          onClick={() => handleSaveProductPrices(p)}
-                          disabled={isSaving}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ml-auto ${
-                            isSavedSuccess
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-teal-600 hover:bg-teal-700 text-white shadow-sm active:scale-95'
-                          }`}
-                        >
-                          {isSaving ? (
-                            <RefreshCw size={13} className="animate-spin" />
-                          ) : isSavedSuccess ? (
-                            <>
-                              <CheckCircle2 size={13} /> ¡Guardado!
-                            </>
-                          ) : (
-                            <>
-                              <Save size={13} /> Guardar
-                            </>
-                          )}
-                        </button>
+                      {/* Botones de Acción (Editar Ficha Completa + Guardar Rápido) */}
+                      <td className="p-4 pr-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct(p)}
+                            className="p-2 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-xl transition-all shadow-xs inline-flex items-center justify-center"
+                            title="Editar Ficha Completa del Producto (Vitalis Admin)"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+
+                          <button
+                            onClick={() => handleSaveProductPrices(p)}
+                            disabled={isSaving}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                              isSavedSuccess
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'bg-teal-600 hover:bg-teal-700 text-white shadow-sm active:scale-95'
+                            }`}
+                            title="Guardar Precios de Distribuidora"
+                          >
+                            {isSaving ? (
+                              <RefreshCw size={13} className="animate-spin" />
+                            ) : isSavedSuccess ? (
+                              <>
+                                <CheckCircle2 size={13} /> ¡Guardado!
+                              </>
+                            ) : (
+                              <>
+                                <Save size={13} /> Guardar
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -649,6 +665,16 @@ export const AdminSupplierPrices: React.FC<AdminSupplierPricesProps> = ({ produc
           </div>
         )}
       </div>
+
+      {/* Modal Emergente para Editar la Ficha Completa del Producto */}
+      {editingProduct && (
+        <AdminSupplierProductEditModal 
+          product={editingProduct}
+          categories={categoriesList}
+          suppliers={suppliers}
+          onClose={() => setEditingProduct(null)}
+        />
+      )}
 
     </div>
   );
