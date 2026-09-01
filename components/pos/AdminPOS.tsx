@@ -1,22 +1,33 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { ScanBarcode, Calculator, Package, Sparkles, X, Plus, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { Product, CartItem, User, Order, Bundle } from '../../types';
+import { Product, CartItem, User, Bundle, CreditTicket, TreasurySession } from '../../types';
 import { saveUserDB } from '../../services/db';
 import { getActiveDiscounts, getDiscountedPrice, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
 import { subscribeOfflineSync, syncPendingOfflineSales, getPendingOfflineSales } from '../../services/posOfflineService';
+import { streamCredits } from '../../services/db.credits';
+import { streamTreasurySessions } from '../../services/db.treasury';
+import { findCustomerCredits } from '../../utils/posCreditHelpers';
+import { printPOSTicket } from '../../utils/posTicketPrinter';
 
-// Sub-componentes
+// Sub-componentes del POS
 import POSCustomerSelect from './POSCustomerSelect';
 import POSProductSearch from './POSProductSearch';
 import POSCartList from './POSCartList';
 import POSFooter from './POSFooter';
 import POSUserModal from './POSUserModal';
+import POSToolbar from './POSToolbar';
+import POSBundlesBanner from './POSBundlesBanner';
+import POSUpgradeModal from './POSUpgradeModal';
 import SmartSubstitutionPOS from './SmartSubstitutionPOS';
+import POSCustomerDebtAlert from './POSCustomerDebtAlert';
+import POSCreditDrawerModal from './POSCreditDrawerModal';
+import POSCreditCheckoutModal from './POSCreditCheckoutModal';
+import POSCreditQuickPaymentModal from './POSCreditQuickPaymentModal';
+import POSTreasuryDrawerModal from './POSTreasuryDrawerModal';
 
 interface AdminPOSProps {
   products: Product[];
   users: User[];
+  currentUser?: User | null;
   bundles: Bundle[];
   posCart: CartItem[];
   setPosCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
@@ -31,16 +42,33 @@ interface AdminPOSProps {
   removeFromPosCart: (id: string) => void;
   handlePosCheckout: (customer?: User, pointsRedeemed?: number) => Promise<any>;
   setShowScanner: (b: boolean) => void;
-  setShowCashClosure: (b: boolean) => void;
+  setShowCashClosure?: (b: boolean) => void;
   onDeleteUser?: (uid: string) => Promise<void>;
+  setActiveTab?: (tab: string) => void;
 }
 
 const AdminPOS: React.FC<AdminPOSProps> = ({
-  products, users, bundles, posCart, setPosCart, posSearch, setPosSearch, posCashReceived, setPosCashReceived, 
-  posPaymentMethod, setPosPaymentMethod, addToPosCart, addBundleToPosCart, removeFromPosCart, 
-  handlePosCheckout, setShowScanner, setShowCashClosure
+  products,
+  users,
+  currentUser,
+  bundles,
+  posCart,
+  setPosCart,
+  posSearch,
+  setPosSearch,
+  posCashReceived,
+  setPosCashReceived,
+  posPaymentMethod,
+  setPosPaymentMethod,
+  addToPosCart,
+  addBundleToPosCart,
+  removeFromPosCart,
+  handlePosCheckout,
+  setShowScanner,
+  setShowCashClosure,
+  setActiveTab
 }) => {
-  // ESTADOS LOCALES DE UI
+  // 1. ESTADOS LOCALES DE INTERFAZ
   const [showBundles, setShowBundles] = useState(false);
   const [upgradeSuggestion, setUpgradeSuggestion] = useState<Bundle | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -50,8 +78,78 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [substitutionTerm, setSubstitutionTerm] = useState('');
   const [showSubstitution, setShowSubstitution] = useState(false);
+  const [showTreasuryDrawer, setShowTreasuryDrawer] = useState(false);
 
-  // ESTADO DE RED Y SINCRONIZACIÓN OFFLINE POS
+  // 1.1 ESTADO DE SESIÓN DE TESORERÍA ACTIVA
+  const [treasurySessions, setTreasurySessions] = useState<TreasurySession[]>([]);
+  useEffect(() => {
+    const unsub = streamTreasurySessions((sessionsList) => {
+      setTreasurySessions(sessionsList);
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
+
+  const activeTreasurySession = useMemo(() => {
+    return treasurySessions.find(s => s.status === 'OPEN') || null;
+  }, [treasurySessions]);
+
+  // 2. CRÉDITOS Y MEDICAMENTOS FIADOS
+  const [credits, setCredits] = useState<CreditTicket[]>([]);
+  const [showCreditDrawer, setShowCreditDrawer] = useState(false);
+  const [showCreditCheckout, setShowCreditCheckout] = useState(false);
+  const [selectedCreditForPayment, setSelectedCreditForPayment] = useState<CreditTicket | null>(null);
+
+  // Stream en tiempo real de créditos
+  useEffect(() => {
+    const unsub = streamCredits((data) => {
+      setCredits(data);
+    });
+    return () => unsub();
+  }, []);
+
+  // Preseleccionar cliente si proviene de la Suite de Créditos
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('vitalis_pos_preselected_customer');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && (parsed.displayName || parsed.name)) {
+          const existing = users.find(u => 
+            (parsed.phone && u.phone === parsed.phone) || 
+            (parsed.displayName && u.displayName?.toLowerCase() === parsed.displayName.toLowerCase()) ||
+            (parsed.name && u.displayName?.toLowerCase() === parsed.name.toLowerCase())
+          );
+          if (existing) {
+            setSelectedCustomer(existing);
+          } else {
+            setSelectedCustomer({
+              uid: parsed.id || `CUST-${Date.now()}`,
+              displayName: parsed.displayName || parsed.name || 'Cliente',
+              phone: parsed.phone || parsed.customerPhone || '',
+              cedula: parsed.cedula || parsed.customerAddress || '',
+              email: '',
+              role: 'USER',
+              points: 0,
+              createdAt: new Date().toISOString()
+            });
+          }
+          localStorage.removeItem('vitalis_pos_preselected_customer');
+        }
+      }
+    } catch (e) {
+      console.warn("Error loading preselected customer for POS:", e);
+    }
+  }, [users]);
+
+  const pendingCreditsCount = useMemo(() => credits.filter(c => c.status === 'PENDIENTE').length, [credits]);
+  
+  const customerDebts = useMemo(() => {
+    return findCustomerCredits(selectedCustomer, credits);
+  }, [selectedCustomer, credits]);
+
+  // 3. ESTADO DE RED Y MODO OFFLINE
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -77,14 +175,14 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       } else {
         alert('ℹ️ No hay ventas pendientes por sincronizar.');
       }
-    } catch (err) {
+    } catch {
       alert('Error al intentar sincronizar con la nube.');
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // DESCUENTOS ACTIVOS (Suite Gerencial)
+  // 4. DESCUENTOS ACTIVOS (Suite Gerencial)
   const [activeDiscounts, setActiveDiscounts] = useState<ActiveDiscount[]>([]);
 
   useEffect(() => {
@@ -94,24 +192,48 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     });
   }, []);
 
-  // ESTADOS DEL FORMULARIO DE REGISTRO
+  // 5. REGISTRO RÁPIDO DE CLIENTE
   const [regName, setRegName] = useState('');
   const [regCedula, setRegCedula] = useState('');
   const [regPhone, setRegPhone] = useState('');
 
-  // CALCULOS MATEMÁTICOS (Cerebro del POS)
+  const resetUserForm = () => {
+    setRegName(''); setRegCedula(''); setRegPhone('');
+    setShowUserForm(false);
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const userToSave: User = {
+      uid: `CUST-${Date.now()}`,
+      displayName: regName,
+      cedula: regCedula,
+      phone: regPhone,
+      email: `${regCedula}@vitalis.pos`,
+      role: 'USER',
+      points: 0,
+      accumulatedSpend: 0,
+      createdAt: new Date().toISOString()
+    };
+    await saveUserDB(userToSave);
+    setSelectedCustomer(userToSave);
+    resetUserForm();
+    setCustomerSearch('');
+  };
+
+  // 6. CÁLCULOS MATEMÁTICOS DE VENTA
   const subtotal = useMemo(() => posCart.reduce((sum, item) => {
-      const isBox = item.selectedUnit === 'BOX';
-      let price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-      
-      if (!isBox && item.price >= 0) {
-          const discount = activeDiscounts.find(d => d.productId === item.id);
-          if (discount) {
-              price = getDiscountedPrice(item.price, discount);
-          }
+    const isBox = item.selectedUnit === 'BOX';
+    let price = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
+    
+    if (!isBox && item.price >= 0) {
+      const discount = activeDiscounts.find(d => d.productId === item.id);
+      if (discount) {
+        price = getDiscountedPrice(item.price, discount);
       }
-      
-      return sum + (price * item.quantity);
+    }
+    
+    return sum + (price * item.quantity);
   }, 0), [posCart, activeDiscounts]);
 
   const { projectedPoints, projectedAccumulated } = useMemo(() => {
@@ -120,14 +242,15 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     const newPoints = Math.floor(totalSpend);
     const remaining = totalSpend - newPoints;
     return { 
-        projectedPoints: selectedCustomer.points + newPoints,
-        projectedAccumulated: remaining
+      projectedPoints: selectedCustomer.points + newPoints,
+      projectedAccumulated: remaining
     };
   }, [selectedCustomer, subtotal]);
 
   const posTotal = subtotal;
   const changeDue = posCashReceived ? parseFloat(posCashReceived) - posTotal : 0;
 
+  // 7. AGREGAR CON SUGERENCIA DE COMBO UPGRADE
   const handleAddToCartWithUpgradeCheck = (p: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
     if (p.stock <= 0) {
       setSubstitutionTerm(p.name);
@@ -137,14 +260,13 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     
     addToPosCart(p, unitType);
     
-    // Buscar si hay un combo de upgrade para este producto
     const upgrade = bundles.find(b => b.active && b.isUpgrade && b.baseProductId === p.id);
     if (upgrade) {
       setUpgradeSuggestion(upgrade);
     }
   };
 
-  // FILTROS DE BÚSQUEDA
+  // 8. FILTROS DE BÚSQUEDA
   const filteredProducts = useMemo(() => {
     if (!posSearch) return [];
     const searchLower = posSearch.toLowerCase();
@@ -154,7 +276,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       p.category.toLowerCase().includes(searchLower) ||
       (p.activeIngredient && p.activeIngredient.toLowerCase().includes(searchLower)) ||
       (p.keywords && p.keywords.toLowerCase().includes(searchLower))
-    ).slice(0, 8); // Aumentado un poco el límite para mostrar alternativas
+    ).slice(0, 8);
   }, [products, posSearch]);
 
   const customerSearchResults = useMemo(() => {
@@ -166,207 +288,41 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     ).slice(0, 5);
   }, [customerSearch, users]);
 
-  // MANEJADORES DE ACCIÓN
-  const resetUserForm = () => {
-    setRegName(''); setRegCedula(''); setRegPhone('');
-    setShowUserForm(false);
-  };
-
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userToSave: User = {
-        uid: `CUST-${Date.now()}`,
-        displayName: regName,
-        cedula: regCedula,
-        phone: regPhone,
-        email: `${regCedula}@vitalis.pos`,
-        role: 'USER',
-        points: 0,
-        accumulatedSpend: 0,
-        createdAt: new Date().toISOString()
-    };
-    await saveUserDB(userToSave);
-    setSelectedCustomer(userToSave);
-    resetUserForm();
-    setCustomerSearch('');
-  };
-
-  const handlePrintOrder = (order: Order) => {
-    const itemsHtml = order.items.map(item => {
-      const isBox = item.selectedUnit === 'BOX';
-      const priceToUse = isBox ? (item.publicBoxPrice || item.boxPrice || 0) : item.price;
-      const unitLabel = isBox ? `[CJ x${item.unitsPerBox}]` : '[UN]';
-      
-      return `
-        <div class="item-row">
-          <div class="item-name bold">${item.name.toUpperCase()}</div>
-          <div class="item-details">
-            <span>${item.quantity} x $${priceToUse.toFixed(2)} ${unitLabel}</span>
-            <span>$${(priceToUse * item.quantity).toFixed(2)}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    const printFrame = document.createElement('iframe');
-    printFrame.style.display = 'none';
-    document.body.appendChild(printFrame);
-
-    const content = `
-      <html>
-        <head>
-          <title>TICKET - ${order.id.slice(-6)}</title>
-          <style>
-            @page { margin: 0; }
-            body { 
-              font-family: 'Courier New', Courier, monospace; 
-              width: 48mm; 
-              padding: 2mm; 
-              margin: 0; 
-              font-size: 11px;
-              color: #000;
-              line-height: 1.1;
-              font-weight: 700;
-            }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .bold { font-weight: 900; }
-            .divider { border-top: 2px dashed #000; margin: 6px 0; }
-            .header-main { font-size: 16px; margin-bottom: 2px; font-weight: 900; }
-            .item-row { margin-bottom: 8px; }
-            .item-details { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; }
-            .totals-row { display: flex; justify-content: space-between; margin: 2px 0; font-weight: 700; }
-            .total-final { font-size: 14px; border-top: 3px solid #000; padding-top: 4px; margin-top: 5px; font-weight: 900; }
-            .mt-1 { margin-top: 6px; }
-            .mt-2 { margin-top: 12px; }
-            .footer { margin-top: 20px; font-size: 9px; font-style: italic; font-weight: 700; }
-            .uppercase { text-transform: uppercase; }
-          </style>
-        </head>
-        <body>
-          <div class="text-center bold header-main">FARMACIA VITALIS</div>
-          <div class="text-center uppercase" style="font-size: 8px;">Tu Salud Al Día</div>
-          <div class="text-center" style="font-size: 8px;">Machalilla, Ecuador</div>
-          <div class="text-center" style="font-size: 8px;">TEL: 0998506160</div>
-          
-          <div class="divider"></div>
-          
-          <div class="bold">ORDEN: #${order.id.slice(-8)}</div>
-          <div>FECHA: ${new Date(order.date).toLocaleString()}</div>
-          <div>MODO: ${order.source || 'VENTA'}</div>
-          
-          <div class="divider"></div>
-          
-          <div class="bold">CLIENTE:</div>
-          <div class="uppercase">${order.customerName}</div>
-          <div style="font-size: 9px;">DIR: ${order.customerAddress.substring(0, 30)}</div>
-          
-          <div class="divider"></div>
-          
-          <div class="bold">DETALLE PRODUCTOS:</div>
-          <div class="mt-1">${itemsHtml}</div>
-          
-          <div class="divider"></div>
-          
-          <div class="totals-row">
-            <span>SUBTOTAL:</span>
-            <span>$${order.subtotal.toFixed(2)}</span>
-          </div>
-          <div class="totals-row">
-            <span>ENVIO:</span>
-            <span>$${(order.deliveryFee || 0).toFixed(2)}</span>
-          </div>
-          ${order.discount ? `
-          <div class="totals-row">
-            <span>DESCUENTO:</span>
-            <span>-$${order.discount.toFixed(2)}</span>
-          </div>` : ''}
-          
-          <div class="totals-row bold total-final">
-            <span>TOTAL:</span>
-            <span>$${order.total.toFixed(2)}</span>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="bold">METODO PAGO: ${order.paymentMethod === 'CASH' ? 'EFECTIVO' : 'TRANSFERENCIA'}</div>
-          ${order.paymentMethod === 'CASH' && order.cashGiven ? `
-            <div class="totals-row">
-              <span>RECIBIDO:</span>
-              <span>$${order.cashGiven.toFixed(2)}</span>
-            </div>
-            <div class="totals-row bold">
-              <span>CAMBIO:</span>
-              <span>$${(order.cashGiven - order.total).toFixed(2)}</span>
-            </div>
-          ` : ''}
-
-          ${order.userId ? `
-            <div class="mt-2 text-center bold" style="font-size: 8px;">
-              ¡PUNTOS VITALIS SUMADOS!
-            </div>
-          ` : ''}
-          
-          <div class="divider"></div>
-          
-          <div class="text-center footer">
-            DOCUMENTO NO VALIDO COMO FACTURA.<br>
-            ¡GRACIAS POR SU PREFERENCIA!<br>
-            vitalis.ec
-          </div>
-          <div style="height: 10mm;"></div>
-        </body>
-      </html>
-    `;
-
-    const frameDoc = printFrame.contentWindow?.document;
-    if (frameDoc) {
-      frameDoc.open();
-      frameDoc.write(content);
-      frameDoc.close();
-      setTimeout(() => {
-        printFrame.contentWindow?.focus();
-        printFrame.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(printFrame);
-        }, 1000);
-      }, 500);
+  // 9. PROCESAMIENTO DE CHECKOUT
+  const onCheckoutClick = async () => {
+    if (posCart.length === 0) return;
+    setIsProcessing(true);
+    try {
+      await handlePosCheckout(selectedCustomer || undefined, 0);
+      setSelectedCustomer(null);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const onCheckoutClick = async () => {
-      if (posCart.length === 0) return;
-      setIsProcessing(true);
-      try {
-          await handlePosCheckout(selectedCustomer || undefined, 0);
-          setSelectedCustomer(null);
-      } finally {
-          setIsProcessing(false);
-      }
-  };
-
   const onCheckoutAndPrintClick = async () => {
-      if (posCart.length === 0) return;
-      setIsProcessing(true);
-      try {
-          const order = await handlePosCheckout(selectedCustomer || undefined, 0);
-          if (order) {
-              handlePrintOrder(order);
-          }
-          setSelectedCustomer(null);
-      } finally {
-          setIsProcessing(false);
+    if (posCart.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const order = await handlePosCheckout(selectedCustomer || undefined, 0);
+      if (order) {
+        printPOSTicket(order);
       }
+      setSelectedCustomer(null);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative font-sans">
       
-      {/* 1. PANEL SUPERIOR (Buscadores) */}
+      {/* 1. PANEL SUPERIOR (Buscador de Clientes, Toolbar y Buscador de Productos) */}
       <div className="bg-white border-b border-slate-200 p-2 md:p-4 shrink-0 shadow-sm z-20">
         <div className="max-w-[1600px] mx-auto space-y-2 md:space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
             
+            {/* Selector de Clientes y Fidelización */}
             <POSCustomerSelect 
               selectedCustomer={selectedCustomer}
               customerSearch={customerSearch}
@@ -379,74 +335,43 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               projectedAccumulated={projectedAccumulated}
             />
 
-            <div className="flex gap-1 md:gap-2 shrink-0">
-              <button
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] border transition ${
-                  !isOnline 
-                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse' 
-                    : pendingSyncCount > 0 
-                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                }`}
-                title={!isOnline ? 'Modo Offline Activo' : 'Sincronizar ventas con la nube'}
-              >
-                {!isOnline ? <WifiOff size={14}/> : <Wifi size={14}/>}
-                <span className="hidden sm:inline">
-                  {!isOnline 
-                    ? `OFFLINE (${pendingSyncCount})` 
-                    : pendingSyncCount > 0 
-                    ? `SINCRONIZAR (${pendingSyncCount})` 
-                    : 'ONLINE'}
-                </span>
-                <span className="sm:hidden">
-                  {!isOnline ? `OFF (${pendingSyncCount})` : pendingSyncCount > 0 ? `SYNC (${pendingSyncCount})` : 'ON'}
-                </span>
-                {pendingSyncCount > 0 && <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />}
-              </button>
-              <button onClick={() => setShowScanner(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] text-slate-600 hover:bg-slate-50 transition">
-                <ScanBarcode size={14}/> <span className="hidden sm:inline">SCANNER</span>
-              </button>
-              <button onClick={() => setShowCashClosure(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] text-slate-600 hover:bg-slate-50 transition">
-                <Calculator size={14}/> <span className="hidden sm:inline">CIERRE</span>
-              </button>
-              <button 
-                onClick={() => setShowBundles(!showBundles)} 
-                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 border px-3 py-1.5 rounded-lg md:rounded-xl font-bold text-[10px] md:text-[11px] transition ${showBundles ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-600 border-purple-200 hover:bg-purple-50'}`}
-              >
-                <Package size={14}/> <span className="hidden sm:inline">COMBOS</span>
-              </button>
-            </div>
+            {/* Barra de Herramientas POS (Fiados, Sync, Scanner, Tesorería Avanzada, Combos) */}
+            <POSToolbar 
+              pendingCreditsCount={pendingCreditsCount}
+              onOpenCreditDrawer={() => setShowCreditDrawer(true)}
+              isOnline={isOnline}
+              pendingSyncCount={pendingSyncCount}
+              isSyncing={isSyncing}
+              onManualSync={handleManualSync}
+              onOpenScanner={() => setShowScanner(true)}
+              onOpenTreasury={() => setShowTreasuryDrawer(true)}
+              onOpenCashClosure={setShowCashClosure ? () => setShowCashClosure(true) : undefined}
+              isSessionOpen={!!activeTreasurySession}
+              activeCashier={activeTreasurySession?.openedBy}
+              showBundles={showBundles}
+              setShowBundles={setShowBundles}
+            />
           </div>
 
-          {showBundles && (
-            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 animate-in slide-in-from-top">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-purple-600" />
-                <span className="text-[10px] font-black text-purple-700 uppercase tracking-widest">Promociones Activas</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {bundles.filter(b => b.active).map(bundle => (
-                  <button 
-                    key={bundle.id}
-                    onClick={() => addBundleToPosCart(bundle)}
-                    className="bg-white p-2 rounded-lg border border-purple-200 text-left hover:shadow-md transition group"
-                  >
-                    <p className="text-[10px] font-bold text-gray-900 truncate">{bundle.name}</p>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-[10px] font-black text-purple-600">${bundle.price.toFixed(2)}</span>
-                      <Plus size={10} className="text-purple-400 group-hover:text-purple-600" />
-                    </div>
-                  </button>
-                ))}
-                {bundles.filter(b => b.active).length === 0 && (
-                  <p className="text-[10px] text-purple-400 italic col-span-full">No hay combos activos.</p>
-                )}
-              </div>
-            </div>
+          {/* Alerta de Deuda Pendiente del Cliente */}
+          {selectedCustomer && customerDebts.length > 0 && (
+            <POSCustomerDebtAlert 
+              customer={selectedCustomer}
+              matchingCredits={customerDebts}
+              onOpenCreditDrawer={() => setShowCreditDrawer(true)}
+              onOpenQuickPayment={(credit) => setSelectedCreditForPayment(credit)}
+              hasCartItems={posCart.length > 0}
+            />
           )}
 
+          {/* Banner Desplegable de Combos y Promociones */}
+          <POSBundlesBanner 
+            showBundles={showBundles}
+            bundles={bundles}
+            onAddBundleToCart={addBundleToPosCart}
+          />
+
+          {/* Buscador de Medicamentos y Productos */}
           <POSProductSearch 
             posSearch={posSearch}
             setPosSearch={setPosSearch}
@@ -460,7 +385,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         </div>
       </div>
 
-      {/* 2. PANEL CENTRAL (Lista de Productos) */}
+      {/* 2. PANEL CENTRAL (Tabla y Lista de Productos en Carrito) */}
       <div className="flex-grow overflow-y-auto p-2 md:p-4 bg-white no-scrollbar">
         <POSCartList 
           posCart={posCart}
@@ -470,13 +395,14 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         />
       </div>
 
-      {/* 3. PANEL INFERIOR (Cobro y Totales) */}
+      {/* 3. PANEL INFERIOR (Opciones de Pago, Fiar, Totales y Facturación) */}
       <POSFooter 
         posTotal={posTotal}
         showPaymentDetails={showPaymentDetails}
         setShowPaymentDetails={setShowPaymentDetails}
         onCheckoutClick={onCheckoutClick}
         onCheckoutAndPrintClick={onCheckoutAndPrintClick}
+        onCreditCheckoutClick={() => setShowCreditCheckout(true)}
         isProcessing={isProcessing}
         posCartEmpty={posCart.length === 0}
         posPaymentMethod={posPaymentMethod}
@@ -486,55 +412,15 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         changeDue={changeDue}
       />
 
-      {/* MODAL UPGRADE SUGGESTION */}
-      {upgradeSuggestion && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
-            <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Sparkles size={18}/> ¡Sugerencia de Combo Upgrade!</h3>
-              <button onClick={() => setUpgradeSuggestion(null)} className="hover:bg-white/10 p-1 rounded-full transition-colors"><X size={20}/></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="text-center">
-                <p className="text-xs text-gray-500 mb-1">Por solo un poco más, lleva el:</p>
-                <h4 className="text-xl font-black text-purple-700">{upgradeSuggestion.name}</h4>
-                <p className="text-sm text-gray-600 mt-2">{upgradeSuggestion.description}</p>
-              </div>
+      {/* 4. MODAL: Sugerencia de Combo Upgrade */}
+      <POSUpgradeModal 
+        upgradeSuggestion={upgradeSuggestion}
+        products={products}
+        onClose={() => setUpgradeSuggestion(null)}
+        onAcceptUpgrade={addBundleToPosCart}
+      />
 
-              <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-bold text-gray-600">Precio Combo:</span>
-                  <span className="text-lg font-black text-purple-700">${upgradeSuggestion.price.toFixed(2)}</span>
-                </div>
-                <p className="text-[10px] text-purple-400 italic text-center">Ahorras un {Math.round((1 - upgradeSuggestion.price / upgradeSuggestion.productIds.reduce((acc, id) => {
-                    const p = products.find(x => x.id === id);
-                    return acc + (p?.price || 0);
-                }, 0)) * 100)}% comparado con compra individual.</p>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setUpgradeSuggestion(null)}
-                  className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition"
-                >
-                  No, gracias
-                </button>
-                <button 
-                  onClick={() => {
-                    addBundleToPosCart(upgradeSuggestion);
-                    setUpgradeSuggestion(null);
-                  }}
-                  className="flex-[2] bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition shadow-lg active:scale-95"
-                >
-                  ¡Aceptar Combo!
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL REGISTRO CLIENTE */}
+      {/* 5. MODAL: Registro Rápido de Nuevo Cliente */}
       <POSUserModal 
         showUserForm={showUserForm}
         resetForm={resetUserForm}
@@ -547,7 +433,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         setRegPhone={setRegPhone}
       />
 
-      {/* MODAL SUSTITUCIÓN INTELIGENTE */}
+      {/* 6. MODAL: Sustitución Inteligente de Medicamentos Sin Stock */}
       {showSubstitution && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in">
           <div className="w-full max-w-2xl">
@@ -564,6 +450,82 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
           </div>
         </div>
       )}
+
+      {/* 7. DRAWER: Medicamentos Fiados y Libreta de Créditos */}
+      <POSCreditDrawerModal 
+        isOpen={showCreditDrawer}
+        onClose={() => setShowCreditDrawer(false)}
+        credits={credits}
+        products={products}
+        posCart={posCart}
+        selectedCustomer={selectedCustomer}
+        onSelectCustomerInPOS={(name, phone) => {
+          const matched = users.find(u => 
+            (phone && u.phone === phone) || 
+            u.displayName.toLowerCase() === name.toLowerCase()
+          );
+          if (matched) {
+            setSelectedCustomer(matched);
+          } else {
+            setSelectedCustomer({
+              uid: `CUST-${Date.now()}`,
+              displayName: name,
+              email: '',
+              phone: phone || '',
+              role: 'USER',
+              points: 0,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }}
+        onOpenQuickPayment={(credit) => {
+          setSelectedCreditForPayment(credit);
+        }}
+        onGoToFullCreditsSuite={() => {
+          if (setActiveTab) {
+            setActiveTab('extension-suite');
+          }
+        }}
+        onOpenNewCreditModal={() => {
+          setShowCreditCheckout(true);
+        }}
+      />
+
+      {/* 8. MODAL: Despacho a Crédito / Fiar Carrito Actual */}
+      <POSCreditCheckoutModal 
+        isOpen={showCreditCheckout}
+        onClose={() => setShowCreditCheckout(false)}
+        posCart={posCart}
+        products={products}
+        selectedCustomer={selectedCustomer}
+        onSuccess={() => {
+          setPosCart([]);
+          setSelectedCustomer(null);
+        }}
+      />
+
+      {/* 9. MODAL: Cobro Rápido de Abono en POS */}
+      <POSCreditQuickPaymentModal 
+        isOpen={!!selectedCreditForPayment}
+        credit={selectedCreditForPayment}
+        onClose={() => setSelectedCreditForPayment(null)}
+        onPaymentSuccess={() => {
+          setSelectedCreditForPayment(null);
+        }}
+      />
+
+      {/* 10. MODAL / DRAWER: Tesorería Avanzada & Caja del POS */}
+      <POSTreasuryDrawerModal 
+        isOpen={showTreasuryDrawer}
+        onClose={() => setShowTreasuryDrawer(false)}
+        currentUser={currentUser}
+        users={users}
+        onGoToExtensionSuite={() => {
+          if (setActiveTab) {
+            setActiveTab('extension-suite');
+          }
+        }}
+      />
     </div>
   );
 };

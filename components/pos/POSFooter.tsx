@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle, Coins } from 'lucide-react';
 
 
 interface POSFooterProps {
@@ -8,6 +8,7 @@ interface POSFooterProps {
   setShowPaymentDetails: (b: boolean) => void;
   onCheckoutClick: () => void;
   onCheckoutAndPrintClick: () => void;
+  onCreditCheckoutClick?: () => void;
   isProcessing: boolean;
   posCartEmpty: boolean;
   posPaymentMethod: 'CASH' | 'TRANSFER';
@@ -19,7 +20,7 @@ interface POSFooterProps {
 
 const POSFooter: React.FC<POSFooterProps> = ({
   posTotal,
-  showPaymentDetails, setShowPaymentDetails, onCheckoutClick, onCheckoutAndPrintClick, isProcessing,
+  showPaymentDetails, setShowPaymentDetails, onCheckoutClick, onCheckoutAndPrintClick, onCreditCheckoutClick, isProcessing,
   posCartEmpty, posPaymentMethod, setPosPaymentMethod, posCashReceived,
   setPosCashReceived, changeDue
 }) => {
@@ -43,6 +44,18 @@ const POSFooter: React.FC<POSFooterProps> = ({
             >
               {showPaymentDetails ? <ChevronDown size={14}/> : <ChevronUp size={14}/>}
             </button>
+            {/* Botón Fiar / Crédito Móvil */}
+            {onCreditCheckoutClick && (
+              <button
+                onClick={onCreditCheckoutClick}
+                disabled={posCartEmpty || isProcessing}
+                className="bg-amber-600 hover:bg-amber-500 text-white p-2 rounded-lg shadow-lg disabled:opacity-30 flex items-center gap-1 font-bold text-[10px]"
+                title="Despachar a Crédito / Fiado"
+              >
+                <Coins size={12}/>
+                <span>FIAR</span>
+              </button>
+            )}
             {/* Botón Compra Normal */}
             <button 
               onClick={onCheckoutClick} 
@@ -117,6 +130,19 @@ const POSFooter: React.FC<POSFooterProps> = ({
             )}
 
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-grow">
+              {/* Botón Fiar / Crédito */}
+              {onCreditCheckoutClick && (
+                <button
+                  onClick={onCreditCheckoutClick}
+                  disabled={posCartEmpty || isProcessing}
+                  className="bg-amber-600/90 hover:bg-amber-600 text-white border border-amber-500/50 py-3 md:py-3.5 px-3 md:px-4 rounded-lg md:rounded-xl font-black text-xs uppercase tracking-[0.05em] shadow-lg shadow-amber-600/10 transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-1.5"
+                  title="Fiar estos medicamentos al cliente"
+                >
+                  <Coins size={16} />
+                  <span className="text-[10px] md:text-xs">FIAR / CRÉDITO</span>
+                </button>
+              )}
+
               {/* Botón Compra Normal */}
               <button 
                 onClick={onCheckoutClick} 

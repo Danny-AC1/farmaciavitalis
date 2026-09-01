@@ -16,12 +16,14 @@ import { CreditPaymentModal } from './CreditPaymentModal';
 import { CreditCreateForm } from './CreditCreateForm';
 import { CreditList } from './CreditList';
 import { CreditAddDebtModal } from './CreditAddDebtModal';
+import { ShoppingCart } from 'lucide-react';
 
 interface AdminCreditsProps {
   products: Product[];
+  onGoToPOS?: (customer?: { displayName: string; phone?: string; id?: string }) => void;
 }
 
-const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
+const AdminCredits: React.FC<AdminCreditsProps> = ({ products, onGoToPOS }) => {
   // Lista de créditos persistidos en tiempo real
   const [credits, setCredits] = useState<CreditTicket[]>([]);
   
@@ -449,6 +451,17 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
         </div>
 
         <div className="flex items-center gap-3">
+          {onGoToPOS && (
+            <button
+              onClick={() => onGoToPOS()}
+              className="px-4 py-2.5 rounded-xl text-xs font-black bg-slate-900 text-teal-400 hover:bg-slate-800 border border-slate-700 transition-all flex items-center gap-2 shadow-sm"
+              title="Abrir el Punto de Venta (POS) principal"
+            >
+              <ShoppingCart size={14} />
+              Ir al POS
+            </button>
+          )}
+
           <button
             onClick={() => { setActiveTab('list'); setListFilter('PENDIENTE'); }}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -504,6 +517,14 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products }) => {
           onSelectPaymentCredit={setSelectedPaymentCredit}
           onDeleteCredit={handleDeleteCredit}
           onAddDebtClick={(credit) => setSelectedAddDebtCredit(credit)}
+          onGoToPOS={(credit) => {
+            if (onGoToPOS) {
+              onGoToPOS({
+                displayName: credit.customerName,
+                phone: credit.customerPhone || ''
+              });
+            }
+          }}
         />
       ) : (
         <CreditCreateForm

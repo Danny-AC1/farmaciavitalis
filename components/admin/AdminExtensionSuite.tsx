@@ -191,7 +191,15 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
       ) : subTab === 'credits' ? (
         /* Vista de la Funcionalidad Real: Medicamento Fiado / Créditos */
         <div className="space-y-6">
-          <AdminCredits products={products} />
+          <AdminCredits 
+            products={products} 
+            onGoToPOS={(customer) => {
+              if (customer) {
+                localStorage.setItem('vitalis_pos_preselected_customer', JSON.stringify(customer));
+              }
+              setActiveTab('pos');
+            }}
+          />
         </div>
       ) : subTab === 'treasury' ? (
         /* Vista de la Funcionalidad Real: Tesorería Avanzada */

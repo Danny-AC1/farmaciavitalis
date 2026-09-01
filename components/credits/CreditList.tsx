@@ -10,7 +10,8 @@ import {
   Trash2, 
   Check,
   PlusCircle,
-  TrendingUp
+  TrendingUp,
+  ShoppingCart
 } from 'lucide-react';
 
 interface CreditListProps {
@@ -22,6 +23,7 @@ interface CreditListProps {
   onSelectPaymentCredit: (credit: CreditTicket) => void;
   onDeleteCredit: (credit: CreditTicket) => void;
   onAddDebtClick?: (credit: CreditTicket) => void;
+  onGoToPOS?: (credit: CreditTicket) => void;
 }
 
 export const CreditList: React.FC<CreditListProps> = ({
@@ -33,6 +35,7 @@ export const CreditList: React.FC<CreditListProps> = ({
   onSelectPaymentCredit,
   onDeleteCredit,
   onAddDebtClick,
+  onGoToPOS,
 }) => {
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
@@ -193,6 +196,16 @@ export const CreditList: React.FC<CreditListProps> = ({
 
                 {credit.status === 'PENDIENTE' ? (
                   <div className="flex gap-1.5 flex-wrap justify-end">
+                    {onGoToPOS && (
+                      <button
+                        onClick={() => onGoToPOS(credit)}
+                        title="Abrir en el Punto de Venta (POS) con este cliente preseleccionado"
+                        className="bg-slate-900 hover:bg-slate-800 text-teal-400 border border-slate-700 px-2.5 py-2 rounded-xl text-[11px] font-black flex items-center gap-1 shadow-sm transition-all active:scale-95"
+                      >
+                        <ShoppingCart size={12} />
+                        POS
+                      </button>
+                    )}
                     {onAddDebtClick && (
                       <button
                         onClick={() => onAddDebtClick(credit)}

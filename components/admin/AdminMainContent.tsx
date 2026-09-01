@@ -61,6 +61,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                 <AdminPOS 
                     products={props.products} 
                     users={state.users} 
+                    currentUser={props.currentUser}
                     bundles={state.bundles}
                     posCart={state.posCart} 
                     setPosCart={state.setPosCart} 
@@ -77,6 +78,7 @@ const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, s
                     setShowScanner={state.setShowPosScanner} 
                     setShowCashClosure={state.setShowCashClosure} 
                     onDeleteUser={state.handleDeleteUser} 
+                    setActiveTab={state.setActiveTab}
                 />
             );
         
