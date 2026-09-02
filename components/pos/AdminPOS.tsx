@@ -25,6 +25,7 @@ import POSCustomerDebtAlert from './POSCustomerDebtAlert';
 import POSCreditDrawerModal from './POSCreditDrawerModal';
 import POSCreditCheckoutModal from './POSCreditCheckoutModal';
 import POSCreditQuickPaymentModal from './POSCreditQuickPaymentModal';
+import POSAddDebtModal from './POSAddDebtModal';
 import POSTreasuryDrawerModal from './POSTreasuryDrawerModal';
 
 interface AdminPOSProps {
@@ -104,6 +105,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [showCreditDrawer, setShowCreditDrawer] = useState(false);
   const [showCreditCheckout, setShowCreditCheckout] = useState(false);
   const [selectedCreditForPayment, setSelectedCreditForPayment] = useState<CreditTicket | null>(null);
+  const [selectedCreditForAddDebt, setSelectedCreditForAddDebt] = useState<CreditTicket | null>(null);
 
   // Stream en tiempo real de créditos
   useEffect(() => {
@@ -373,6 +375,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
               onOpenCreditDrawer={() => setShowCreditDrawer(true)}
               onOpenQuickPayment={(credit) => setSelectedCreditForPayment(credit)}
               hasCartItems={posCart.length > 0}
+              onChargeCartAsCredit={() => setSelectedCreditForAddDebt(customerDebts[0])}
             />
           )}
 
@@ -494,6 +497,10 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         onOpenQuickPayment={(credit) => {
           setSelectedCreditForPayment(credit);
         }}
+        onAddDebtFromCart={(credit) => {
+          setShowCreditDrawer(false);
+          setSelectedCreditForAddDebt(credit);
+        }}
         onGoToFullCreditsSuite={() => {
           if (setActiveTab) {
             setActiveTab('extension-suite');
@@ -511,7 +518,26 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         posCart={posCart}
         products={products}
         selectedCustomer={selectedCustomer}
+        credits={credits}
+        onOpenAddDebtModal={(credit) => {
+          setShowCreditCheckout(false);
+          setSelectedCreditForAddDebt(credit);
+        }}
         onSuccess={() => {
+          setPosCart([]);
+          setSelectedCustomer(null);
+        }}
+      />
+
+      {/* 8.1 MODAL: Sumar Carrito del POS a Deuda Existente */}
+      <POSAddDebtModal 
+        isOpen={!!selectedCreditForAddDebt}
+        credit={selectedCreditForAddDebt}
+        posCart={posCart}
+        products={products}
+        onClose={() => setSelectedCreditForAddDebt(null)}
+        onSuccess={() => {
+          setSelectedCreditForAddDebt(null);
           setPosCart([]);
           setSelectedCustomer(null);
         }}
@@ -522,8 +548,11 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         isOpen={!!selectedCreditForPayment}
         credit={selectedCreditForPayment}
         onClose={() => setSelectedCreditForPayment(null)}
-        onPaymentSuccess={() => {
+        onPaymentSuccess={(createdOrder) => {
           setSelectedCreditForPayment(null);
+          if (createdOrder) {
+            setOrderToShare(createdOrder);
+          }
         }}
       />
 

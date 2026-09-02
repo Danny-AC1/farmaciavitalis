@@ -10,22 +10,31 @@ import {
   ChevronDown, 
   ChevronUp, 
   Eye, 
-  EyeOff
+  EyeOff,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 
 interface JournalEntriesTabProps {
   entries: JournalEntry[];
   onOpenNewModal: () => void;
+  onEditEntry: (entry: JournalEntry) => void;
+  onDeleteEntry: (entry: JournalEntry) => void;
 }
 
 export const JournalEntriesTab: React.FC<JournalEntriesTabProps> = ({
   entries,
-  onOpenNewModal
+  onOpenNewModal,
+  onEditEntry,
+  onDeleteEntry
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   // Por defecto TODOS comprimidos (objeto vacío)
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
+  const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
 
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = 
@@ -187,6 +196,33 @@ export const JournalEntriesTab: React.FC<JournalEntriesTabProps> = ({
                       <span className="font-black text-slate-800">${entry.totalDebit.toFixed(2)}</span>
                     </div>
 
+                    {/* Botones de Acción Rápida (Editar y Eliminar) */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditEntry(entry);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition cursor-pointer"
+                        title="Editar comprobante"
+                      >
+                        <Pencil size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEntryToDelete(entry);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                        title="Eliminar comprobante"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
                     {/* Botón Indicador de Despliegue */}
                     <div className="flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-xl">
                       <span>{isExpanded ? 'Ocultar' : 'Ver Detalle'}</span>
@@ -237,22 +273,116 @@ export const JournalEntriesTab: React.FC<JournalEntriesTabProps> = ({
                       </table>
                     </div>
 
-                    {/* Pie del comprobante con metadata */}
-                    <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-medium pt-2 border-t border-slate-50">
-                      <span className="flex items-center gap-1 text-emerald-600 font-bold">
-                        <CheckCircle size={12} /> Estado: {entry.status}
-                      </span>
-                      {entry.createdByName && (
-                        <span>
-                          Registrado por: <strong className="text-slate-600">{entry.createdByName}</strong>
+                    {/* Pie del comprobante con metadata y acciones completas */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-400 font-medium pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                          <CheckCircle size={12} /> Estado: {entry.status}
                         </span>
-                      )}
+                        {entry.createdByName && (
+                          <span>
+                            Registrado por: <strong className="text-slate-600">{entry.createdByName}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Botones de Acción en el pie */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onEditEntry(entry)}
+                          className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Pencil size={13} />
+                          <span>Editar Asiento</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEntryToDelete(entry)}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                          <span>Eliminar Asiento</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Eliminar Asiento */}
+      {entryToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                <AlertTriangle size={20} />
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEntryToDelete(null)}
+                className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-slate-900 tracking-tight">
+                ¿Eliminar Asiento Contable?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Estás a punto de eliminar el comprobante contable del Libro Diario. Esta acción recalculará los saldos contables y los estados financieros.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold">Comprobante:</span>
+                <span className="font-mono font-black text-slate-800 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                  {entryToDelete.entryNumber}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold">Fecha:</span>
+                <span className="font-bold text-slate-700">{entryToDelete.date}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold">Total Asiento:</span>
+                <span className="font-mono font-black text-emerald-600">${entryToDelete.totalDebit.toFixed(2)}</span>
+              </div>
+              <div className="pt-1.5 border-t border-slate-200/60">
+                <span className="text-slate-400 font-bold block text-[10px] uppercase">Concepto:</span>
+                <p className="font-bold text-slate-700 line-clamp-2 mt-0.5">{entryToDelete.concept}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setEntryToDelete(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const toDel = entryToDelete;
+                  setEntryToDelete(null);
+                  onDeleteEntry(toDel);
+                }}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/20 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>Sí, Eliminar Asiento</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

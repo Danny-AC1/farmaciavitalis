@@ -5,6 +5,8 @@ import {
   streamAccounts, 
   streamJournalEntries, 
   addJournalEntryDB, 
+  updateJournalEntryDB,
+  deleteJournalEntryDB,
   saveAccountDB, 
   syncAutomaticAccountingEntries 
 } from '../../../services/db.accounting';
@@ -41,6 +43,7 @@ export const AdminAccountingHub: React.FC<AdminAccountingHubProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
+  const [entryToEdit, setEntryToEdit] = useState<JournalEntry | null>(null);
 
   // Escuchar cuentas y asientos en tiempo real
   useEffect(() => {
@@ -78,9 +81,26 @@ export const AdminAccountingHub: React.FC<AdminAccountingHubProps> = ({
   };
 
   const handleSaveJournalEntry = async (entry: JournalEntry) => {
-    await addJournalEntryDB(entry);
-    setToastMessage(`¡Asiento contable ${entry.entryNumber} registrado con éxito!`);
+    const exists = entries.some(e => e.id === entry.id);
+    if (exists) {
+      await updateJournalEntryDB(entry);
+      setToastMessage(`¡Asiento contable ${entry.entryNumber} actualizado con éxito!`);
+    } else {
+      await addJournalEntryDB(entry);
+      setToastMessage(`¡Asiento contable ${entry.entryNumber} registrado con éxito!`);
+    }
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDeleteJournalEntry = async (entry: JournalEntry) => {
+    try {
+      await deleteJournalEntryDB(entry.id);
+      setToastMessage(`Asiento contable ${entry.entryNumber} eliminado correctamente.`);
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err) {
+      console.error("Error al eliminar asiento:", err);
+      alert("No se pudo eliminar el asiento contable.");
+    }
   };
 
   const handleSaveAccount = async (acc: Account) => {
@@ -183,7 +203,15 @@ export const AdminAccountingHub: React.FC<AdminAccountingHubProps> = ({
       {activeTab === 'journal_entries' && (
         <JournalEntriesTab 
           entries={entries} 
-          onOpenNewModal={() => setShowNewEntryModal(true)} 
+          onOpenNewModal={() => {
+            setEntryToEdit(null);
+            setShowNewEntryModal(true);
+          }}
+          onEditEntry={(entry) => {
+            setEntryToEdit(entry);
+            setShowNewEntryModal(true);
+          }}
+          onDeleteEntry={handleDeleteJournalEntry}
         />
       )}
 
@@ -195,11 +223,16 @@ export const AdminAccountingHub: React.FC<AdminAccountingHubProps> = ({
         />
       )}
 
-      {/* Modal para Crear Asiento Contable Manual */}
+      {/* Modal para Crear o Editar Asiento Contable */}
       {showNewEntryModal && (
         <NewJournalEntryModal
+          key={entryToEdit ? entryToEdit.id : 'new-entry'}
           accounts={accounts}
-          onClose={() => setShowNewEntryModal(false)}
+          entryToEdit={entryToEdit}
+          onClose={() => {
+            setShowNewEntryModal(false);
+            setEntryToEdit(null);
+          }}
           onSubmit={handleSaveJournalEntry}
         />
       )}

@@ -30,7 +30,29 @@ export const sendNotification = async (notification: Omit<Notification, 'id' | '
   }
 };
 
-let previousNotificationIds = new Set<string>();
+const SEEN_NOTIFS_STORAGE_KEY = 'vitalis_seen_notif_ids';
+
+const loadSeenNotificationIds = (): Set<string> => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(SEEN_NOTIFS_STORAGE_KEY) : null;
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const saveSeenNotificationIds = (set: Set<string>) => {
+  try {
+    if (typeof window !== 'undefined') {
+      const arr = Array.from(set).slice(-300);
+      localStorage.setItem(SEEN_NOTIFS_STORAGE_KEY, JSON.stringify(arr));
+    }
+  } catch (e) {
+    console.error('Error saving seen notification ids', e);
+  }
+};
+
+let previousNotificationIds = loadSeenNotificationIds();
 
 export const streamNotifications = (userId: string, callback: (notifications: Notification[]) => void) => {
   const q = query(
@@ -40,13 +62,24 @@ export const streamNotifications = (userId: string, callback: (notifications: No
     limit(50)
   );
 
+  let isFirstSnapshot = true;
+
   return onSnapshot(q, (snapshot) => {
     const notifications = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Notification[];
 
-    // Detect new incoming notifications to trigger native device alert if app is in background/other tab
+    // Silenciar primera carga: no disparar ráfagas de alertas nativas por historial previo
+    if (isFirstSnapshot) {
+      notifications.forEach(n => previousNotificationIds.add(n.id));
+      saveSeenNotificationIds(previousNotificationIds);
+      isFirstSnapshot = false;
+      callback(notifications);
+      return;
+    }
+
+    // Detectar únicamente nuevas notificaciones entrantes en tiempo real
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const notif = { id: change.doc.id, ...change.doc.data() } as Notification;
@@ -61,6 +94,7 @@ export const streamNotifications = (userId: string, callback: (notifications: No
     });
 
     notifications.forEach(n => previousNotificationIds.add(n.id));
+    saveSeenNotificationIds(previousNotificationIds);
 
     callback(notifications);
   });

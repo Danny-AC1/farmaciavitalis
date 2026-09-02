@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Coins, 
@@ -9,12 +9,15 @@ import {
   Check, 
   Banknote, 
   Landmark, 
-  Loader2 
+  Loader2,
+  PlusCircle
 } from 'lucide-react';
 import { CartItem, User, Product, CreditTicket } from '../../types';
-import { printCreditVoucher } from '../../utils/posCreditHelpers';
+import { printCreditVoucher, findCustomerCredits, calculatePendingBalance } from '../../utils/posCreditHelpers';
 import { addCreditDB } from '../../services/db.credits';
 import { updateStockDB } from '../../services/db.products';
+import { addOrderDB } from '../../services/db.orders';
+import { createCreditPaymentOrder } from '../../utils/creditPaymentOrders';
 
 interface POSCreditCheckoutModalProps {
   isOpen: boolean;
@@ -22,6 +25,8 @@ interface POSCreditCheckoutModalProps {
   posCart: CartItem[];
   products: Product[];
   selectedCustomer: User | null;
+  credits?: CreditTicket[];
+  onOpenAddDebtModal?: (credit: CreditTicket) => void;
   onSuccess: () => void;
 }
 
@@ -31,6 +36,8 @@ export const POSCreditCheckoutModal: React.FC<POSCreditCheckoutModalProps> = ({
   posCart,
   products,
   selectedCustomer,
+  credits,
+  onOpenAddDebtModal,
   onSuccess,
 }) => {
   const [customerName, setCustomerName] = useState(selectedCustomer?.displayName || '');
@@ -51,6 +58,12 @@ export const POSCreditCheckoutModal: React.FC<POSCreditCheckoutModalProps> = ({
       setCustomerAddress(selectedCustomer.cedula || '');
     }
   }, [selectedCustomer]);
+
+  // Detectar si el cliente ya tiene deudas pendientes activas
+  const matchingDebts = useMemo(() => {
+    if (!credits || credits.length === 0) return [];
+    return findCustomerCredits({ displayName: customerName, phone: customerPhone, cedula: customerAddress }, credits);
+  }, [customerName, customerPhone, customerAddress, credits]);
 
   if (!isOpen) return null;
 
@@ -109,6 +122,18 @@ export const POSCreditCheckoutModal: React.FC<POSCreditCheckoutModalProps> = ({
 
       // 1. Guardar en Base de Datos de Créditos
       await addCreditDB(newCredit);
+
+      // 1.1 Si dejó abono inicial, registrar el ingreso contable en pedidos y caja
+      if (initialAbono > 0) {
+        const abonoOrder = createCreditPaymentOrder(
+          newCredit,
+          initialAbono,
+          initialPaymentMethod,
+          undefined,
+          creditNote.trim() ? `Abono inicial: ${creditNote}` : 'Abono inicial en despacho'
+        );
+        await addOrderDB(abonoOrder);
+      }
 
       // 2. Descontar Stock de Productos de la Farmacia
       for (const item of posCart) {
@@ -169,6 +194,39 @@ export const POSCreditCheckoutModal: React.FC<POSCreditCheckoutModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {/* Alerta de deuda existente detectada */}
+        {matchingDebts.length > 0 && (
+          <div className="bg-amber-50 border-b border-amber-200 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Coins size={15} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-amber-950">
+                  {customerName || 'Este cliente'} ya tiene deuda pendiente: <span className="font-mono text-rose-700 font-black">${calculatePendingBalance(matchingDebts).toFixed(2)}</span>
+                </p>
+                <p className="text-[10px] text-amber-800">
+                  Puedes sumar estos productos a su cuenta activa en lugar de crear un ticket nuevo.
+                </p>
+              </div>
+            </div>
+
+            {onOpenAddDebtModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAddDebtModal(matchingDebts[0]);
+                }}
+                className="w-full sm:w-auto px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-black rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <PlusCircle size={13} />
+                <span>Sumar a Deuda Existente</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Contenido Scrolleable */}
         <form onSubmit={handleConfirmCredit} className="flex-1 overflow-y-auto p-5 space-y-4">

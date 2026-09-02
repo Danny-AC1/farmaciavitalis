@@ -138,6 +138,59 @@ export const addJournalEntryDB = async (entry: JournalEntry): Promise<void> => {
 };
 
 /**
+ * Actualizar un Asiento Contable existente (Partida Doble)
+ */
+export const updateJournalEntryDB = async (entry: JournalEntry): Promise<void> => {
+  // Validar partida doble estricta
+  const diff = Math.abs(entry.totalDebit - entry.totalCredit);
+  if (diff > 0.01) {
+    throw new Error(`El asiento contable no está cuadrado. Debe ($${entry.totalDebit.toFixed(2)}) != Haber ($${entry.totalCredit.toFixed(2)})`);
+  }
+
+  try {
+    const docRef = doc(firestore, ENTRIES_COLLECTION, entry.id);
+    await setDoc(docRef, cleanData(entry), { merge: true });
+  } catch (err) {
+    console.error("Error al actualizar asiento en Firestore, actualizando en local:", err);
+  }
+
+  // Actualizar copia local
+  try {
+    const local = localStorage.getItem('vitalis_accounting_entries');
+    if (local) {
+      const list: JournalEntry[] = JSON.parse(local);
+      const updated = list.map(e => e.id === entry.id ? entry : e);
+      localStorage.setItem('vitalis_accounting_entries', JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+/**
+ * Eliminar un Asiento Contable
+ */
+export const deleteJournalEntryDB = async (entryId: string): Promise<void> => {
+  try {
+    const docRef = doc(firestore, ENTRIES_COLLECTION, entryId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.error("Error al eliminar asiento en Firestore, eliminando en local:", err);
+  }
+
+  try {
+    const local = localStorage.getItem('vitalis_accounting_entries');
+    if (local) {
+      const list: JournalEntry[] = JSON.parse(local);
+      const filtered = list.filter(e => e.id !== entryId);
+      localStorage.setItem('vitalis_accounting_entries', JSON.stringify(filtered));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+/**
  * Guardar o actualizar una Cuenta Contable
  */
 export const saveAccountDB = async (account: Account): Promise<void> => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, ChevronRight, Coins } from 'lucide-react';
+import { CreditCard, ChevronRight, Coins, PlusCircle } from 'lucide-react';
 import { CreditTicket, User } from '../../types';
 import { calculatePendingBalance } from '../../utils/posCreditHelpers';
 
@@ -17,6 +17,8 @@ export const POSCustomerDebtAlert: React.FC<POSCustomerDebtAlertProps> = ({
   matchingCredits,
   onOpenCreditDrawer,
   onOpenQuickPayment,
+  onChargeCartAsCredit,
+  hasCartItems
 }) => {
   if (!matchingCredits || matchingCredits.length === 0) return null;
 
@@ -49,14 +51,29 @@ export const POSCustomerDebtAlert: React.FC<POSCustomerDebtAlertProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end shrink-0">
+      <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto justify-end shrink-0">
         
+        {/* Botón Sumar Carrito a Deuda (visible si hay items en carrito) */}
+        {hasCartItems && onChargeCartAsCredit && (
+          <button
+            type="button"
+            onClick={onChargeCartAsCredit}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black rounded-lg transition-all shadow-xs flex items-center gap-1.5 border border-indigo-700 cursor-pointer"
+            title="Cargar y sumar los medicamentos del carrito del POS a esta cuenta fiada"
+            id="pos-add-cart-to-debt-btn"
+          >
+            <PlusCircle size={13} className="text-indigo-200" />
+            <span>+ Sumar Carrito a Deuda</span>
+          </button>
+        )}
+
         {/* Botón Cobrar Abono */}
         <button
           type="button"
           onClick={() => onOpenQuickPayment(primaryCredit)}
-          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg transition-all shadow-xs flex items-center gap-1 active:scale-95"
+          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
           title="Registrar un abono o cobrar esta deuda en caja"
+          id="pos-debt-alert-abono-btn"
         >
           <CreditCard size={12} />
           <span>Cobrar Abono</span>
@@ -66,8 +83,9 @@ export const POSCustomerDebtAlert: React.FC<POSCustomerDebtAlertProps> = ({
         <button
           type="button"
           onClick={onOpenCreditDrawer}
-          className="px-2.5 py-1.5 bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 shadow-xs"
+          className="px-2.5 py-1.5 bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 shadow-xs cursor-pointer"
           title="Ver detalle de compras fiadas de este cliente"
+          id="pos-debt-alert-view-btn"
         >
           <span>Ver Ficha ({matchingCredits.length})</span>
           <ChevronRight size={12} />

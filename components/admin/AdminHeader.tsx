@@ -29,6 +29,9 @@ interface AdminHeaderProps {
     currentUserRole?: User['role'];
 }
 
+const DISMISSED_STORAGE_KEY = 'vitalis_admin_dismissed_ids';
+const LAST_SEEN_STORAGE_KEY = 'vitalis_admin_last_seen_timestamp';
+
 const AdminHeader: React.FC<AdminHeaderProps> = ({
     onMenuClick, showNotifications, setShowNotifications, pendingOrders,
     lowStockItems, pendingBookings, unreadChats = [], onSelectChat,
@@ -42,14 +45,47 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     
     const [activeFilter, setActiveFilter] = useState<'ALL' | 'ORDERS' | 'STOCK' | 'BOOKINGS' | 'CHAT'>('ALL');
     const [toasts, setToasts] = useState<VitalisToast[]>([]);
-    const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+
+    // Persistencia en LocalStorage de las notificaciones ya vistas o descartadas
+    const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
+      try {
+        const raw = typeof window !== 'undefined' ? localStorage.getItem(DISMISSED_STORAGE_KEY) : null;
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    });
+
     const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
 
     const prevOrdersRef = useRef<string[]>([]);
     const prevLowStockRef = useRef<string[]>([]);
     const prevBookingsRef = useRef<string[]>([]);
     const prevChatsSignaturesRef = useRef<Record<string, string>>({});
-    const isFirstRender = useRef(true);
+    
+    // Control de carga inicial y agrupación inteligente (Debounce / Batching)
+    const isInitialPhaseRef = useRef(true);
+    const initialBatchSummaryShownRef = useRef(false);
+
+    useEffect(() => {
+      // Período de gracia inicial para absorber la hidratación de datos sin saturar
+      const timer = setTimeout(() => {
+        isInitialPhaseRef.current = false;
+      }, 1500);
+      return () => clearTimeout(timer);
+    }, []);
+
+    // Helper para persistir IDs descartados
+    const updateDismissedIds = (newIds: string[]) => {
+      setDismissedIds(newIds);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(newIds.slice(-500)));
+        }
+      } catch (e) {
+        console.error('Error guardando notificaciones descartadas:', e);
+      }
+    };
 
     // Verificar permiso de notificaciones push de escritorio
     useEffect(() => {
@@ -80,7 +116,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       localStorage.setItem('vitalis_admin_sound', String(soundEnabled));
     }, [soundEnabled]);
 
-    // Escuchar cambios para emitir alertas acústicas, visuales y Push
+    // Escuchar cambios para emitir alertas acústicas, visuales y Push con Agrupación Inteligente (Batching)
     useEffect(() => {
       const currentOrderIds = pendingOrders.map(o => o.id);
       const currentLowStockIds = lowStockItems.map(p => p.id);
@@ -92,113 +128,172 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         currentChatSignatures[c.id] = `${c.lastMessageText || ''}_${timeKey}`;
       });
 
-      if (isFirstRender.current) {
+      // 1. FASE DE CARGA INICIAL: Silencio de ráfaga y resumen único consolidado
+      if (isInitialPhaseRef.current) {
         prevOrdersRef.current = currentOrderIds;
         prevLowStockRef.current = currentLowStockIds;
         prevBookingsRef.current = currentBookingIds;
         prevChatsSignaturesRef.current = currentChatSignatures;
-        isFirstRender.current = false;
+
+        // Calcular los elementos activos no descartados en sesiones pasadas
+        const activeOrd = pendingOrders.filter(o => !dismissedIds.includes(`order-${o.id}`));
+        const activeStk = lowStockItems.filter(p => !dismissedIds.includes(`stock-${p.id}`));
+        const activeBkg = pendingBookings.filter(b => !dismissedIds.includes(`booking-${b.id}`));
+        const activeCht = unreadChats.filter(c => !dismissedIds.includes(`chat-${c.id}`));
+
+        const totalInitialActive = activeOrd.length + activeStk.length + activeBkg.length + activeCht.length;
+
+        // Si hay alertas activas al iniciar y no se ha mostrado el resumen de esta sesión
+        if (totalInitialActive > 0 && !initialBatchSummaryShownRef.current) {
+          initialBatchSummaryShownRef.current = true;
+
+          const parts: string[] = [];
+          if (activeOrd.length > 0) {
+            parts.push(`${activeOrd.length} pedido${activeOrd.length > 1 ? 's' : ''} pendiente${activeOrd.length > 1 ? 's' : ''}`);
+          }
+          if (activeStk.length > 0) {
+            parts.push(`${activeStk.length} alerta${activeStk.length > 1 ? 's' : ''} de inventario`);
+          }
+          if (activeBkg.length > 0) {
+            parts.push(`${activeBkg.length} cita${activeBkg.length > 1 ? 's' : ''} médica${activeBkg.length > 1 ? 's' : ''}`);
+          }
+          if (activeCht.length > 0) {
+            parts.push(`${activeCht.length} chat${activeCht.length > 1 ? 's' : ''} de soporte`);
+          }
+
+          const summaryText = parts.length > 1
+            ? `Tienes ${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`
+            : `Tienes ${parts[0]}`;
+
+          // Mostrar UN SOLO banner consolidado (sin ruido de audio ensordecedor ni bloqueo de pantalla)
+          setToasts([{
+            id: `toast-summary-${Date.now()}`,
+            type: 'SUMMARY',
+            title: 'Resumen de Actividad',
+            desc: summaryText,
+            actionLabel: 'Ver Alertas',
+            tab: activeOrd.length > 0 ? 'orders' : 'stock_quick'
+          }]);
+        }
         return;
       }
 
-      const newOrders = pendingOrders.filter(o => !prevOrdersRef.current.includes(o.id));
-      const newLowStocks = lowStockItems.filter(p => !prevLowStockRef.current.includes(p.id));
-      const newBookings = pendingBookings.filter(b => !prevBookingsRef.current.includes(b.id));
-
+      // 2. FASE EN TIEMPO REAL: Detectar novedades genuinas
+      const newOrders = pendingOrders.filter(o => !prevOrdersRef.current.includes(o.id) && !dismissedIds.includes(`order-${o.id}`));
+      const newLowStocks = lowStockItems.filter(p => !prevLowStockRef.current.includes(p.id) && !dismissedIds.includes(`stock-${p.id}`));
+      const newBookings = pendingBookings.filter(b => !prevBookingsRef.current.includes(b.id) && !dismissedIds.includes(`booking-${b.id}`));
       const updatedChats = unreadChats.filter(c => {
         const prevSig = prevChatsSignaturesRef.current[c.id];
         const currentSig = currentChatSignatures[c.id];
-        return !prevSig || prevSig !== currentSig;
+        return (!prevSig || prevSig !== currentSig) && !dismissedIds.includes(`chat-${c.id}`);
       });
 
-      let hasNew = false;
-      const createdToasts: VitalisToast[] = [];
+      const totalNewEvents = newOrders.length + newLowStocks.length + newBookings.length + updatedChats.length;
 
-      newOrders.forEach(o => {
-        hasNew = true;
-        createdToasts.push({
-          id: `toast-order-${o.id}`,
-          type: 'ORDER',
-          title: 'Nuevo Pedido Web',
-          desc: `${o.customerName} • Total: $${o.total.toFixed(2)}`,
-          actionLabel: 'Ver Orden',
-          tab: 'orders'
-        });
-        if (soundEnabled) notificationAudio.playOrderChime();
-        if (pushPermission === 'granted') {
-          triggerNativeNotification('🛒 Nuevo Pedido Web', {
-            body: `${o.customerName} - Total: $${o.total.toFixed(2)}`,
-            tag: `vitalis-admin-order-${o.id}`
-          });
-        }
-      });
+      if (totalNewEvents > 0) {
+        // Agrupación inteligente para ráfagas entrantes simultáneas (> 1 elemento)
+        if (totalNewEvents > 1) {
+          const parts: string[] = [];
+          if (newOrders.length > 0) parts.push(`${newOrders.length} pedido${newOrders.length > 1 ? 's' : ''}`);
+          if (newLowStocks.length > 0) parts.push(`${newLowStocks.length} alerta${newLowStocks.length > 1 ? 's' : ''} de stock`);
+          if (newBookings.length > 0) parts.push(`${newBookings.length} cita${newBookings.length > 1 ? 's' : ''}`);
+          if (updatedChats.length > 0) parts.push(`${updatedChats.length} mensaje${updatedChats.length > 1 ? 's' : ''}`);
 
-      newLowStocks.forEach(p => {
-        hasNew = true;
-        createdToasts.push({
-          id: `toast-stock-${p.id}`,
-          type: 'STOCK',
-          title: 'Stock Crítico 🚨',
-          desc: `${p.name} se está agotando (${p.stock} un.)`,
-          actionLabel: 'Reabastecer',
-          tab: 'stock_quick'
-        });
-        if (soundEnabled) notificationAudio.playAlertTone();
-        if (pushPermission === 'granted') {
-          triggerNativeNotification('⚠️ Stock Crítico', {
-            body: `${p.name} (${p.stock} un. restantes)`,
-            tag: `vitalis-admin-stock-${p.id}`
-          });
-        }
-      });
+          const batchDesc = `Se registraron ${parts.join(' y ')}`;
 
-      newBookings.forEach(b => {
-        hasNew = true;
-        createdToasts.push({
-          id: `toast-booking-${b.id}`,
-          type: 'BOOKING',
-          title: 'Nueva Cita Médica 📅',
-          desc: `${b.patientName} • ${b.serviceName}`,
-          actionLabel: 'Ver Agenda',
-          tab: 'bookings'
-        });
-        if (soundEnabled) notificationAudio.playAlertTone();
-        if (pushPermission === 'granted') {
-          triggerNativeNotification('📅 Nueva Cita Médica', {
-            body: `${b.patientName} - ${b.serviceName}`,
-            tag: `vitalis-admin-booking-${b.id}`
-          });
-        }
-      });
-
-      // Procesar mensajes de chat recibidos
-      updatedChats.forEach(c => {
-        hasNew = true;
-        if (soundEnabled) notificationAudio.playChatPing();
-        if (pushPermission === 'granted') {
-          triggerNativeNotification(`💬 Soporte: ${c.userDisplayName || 'Cliente'}`, {
-            body: c.lastMessageText || 'Nuevo mensaje recibido',
-            tag: `vitalis-admin-chat-${c.id}`,
-            requireInteraction: true
-          });
-        }
-      });
-
-      if (hasNew) {
-        setToasts(prevToasts => {
-          let nextToasts = [...prevToasts];
-
-          createdToasts.forEach(t => {
-            const existsIndex = nextToasts.findIndex(x => x.id === t.id);
-            if (existsIndex >= 0) {
-              nextToasts[existsIndex] = t;
-            } else {
-              nextToasts.push(t);
+          setToasts(prev => [
+            ...prev.filter(t => t.type !== 'SUMMARY'),
+            {
+              id: `toast-batch-${Date.now()}`,
+              type: 'SUMMARY',
+              title: 'Nuevas Alertas Recibidas',
+              desc: batchDesc,
+              actionLabel: 'Ver Alertas',
+              tab: newOrders.length > 0 ? 'orders' : 'stock_quick'
             }
-          });
+          ]);
 
-          return nextToasts;
-        });
+          if (soundEnabled) notificationAudio.playOrderChime();
+          if (pushPermission === 'granted') {
+            triggerNativeNotification('Alertas Vitalis Recibidas 🔔', {
+              body: batchDesc,
+              tag: `vitalis-admin-batch-${Date.now()}`
+            });
+          }
+        } else {
+          // Evento individual puntual en tiempo real
+          if (newOrders.length === 1) {
+            const o = newOrders[0];
+            setToasts(prev => [...prev, {
+              id: `toast-order-${o.id}`,
+              type: 'ORDER',
+              title: 'Nuevo Pedido Web',
+              desc: `${o.customerName} • Total: $${o.total.toFixed(2)}`,
+              actionLabel: 'Ver Orden',
+              tab: 'orders'
+            }]);
+            if (soundEnabled) notificationAudio.playOrderChime();
+            if (pushPermission === 'granted') {
+              triggerNativeNotification('🛒 Nuevo Pedido Web', {
+                body: `${o.customerName} - Total: $${o.total.toFixed(2)}`,
+                tag: `vitalis-admin-order-${o.id}`
+              });
+            }
+          } else if (newLowStocks.length === 1) {
+            const p = newLowStocks[0];
+            setToasts(prev => [...prev, {
+              id: `toast-stock-${p.id}`,
+              type: 'STOCK',
+              title: 'Stock Crítico 🚨',
+              desc: `${p.name} se está agotando (${p.stock} un.)`,
+              actionLabel: 'Reabastecer',
+              tab: 'stock_quick'
+            }]);
+            if (soundEnabled) notificationAudio.playAlertTone();
+            if (pushPermission === 'granted') {
+              triggerNativeNotification('⚠️ Stock Crítico', {
+                body: `${p.name} (${p.stock} un. restantes)`,
+                tag: `vitalis-admin-stock-${p.id}`
+              });
+            }
+          } else if (newBookings.length === 1) {
+            const b = newBookings[0];
+            setToasts(prev => [...prev, {
+              id: `toast-booking-${b.id}`,
+              type: 'BOOKING',
+              title: 'Nueva Cita Médica 📅',
+              desc: `${b.patientName} • ${b.serviceName}`,
+              actionLabel: 'Ver Agenda',
+              tab: 'bookings'
+            }]);
+            if (soundEnabled) notificationAudio.playAlertTone();
+            if (pushPermission === 'granted') {
+              triggerNativeNotification('📅 Nueva Cita Médica', {
+                body: `${b.patientName} - ${b.serviceName}`,
+                tag: `vitalis-admin-booking-${b.id}`
+              });
+            }
+          } else if (updatedChats.length === 1) {
+            const c = updatedChats[0];
+            setToasts(prev => [...prev, {
+              id: `toast-chat-${c.id}`,
+              type: 'CHAT',
+              title: `💬 Soporte: ${c.userDisplayName || 'Cliente'}`,
+              desc: c.lastMessageText || 'Nuevo mensaje recibido',
+              actionLabel: 'Responder',
+              tab: 'support',
+              chatId: c.id
+            }]);
+            if (soundEnabled) notificationAudio.playChatPing();
+            if (pushPermission === 'granted') {
+              triggerNativeNotification(`💬 Soporte: ${c.userDisplayName || 'Cliente'}`, {
+                body: c.lastMessageText || 'Nuevo mensaje recibido',
+                tag: `vitalis-admin-chat-${c.id}`,
+                requireInteraction: true
+              });
+            }
+          }
+        }
       }
 
       // Actualizar referencias de comparación
@@ -206,7 +301,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       prevLowStockRef.current = currentLowStockIds;
       prevBookingsRef.current = currentBookingIds;
       prevChatsSignaturesRef.current = currentChatSignatures;
-    }, [pendingOrders, lowStockItems, pendingBookings, unreadChats, soundEnabled, pushPermission]);
+    }, [pendingOrders, lowStockItems, pendingBookings, unreadChats, soundEnabled, pushPermission, dismissedIds]);
 
     // Manejar el cierre de clics externos
     useEffect(() => {
@@ -224,12 +319,13 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       setToasts(prev => prev.filter(t => t.id !== id));
     };
 
-    // Descartar notificación individual
+    // Descartar notificación individual y guardar en LocalStorage
     const dismissNotification = (id: string) => {
-      setDismissedIds(prev => [...prev, id]);
+      const next = Array.from(new Set([...dismissedIds, id]));
+      updateDismissedIds(next);
     };
 
-    // Descartar todas las activas
+    // Descartar todas las activas y persistir en LocalStorage
     const dismissAllNotifications = () => {
       const allIds = [
         ...activeOrders.map(o => `order-${o.id}`),
@@ -237,7 +333,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         ...activeBookings.map(b => `booking-${b.id}`),
         ...activeChats.map(c => `chat-${c.id}`)
       ];
-      setDismissedIds(prev => [...prev, ...allIds]);
+      const next = Array.from(new Set([...dismissedIds, ...allIds]));
+      updateDismissedIds(next);
+      try {
+        localStorage.setItem(LAST_SEEN_STORAGE_KEY, String(Date.now()));
+      } catch (e) {
+        console.error(e);
+      }
+      setToasts([]);
     };
 
     // Filtrar notificaciones para el panel
@@ -314,9 +417,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     const currentList = filteredNotifications();
 
     const handleToastAction = (toast: VitalisToast) => {
-      if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
+      if (toast.type === 'SUMMARY') {
+        setShowNotifications(true);
+        if (toast.tab && setActiveTab) {
+          setActiveTab(toast.tab);
+        }
+      } else if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
         onSelectChat(toast.chatId);
-      } else {
+      } else if (toast.tab && setActiveTab) {
         setActiveTab(toast.tab);
       }
       removeToast(toast.id);

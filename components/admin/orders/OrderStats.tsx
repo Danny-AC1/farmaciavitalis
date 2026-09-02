@@ -4,8 +4,8 @@ import { Order } from '../../../types';
 
 interface OrderStatsProps {
   orders: Order[];
-  onQuickFilter: (status: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED') => void;
-  activeFilter: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+  onQuickFilter: (status: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'CREDIT_PAYMENT') => void;
+  activeFilter: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'CREDIT_PAYMENT';
 }
 
 export const OrderStats: React.FC<OrderStatsProps> = ({ orders, onQuickFilter, activeFilter }) => {

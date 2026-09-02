@@ -1,14 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { ClipboardList, Calendar, ChevronDown, ChevronRight, Calculator, DollarSign } from 'lucide-react';
+import { ClipboardList, Calendar, ChevronDown, ChevronRight, Calculator, DollarSign, Wallet } from 'lucide-react';
 import { Order, Product } from '../../types';
 
 // Modular Sub-Components
 import { OrderStats } from './orders/OrderStats';
 import { OrderFilters, FilterState } from './orders/OrderFilters';
 import { OrderCard } from './orders/OrderCard';
+import { CreditPaymentOrderCard } from './orders/CreditPaymentOrderCard';
 import { OrderDetailModal } from './orders/OrderDetailModal';
 import { printOrderTicket } from './orders/TicketPrinter';
 import { ReceiptShareModal } from '../modals/ReceiptShareModal';
+import { isCreditPaymentOrder } from '../../utils/creditPaymentOrders';
 
 interface AdminOrdersProps {
   orders: Order[];
@@ -54,7 +56,16 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       // Status Filter
-      const matchesStatus = filters.status === 'ALL' || order.status === filters.status;
+      let matchesStatus = true;
+      if (filters.status === 'ALL') {
+        matchesStatus = true;
+      } else if (filters.status === 'CREDIT_PAYMENT') {
+        matchesStatus = isCreditPaymentOrder(order);
+      } else if (filters.status === 'DELIVERED') {
+        matchesStatus = order.status === 'DELIVERED' && !isCreditPaymentOrder(order);
+      } else {
+        matchesStatus = order.status === filters.status && !isCreditPaymentOrder(order);
+      }
 
       // Search Filter (matches name, partial ID, phone or address)
       const query = filters.search.toLowerCase();
@@ -160,6 +171,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
           const totalDay = dayOrders.reduce((sum, o) => sum + o.total, 0);
           const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
           const inTransitCount = dayOrders.filter(o => o.status === 'IN_TRANSIT').length;
+          const abonosCount = dayOrders.filter(isCreditPaymentOrder).length;
 
           return (
             <div key={dateKey} className="bg-white rounded-[2rem] border border-slate-100 shadow-xs overflow-hidden">
@@ -200,6 +212,12 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
                           {inTransitCount} EN CAMINO
                         </span>
                       )}
+                      {abonosCount > 0 && (
+                        <span className="bg-teal-50 border border-teal-200 text-teal-700 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1">
+                          <Wallet size={10} />
+                          {abonosCount} {abonosCount === 1 ? 'ABONO' : 'ABONOS'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -228,15 +246,26 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
                 <div className="p-5 pt-0 border-t border-slate-50 animate-in slide-in-from-top-1 duration-250">
                   <div className="grid grid-cols-1 gap-4 mt-5">
                     {dayOrders.map(order => (
-                      <OrderCard
-                        key={order.id}
-                        order={order}
-                        onSelect={(ord) => setSelectedOrder(ord)}
-                        onUpdateStatus={(id, status, ord) => onUpdateStatus(id, status, ord)}
-                        onPrint={(ord) => printOrderTicket(ord)}
-                        onShare={(ord) => setOrderToShare(ord)}
-                        onDelete={handleDeleteOrder}
-                      />
+                      isCreditPaymentOrder(order) ? (
+                        <CreditPaymentOrderCard
+                          key={order.id}
+                          order={order}
+                          onSelect={(ord) => setSelectedOrder(ord)}
+                          onPrint={(ord) => printOrderTicket(ord)}
+                          onShare={(ord) => setOrderToShare(ord)}
+                          onDelete={handleDeleteOrder}
+                        />
+                      ) : (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          onSelect={(ord) => setSelectedOrder(ord)}
+                          onUpdateStatus={(id, status, ord) => onUpdateStatus(id, status, ord)}
+                          onPrint={(ord) => printOrderTicket(ord)}
+                          onShare={(ord) => setOrderToShare(ord)}
+                          onDelete={handleDeleteOrder}
+                        />
+                      )
                     ))}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   X, 
   Share2, 
@@ -10,7 +10,11 @@ import {
   Smartphone, 
   Printer, 
   Receipt,
-  Phone
+  Phone,
+  Image as ImageIcon,
+  Download,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Order } from '../../types';
 import { 
@@ -22,6 +26,12 @@ import {
   executeNativeShare
 } from '../../utils/receiptSharing';
 import { printPOSTicket } from '../../utils/posTicketPrinter';
+import { DigitalReceiptImageCard } from './receipt/DigitalReceiptImageCard';
+import { 
+  downloadReceiptImage, 
+  copyReceiptImageToClipboard, 
+  shareReceiptImageNative 
+} from '../../utils/receiptImageGenerator';
 
 interface ReceiptShareModalProps {
   isOpen: boolean;
@@ -36,11 +46,17 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
 }) => {
   if (!isOpen || !order) return null;
 
+  const cardRef = useRef<HTMLDivElement>(null);
   const [phoneOverride, setPhoneOverride] = useState<string>(order.customerPhone || '');
   const [emailOverride, setEmailOverride] = useState<string>(order.customerEmail || '');
   const [copied, setCopied] = useState<boolean>(false);
-  const [activePreviewTab, setActivePreviewTab] = useState<'visual' | 'text'>('visual');
+  const [copiedImage, setCopiedImage] = useState<boolean>(false);
+  const [activePreviewTab, setActivePreviewTab] = useState<'image' | 'visual' | 'text'>('image');
   const [justSharedNative, setJustSharedNative] = useState<boolean>(false);
+
+  // Estados para generación y compartir de imagen
+  const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
+  const [imageNotice, setImageNotice] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
 
   const formattedReceiptText = useMemo(() => {
     return generateReceiptText(order);
@@ -96,6 +112,85 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
 
   const handlePrint = () => {
     printPOSTicket(order);
+  };
+
+  // 1. Compartir Imagen directamente
+  const handleShareImage = async () => {
+    if (!cardRef.current) return;
+    setIsProcessingImage(true);
+    setImageNotice({ type: 'info', text: 'Preparando imagen en alta resolución...' });
+    
+    try {
+      const res = await shareReceiptImageNative(cardRef.current, order);
+      if (res.shared) {
+        setImageNotice({ type: 'success', text: '¡Comprobante compartido correctamente!' });
+      } else if (res.reason === 'NOT_SUPPORTED') {
+        // En navegadores de escritorio sin Web Share de archivos, descargamos la imagen y abrimos WhatsApp
+        await downloadReceiptImage(cardRef.current, order.id.slice(-6).toUpperCase());
+        setImageNotice({ 
+          type: 'info', 
+          text: 'Imagen descargada. Abriendo WhatsApp para que puedas adjuntarla...' 
+        });
+        setTimeout(() => {
+          handleWhatsApp();
+        }, 1200);
+      }
+    } catch (err) {
+      console.error(err);
+      setImageNotice({ type: 'error', text: 'No se pudo compartir la imagen. Usa el botón de descarga.' });
+    } finally {
+      setIsProcessingImage(false);
+      setTimeout(() => setImageNotice(null), 5000);
+    }
+  };
+
+  // 2. Descargar Imagen PNG
+  const handleDownloadImage = async () => {
+    if (!cardRef.current) return;
+    setIsProcessingImage(true);
+    setImageNotice({ type: 'info', text: 'Generando archivo de imagen PNG...' });
+
+    try {
+      await downloadReceiptImage(cardRef.current, order.id.slice(-6).toUpperCase());
+      setImageNotice({ type: 'success', text: '¡Imagen PNG descargada con éxito!' });
+    } catch (err) {
+      console.error(err);
+      setImageNotice({ type: 'error', text: 'Error al generar la descarga de la imagen.' });
+    } finally {
+      setIsProcessingImage(false);
+      setTimeout(() => setImageNotice(null), 4000);
+    }
+  };
+
+  // 3. Copiar Imagen al Portapapeles
+  const handleCopyImage = async () => {
+    if (!cardRef.current) return;
+    setIsProcessingImage(true);
+    setImageNotice({ type: 'info', text: 'Copiando imagen al portapapeles...' });
+
+    try {
+      const success = await copyReceiptImageToClipboard(cardRef.current);
+      if (success) {
+        setCopiedImage(true);
+        setImageNotice({ 
+          type: 'success', 
+          text: '¡Imagen copiada! Ve a WhatsApp Web o chat y presiona Ctrl + V para pegarla.' 
+        });
+        setTimeout(() => setCopiedImage(false), 3500);
+      } else {
+        await downloadReceiptImage(cardRef.current, order.id.slice(-6).toUpperCase());
+        setImageNotice({ 
+          type: 'info', 
+          text: 'Tu navegador no admite copiado directo. Se ha descargado la imagen PNG.' 
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setImageNotice({ type: 'error', text: 'Error al copiar la imagen.' });
+    } finally {
+      setIsProcessingImage(false);
+      setTimeout(() => setImageNotice(null), 4500);
+    }
   };
 
   const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
@@ -244,10 +339,97 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
             </div>
           </div>
 
+          {/* Notificación de Estado de Imagen */}
+          {imageNotice && (
+            <div className={`p-3 rounded-2xl text-xs font-bold flex items-center gap-2 transition animate-in fade-in ${
+              imageNotice.type === 'success' 
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                : imageNotice.type === 'error'
+                ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                : 'bg-teal-50 text-teal-800 border border-teal-200'
+            }`}>
+              {imageNotice.type === 'success' ? (
+                <Check size={16} className="text-emerald-600 shrink-0" />
+              ) : (
+                <Sparkles size={16} className="text-teal-600 shrink-0" />
+              )}
+              <span>{imageNotice.text}</span>
+            </div>
+          )}
+
+          {/* Sección Destacada: Compartir Comprobante como Imagen */}
+          <div className="bg-gradient-to-br from-teal-950 via-slate-900 to-slate-950 p-4 sm:p-5 rounded-2xl text-white shadow-lg border border-teal-500/30 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shrink-0">
+                  <ImageIcon size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800/60">
+                      COMPROBANTE VISUAL
+                    </span>
+                    <span className="text-xs font-black tracking-tight text-white">Compartir como Imagen</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Genera el comprobante oficial en foto HD para enviar por WhatsApp o redes sociales.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              {/* Botón 1: Compartir Imagen */}
+              <button
+                type="button"
+                onClick={handleShareImage}
+                disabled={isProcessingImage}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isProcessingImage ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Share2 size={14} className="text-emerald-200" />
+                )}
+                <span>Compartir Imagen</span>
+              </button>
+
+              {/* Botón 2: Copiar Imagen */}
+              <button
+                type="button"
+                onClick={handleCopyImage}
+                disabled={isProcessingImage}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition active:scale-95 disabled:opacity-50 border cursor-pointer ${
+                  copiedImage 
+                    ? 'bg-emerald-700/80 border-emerald-500 text-white' 
+                    : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
+                }`}
+              >
+                {copiedImage ? (
+                  <Check size={14} className="text-emerald-300" />
+                ) : (
+                  <Copy size={14} className="text-teal-300" />
+                )}
+                <span>{copiedImage ? '¡Imagen Copiada!' : 'Copiar Imagen (Ctrl+V)'}</span>
+              </button>
+
+              {/* Botón 3: Descargar Imagen */}
+              <button
+                type="button"
+                onClick={handleDownloadImage}
+                disabled={isProcessingImage}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl text-xs font-black transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Download size={14} className="text-teal-300" />
+                <span>Descargar Imagen PNG</span>
+              </button>
+            </div>
+          </div>
+
           {/* Opciones Adicionales de Compartición */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
             
-            {/* Compartir Nativo (Móvil / Web Share) */}
+            {/* Compartir Nativo (Móvil / Web Share texto) */}
             {hasNativeShare && (
               <button
                 onClick={handleNativeShare}
@@ -268,7 +450,7 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
               }`}
             >
               {copied ? <Check size={14} /> : <Copy size={14} className="text-slate-500" />}
-              <span>{copied ? '¡Texto Copiado!' : 'Copiar Texto Completo'}</span>
+              <span>{copied ? '¡Texto Copiado!' : 'Copiar Texto'}</span>
             </button>
 
             {/* Imprimir Ticket Físico */}
@@ -281,6 +463,13 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
             </button>
           </div>
 
+          {/* Renderizado de respaldo off-screen si no estamos en la pestaña de imagen para que siempre exista el ref */}
+          {activePreviewTab !== 'image' && (
+            <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+              <DigitalReceiptImageCard order={order} cardRef={cardRef} />
+            </div>
+          )}
+
           {/* Vista Previa del Comprobante */}
           <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50">
             <div className="flex items-center justify-between p-3 bg-slate-100/70 border-b border-slate-200/80">
@@ -291,10 +480,17 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
 
               <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 text-[10px] font-black">
                 <button
+                  onClick={() => setActivePreviewTab('image')}
+                  className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 ${activePreviewTab === 'image' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <ImageIcon size={11} />
+                  <span>Imagen HD</span>
+                </button>
+                <button
                   onClick={() => setActivePreviewTab('visual')}
                   className={`px-2.5 py-1 rounded-md transition ${activePreviewTab === 'visual' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  Visual
+                  Ticket Térmico
                 </button>
                 <button
                   onClick={() => setActivePreviewTab('text')}
@@ -305,8 +501,12 @@ export const ReceiptShareModal: React.FC<ReceiptShareModalProps> = ({
               </div>
             </div>
 
-            <div className="p-4 max-h-56 overflow-y-auto custom-scrollbar">
-              {activePreviewTab === 'visual' ? (
+            <div className="p-4 max-h-72 overflow-y-auto custom-scrollbar">
+              {activePreviewTab === 'image' ? (
+                <div className="flex justify-center bg-slate-200/50 p-3 rounded-2xl">
+                  <DigitalReceiptImageCard order={order} cardRef={cardRef} />
+                </div>
+              ) : activePreviewTab === 'visual' ? (
                 <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 font-mono text-xs">
                   {/* Encabezado */}
                   <div className="text-center border-b border-dashed border-slate-200 pb-2.5">

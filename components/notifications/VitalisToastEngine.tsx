@@ -7,7 +7,7 @@ import {
 
 export interface VitalisToast {
   id: string;
-  type: 'ORDER' | 'STOCK' | 'BOOKING' | 'CHAT';
+  type: 'ORDER' | 'STOCK' | 'BOOKING' | 'CHAT' | 'SUMMARY';
   title: string;
   desc: string;
   actionLabel: string;
@@ -93,24 +93,35 @@ export const VitalisToastEngine: React.FC<VitalisToastEngineProps> = ({
                 /* Persistent glowing line */
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-600" />
               ) : (
-                /* 7 Seconds Auto-dismiss timer line */
+                /* 8 Seconds Auto-dismiss timer line */
                 <motion.div 
                   initial={{ width: '100%' }}
                   animate={{ width: '0%' }}
-                  transition={{ duration: 7, ease: 'linear' }}
+                  transition={{ duration: toast.type === 'SUMMARY' ? 9 : 7, ease: 'linear' }}
                   onAnimationComplete={() => onDismiss(toast.id)}
-                  className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"
+                  className={`absolute bottom-0 left-0 h-1 ${
+                    toast.type === 'SUMMARY' 
+                      ? 'bg-gradient-to-r from-teal-400 via-cyan-400 to-emerald-400' 
+                      : 'bg-gradient-to-r from-amber-400 to-orange-500'
+                  }`}
                 />
               )}
 
               {/* Header Info Line */}
               <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
                 <div className="flex items-center gap-1.5">
-                  <span className={`h-2 w-2 rounded-full ${isPersistent ? 'bg-teal-400 animate-ping' : 'bg-amber-400'}`} />
+                  <span className={`h-2 w-2 rounded-full ${
+                    isPersistent ? 'bg-teal-400 animate-ping' : 
+                    toast.type === 'SUMMARY' ? 'bg-cyan-400' : 'bg-amber-400'
+                  }`} />
                   <span className="text-[9.5px] font-black tracking-widest uppercase text-slate-400 flex items-center gap-1">
                     {isPersistent ? (
                       <span className="text-teal-400 font-extrabold flex items-center gap-1">
                         <ShieldAlert size={11} /> PRIORITARIA (Requiere Acción)
+                      </span>
+                    ) : toast.type === 'SUMMARY' ? (
+                      <span className="text-cyan-400 font-extrabold flex items-center gap-1">
+                        <Sparkles size={11} /> RESUMEN DE ACTIVIDAD
                       </span>
                     ) : (
                       'ALERTA VITALIS (7S)'
@@ -135,11 +146,13 @@ export const VitalisToastEngine: React.FC<VitalisToastEngineProps> = ({
                   toast.type === 'ORDER' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
                   toast.type === 'STOCK' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
                   toast.type === 'CHAT' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 
+                  toast.type === 'SUMMARY' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
                   'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 }`}>
                   {toast.type === 'ORDER' ? <Package size={20} className="animate-bounce" /> :
                    toast.type === 'STOCK' ? <AlertTriangle size={20} /> : 
                    toast.type === 'CHAT' ? <MessageSquare size={20} className="animate-pulse" /> : 
+                   toast.type === 'SUMMARY' ? <Sparkles size={20} className="text-cyan-300" /> :
                    <Calendar size={20} />}
                 </div>
 
@@ -158,7 +171,7 @@ export const VitalisToastEngine: React.FC<VitalisToastEngineProps> = ({
                 <button 
                   onClick={() => onAction(toast)}
                   className={`font-black text-[10px] px-4 py-1.5 rounded-xl uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 ${
-                    isPersistent 
+                    isPersistent || toast.type === 'SUMMARY'
                       ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-teal-500/20 hover:shadow-teal-400/30' 
                       : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
                   }`}

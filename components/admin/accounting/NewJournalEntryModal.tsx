@@ -4,23 +4,30 @@ import { Account, JournalEntry, JournalEntryLine } from '../../../types/accounti
 
 interface NewJournalEntryModalProps {
   accounts: Account[];
+  entryToEdit?: JournalEntry | null;
   onClose: () => void;
   onSubmit: (entry: JournalEntry) => Promise<void>;
 }
 
 export const NewJournalEntryModal: React.FC<NewJournalEntryModalProps> = ({
   accounts,
+  entryToEdit,
   onClose,
   onSubmit
 }) => {
-  const [concept, setConcept] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [createdByName, setCreatedByName] = useState('Administrador Contable');
+  const [concept, setConcept] = useState(entryToEdit ? entryToEdit.concept : '');
+  const [date, setDate] = useState(entryToEdit ? entryToEdit.date : new Date().toISOString().split('T')[0]);
+  const [createdByName, setCreatedByName] = useState(entryToEdit?.createdByName || 'Administrador Contable');
   
-  const [lines, setLines] = useState<JournalEntryLine[]>([
-    { accountId: accounts[0]?.id || '', accountCode: accounts[0]?.code || '', accountName: accounts[0]?.name || '', debit: 0, credit: 0, memo: '' },
-    { accountId: accounts[1]?.id || '', accountCode: accounts[1]?.code || '', accountName: accounts[1]?.name || '', debit: 0, credit: 0, memo: '' },
-  ]);
+  const [lines, setLines] = useState<JournalEntryLine[]>(() => {
+    if (entryToEdit && entryToEdit.lines && entryToEdit.lines.length >= 2) {
+      return entryToEdit.lines.map(l => ({ ...l }));
+    }
+    return [
+      { accountId: accounts[0]?.id || '', accountCode: accounts[0]?.code || '', accountName: accounts[0]?.name || '', debit: 0, credit: 0, memo: '' },
+      { accountId: accounts[1]?.id || '', accountCode: accounts[1]?.code || '', accountName: accounts[1]?.name || '', debit: 0, credit: 0, memo: '' },
+    ];
+  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -96,15 +103,16 @@ export const NewJournalEntryModal: React.FC<NewJournalEntryModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const entryId = `ASC_MAN_${Date.now()}`;
-      const entryNumber = `ASC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const entryId = entryToEdit?.id || `ASC_MAN_${Date.now()}`;
+      const entryNumber = entryToEdit?.entryNumber || `ASC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const newEntry: JournalEntry = {
         id: entryId,
         entryNumber,
         date,
         concept: concept.trim(),
-        referenceType: 'MANUAL_ADJUSTMENT',
+        referenceType: entryToEdit?.referenceType || 'MANUAL_ADJUSTMENT',
+        referenceId: entryToEdit?.referenceId,
         lines: lines.map(l => ({
           ...l,
           debit: Number(l.debit) || 0,
@@ -113,8 +121,8 @@ export const NewJournalEntryModal: React.FC<NewJournalEntryModalProps> = ({
         totalDebit,
         totalCredit,
         createdByName: createdByName.trim() || 'Admin',
-        status: 'ASENTADO',
-        createdAt: new Date().toISOString()
+        status: entryToEdit?.status || 'ASENTADO',
+        createdAt: entryToEdit?.createdAt || new Date().toISOString()
       };
 
       await onSubmit(newEntry);
@@ -137,8 +145,12 @@ export const NewJournalEntryModal: React.FC<NewJournalEntryModalProps> = ({
               <Calculator size={22} />
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">Contabilidad Partida Doble</span>
-              <h3 className="text-lg font-black tracking-tight text-white">Nuevo Asiento Contable Manual</h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">
+                {entryToEdit ? `Comprobante ${entryToEdit.entryNumber}` : 'Contabilidad Partida Doble'}
+              </span>
+              <h3 className="text-lg font-black tracking-tight text-white">
+                {entryToEdit ? 'Editar Asiento Contable' : 'Nuevo Asiento Contable Manual'}
+              </h3>
             </div>
           </div>
           <button 
@@ -352,7 +364,9 @@ export const NewJournalEntryModal: React.FC<NewJournalEntryModalProps> = ({
               }`}
             >
               <CheckCircle2 size={16} />
-              {isSubmitting ? 'Asentando Transacción...' : 'Guardar y Asentar Comprobante'}
+              {isSubmitting 
+                ? 'Guardando...' 
+                : (entryToEdit ? 'Guardar Cambios del Asiento' : 'Guardar y Asentar Comprobante')}
             </button>
           </div>
 

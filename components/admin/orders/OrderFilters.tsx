@@ -4,7 +4,7 @@ import { Search, Calendar, RefreshCw, CreditCard, ShoppingBag, X } from 'lucide-
 export interface FilterState {
   search: string;
   date: string;
-  status: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+  status: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'CREDIT_PAYMENT';
   paymentMethod: 'ALL' | 'CASH' | 'TRANSFER';
   source: 'ALL' | 'ONLINE' | 'POS';
 }
@@ -21,6 +21,7 @@ export const OrderFilters: React.FC<OrderFiltersProps> = ({ filters, onChange, o
     { value: 'PENDING', label: 'Pendientes', countColor: 'bg-amber-100 text-amber-700' },
     { value: 'IN_TRANSIT', label: 'En Camino', countColor: 'bg-indigo-100 text-indigo-700' },
     { value: 'DELIVERED', label: 'Entregados', countColor: 'bg-emerald-100 text-emerald-700' },
+    { value: 'CREDIT_PAYMENT', label: 'Abonos de Fiados', countColor: 'bg-teal-100 text-teal-800' },
   ];
 
   return (

@@ -9,6 +9,7 @@ import {
 import { streamCredits, addCreditDB, updateCreditDB, deleteCreditDB } from '../../services/db.credits';
 import { addOrderDB } from '../../services/db.orders';
 import { updateStockDB } from '../../services/db.products';
+import { createCreditPaymentOrder } from '../../utils/creditPaymentOrders';
 
 // Subcomponentes modulados
 import { CreditStatsCards } from './CreditStatsCards';
@@ -340,33 +341,14 @@ const AdminCredits: React.FC<AdminCreditsProps> = ({ products, onGoToPOS }) => {
       payments: [...(selectedPaymentCredit.payments || []), newPaymentRecord]
     };
 
-    // Registrar la venta en pedidos
-    const orderData: Order = {
-      id: `POS-${isNowPaid ? 'PAGO' : 'ABONO'}-${Date.now()}`,
-      customerName: `${isNowPaid ? 'Liquidación' : 'Abono'} de Crédito: ${selectedPaymentCredit.customerName}`,
-      customerPhone: selectedPaymentCredit.customerPhone || 'N/A',
-      customerAddress: selectedPaymentCredit.customerAddress || 'Módulo de Créditos',
-      items: [{
-        id: isNowPaid ? 'credit_liquidation' : 'credit_payment',
-        name: `${isNowPaid ? 'Liquidación' : 'Abono'} de Crédito - ${selectedPaymentCredit.customerName}`,
-        price: amountToPay,
-        quantity: 1,
-        selectedUnit: 'UNIT',
-        category: 'Crédito',
-        description: `${isNowPaid ? 'Liquidación final' : 'Abono parcial'} del crédito de ${selectedPaymentCredit.customerName}. Original: $${selectedPaymentCredit.total.toFixed(2)}. Restante después de este pago: $${(selectedPaymentCredit.total - (isNowPaid ? selectedPaymentCredit.total : newPaidAmount)).toFixed(2)}.`,
-        image: '',
-        stock: 1
-      } as any],
-      subtotal: amountToPay,
-      deliveryFee: 0,
-      discount: 0,
-      total: amountToPay,
-      paymentMethod: paymentMethod,
-      cashGiven: paymentMethod === 'CASH' && cashGiven ? parseFloat(cashGiven) : undefined,
-      status: 'DELIVERED',
-      source: 'POS',
-      date: new Date().toISOString()
-    };
+    // Registrar la venta en pedidos y corte de caja
+    const orderData = createCreditPaymentOrder(
+      selectedPaymentCredit,
+      amountToPay,
+      paymentMethod,
+      paymentMethod === 'CASH' && cashGiven ? parseFloat(cashGiven) : undefined,
+      paymentNote.trim()
+    );
 
     try {
       // 1. Agregar venta al historial global de pedidos

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, 
   Clock, 
@@ -13,7 +13,10 @@ import {
   PackageCheck,
   ChevronDown,
   ChevronUp,
-  MessageCircle
+  MessageCircle,
+  X,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { Order } from '../../../types';
 
@@ -47,26 +50,43 @@ export const AdminOrderNotificationTray: React.FC<AdminOrderNotificationTrayProp
     (o) => o.status === 'PENDING' && !acknowledgedOrderIds.includes(o.id)
   );
 
-  // Sound chime when a new unacknowledged order arrives
+  // Estado colapsado: por defecto colapsado para no bloquear pantalla al iniciar
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
+  const isMountedRef = useRef<boolean>(false);
+  const prevCountRef = useRef<number>(activePendingOrders.length);
+
+  // Sound chime ONLY when a genuine new unacknowledged order arrives AFTER initial load
   useEffect(() => {
-    if (activePendingOrders.length > 0 && soundEnabled) {
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
-      } catch (e) {
-        // Audio playback error or blocked by browser policy
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      prevCountRef.current = activePendingOrders.length;
+      return;
+    }
+
+    if (activePendingOrders.length > prevCountRef.current) {
+      // Llega un pedido nuevo en tiempo real: desplegar bandeja automáticamente
+      setIsCollapsed(false);
+
+      if (soundEnabled) {
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+          osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.5);
+        } catch (e) {
+          // Audio playback error or blocked by browser policy
+        }
       }
     }
+    prevCountRef.current = activePendingOrders.length;
   }, [activePendingOrders.length, soundEnabled]);
 
   const saveAcknowledged = (newIds: string[]) => {
@@ -80,6 +100,11 @@ export const AdminOrderNotificationTray: React.FC<AdminOrderNotificationTrayProp
 
   const handleAcknowledge = (orderId: string) => {
     saveAcknowledged([...acknowledgedOrderIds, orderId]);
+  };
+
+  const handleAcknowledgeAll = () => {
+    const allPending = activePendingOrders.map(o => o.id);
+    saveAcknowledged(Array.from(new Set([...acknowledgedOrderIds, ...allPending])));
   };
 
   const handleStatusChange = async (order: Order, newStatus: 'IN_TRANSIT' | 'DELIVERED') => {
@@ -103,39 +128,96 @@ export const AdminOrderNotificationTray: React.FC<AdminOrderNotificationTrayProp
   if (activePendingOrders.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[80] flex flex-col gap-4 max-w-md w-full animate-in slide-in-from-bottom duration-300 pointer-events-none">
-      <div className="pointer-events-auto bg-slate-900 border-2 border-amber-500/80 text-white rounded-3xl p-4 shadow-2xl space-y-3 backdrop-blur-xl bg-opacity-95">
-        {/* Header Alert Bar */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div className="fixed bottom-6 right-6 z-[80] flex flex-col gap-3 max-w-md w-full pointer-events-none transition-all duration-300">
+      {/* Vista Colapsada (Badge discreto sin bloquear la pantalla) */}
+      {isCollapsed ? (
+        <div className="pointer-events-auto self-end bg-slate-950/95 border-2 border-amber-500/80 text-white rounded-2xl p-3 px-4 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3.5 max-w-sm animate-in slide-in-from-bottom duration-200">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 font-black flex items-center justify-center shadow-lg shadow-amber-500/20">
-                <ShoppingBag size={20} className="animate-bounce" />
+              <div className="h-8 w-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md shadow-amber-500/20">
+                <ShoppingBag size={16} />
               </div>
-              <span className="absolute -top-1 -right-1 h-5 w-5 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-slate-900">
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-rose-500 text-white font-black text-[9px] rounded-full flex items-center justify-center border border-slate-900">
                 {activePendingOrders.length}
               </span>
             </div>
             <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                🚨 ¡NUEVO PEDIDO RECIBIDO!
+              <h4 className="text-xs font-black text-amber-400 leading-tight">
+                {activePendingOrders.length} {activePendingOrders.length === 1 ? 'pedido pendiente' : 'pedidos pendientes'}
               </h4>
-              <p className="text-[11px] text-slate-300 font-bold">
-                {activePendingOrders.length === 1
-                  ? 'Requiere atención inmediata del administrador'
-                  : `${activePendingOrders.length} pedidos pendientes de revisión`}
-              </p>
+              <span className="text-[10px] text-slate-400 font-medium">Click para desplegar bandeja</span>
             </div>
           </div>
 
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-            title={soundEnabled ? 'Silenciar Alarma' : 'Activar Sonido'}
-          >
-            {soundEnabled ? <Volume2 size={16} className="text-amber-400" /> : <VolumeX size={16} />}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setIsCollapsed(false)}
+              className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl transition flex items-center gap-1 shadow-sm active:scale-95"
+            >
+              <Maximize2 size={11} />
+              <span>Ver</span>
+            </button>
+            <button
+              onClick={handleAcknowledgeAll}
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition"
+              title="Descartar todas las alertas de pedidos"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
+      ) : (
+        /* Vista Desplegada Completa */
+        <div className="pointer-events-auto bg-slate-900 border-2 border-amber-500/80 text-white rounded-3xl p-4 shadow-2xl space-y-3 backdrop-blur-xl bg-opacity-95 animate-in fade-in duration-200">
+          {/* Header Alert Bar */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 font-black flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <ShoppingBag size={20} className="animate-bounce" />
+                </div>
+                <span className="absolute -top-1 -right-1 h-5 w-5 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-slate-900">
+                  {activePendingOrders.length}
+                </span>
+              </div>
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  🚨 ¡PEDIDOS PENDIENTES!
+                </h4>
+                <p className="text-[11px] text-slate-300 font-bold">
+                  {activePendingOrders.length === 1
+                    ? '1 orden requiere atención de la farmacia'
+                    : `${activePendingOrders.length} pedidos pendientes de revisión`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                title={soundEnabled ? 'Silenciar Alarma' : 'Activar Sonido'}
+              >
+                {soundEnabled ? <Volume2 size={15} className="text-amber-400" /> : <VolumeX size={15} />}
+              </button>
+              
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                title="Minimizar bandeja a badge discreto"
+              >
+                <Minimize2 size={15} />
+              </button>
+
+              <button
+                onClick={handleAcknowledgeAll}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-400 transition"
+                title="Descartar todas las alertas"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
 
         {/* List of Pending Orders (Intact until action taken) */}
         <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
@@ -281,6 +363,7 @@ export const AdminOrderNotificationTray: React.FC<AdminOrderNotificationTrayProp
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

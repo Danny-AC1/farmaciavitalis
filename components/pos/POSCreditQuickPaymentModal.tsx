@@ -7,14 +7,16 @@ import {
   Check, 
   Loader2 
 } from 'lucide-react';
-import { CreditTicket } from '../../types';
+import { CreditTicket, Order } from '../../types';
 import { updateCreditDB } from '../../services/db.credits';
+import { addOrderDB } from '../../services/db.orders';
+import { createCreditPaymentOrder } from '../../utils/creditPaymentOrders';
 
 interface POSCreditQuickPaymentModalProps {
   credit: CreditTicket | null;
   isOpen: boolean;
   onClose: () => void;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: (createdOrder?: Order) => void;
 }
 
 export const POSCreditQuickPaymentModal: React.FC<POSCreditQuickPaymentModalProps> = ({
@@ -70,11 +72,23 @@ export const POSCreditQuickPaymentModal: React.FC<POSCreditQuickPaymentModalProp
         payments: [...(credit.payments || []), newPaymentRecord]
       };
 
+      // 1. Crear y registrar la orden de ingreso contable para caja y pedidos
+      const orderData = createCreditPaymentOrder(
+        credit,
+        amountToPay,
+        paymentMethod,
+        paymentMethod === 'CASH' && cashGiven ? parseFloat(cashGiven) : undefined,
+        note.trim()
+      );
+
+      await addOrderDB(orderData);
+
+      // 2. Actualizar cuenta del crédito
       await updateCreditDB(updatedCredit);
 
-      alert(`✅ Abono de $${amountToPay.toFixed(2)} registrado correctamente a la cuenta de ${credit.customerName}.\n${isFullyPaid ? '¡Cuenta totalmente saldada!' : `Saldo restante: $${(credit.total - newPaidAmount).toFixed(2)}`}`);
+      alert(`✅ Abono de $${amountToPay.toFixed(2)} registrado exitosamente.\n\n• Sumado a Caja del día (${paymentMethod === 'CASH' ? 'Efectivo' : 'Transferencia'})\n• Registrado en Pedidos ("Abonos de Fiados")\n${isFullyPaid ? '• ¡Cuenta totalmente saldada!' : `• Saldo restante: $${(credit.total - newPaidAmount).toFixed(2)}`}`);
       
-      onPaymentSuccess();
+      onPaymentSuccess(orderData);
       onClose();
     } catch (err: any) {
       console.error('Error al registrar abono:', err);
