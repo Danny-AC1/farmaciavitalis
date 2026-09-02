@@ -8,6 +8,7 @@ import { OrderFilters, FilterState } from './orders/OrderFilters';
 import { OrderCard } from './orders/OrderCard';
 import { OrderDetailModal } from './orders/OrderDetailModal';
 import { printOrderTicket } from './orders/TicketPrinter';
+import { ReceiptShareModal } from '../modals/ReceiptShareModal';
 
 interface AdminOrdersProps {
   orders: Order[];
@@ -36,6 +37,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
   // 2. UI & Expanded Accordion States
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderToShare, setOrderToShare] = useState<Order | null>(null);
 
   // 3. Reset Filters Handler
   const handleResetFilters = () => {
@@ -232,6 +234,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
                         onSelect={(ord) => setSelectedOrder(ord)}
                         onUpdateStatus={(id, status, ord) => onUpdateStatus(id, status, ord)}
                         onPrint={(ord) => printOrderTicket(ord)}
+                        onShare={(ord) => setOrderToShare(ord)}
                         onDelete={handleDeleteOrder}
                       />
                     ))}
@@ -259,11 +262,21 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({
           products={products}
           onClose={() => setSelectedOrder(null)}
           onPrint={(ord) => printOrderTicket(ord)}
+          onShare={(ord) => setOrderToShare(ord)}
           onUpdateStatus={(id, status) => {
             onUpdateStatus(id, status, selectedOrder);
             // Sync current modal state
             setSelectedOrder({ ...selectedOrder, status });
           }}
+        />
+      )}
+
+      {/* Multichannel Receipt Sharing Modal */}
+      {orderToShare && (
+        <ReceiptShareModal
+          isOpen={!!orderToShare}
+          order={orderToShare}
+          onClose={() => setOrderToShare(null)}
         />
       )}
     </div>

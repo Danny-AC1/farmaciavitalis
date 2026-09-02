@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle, Coins } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Printer, Banknote, Landmark, CheckCircle, Coins, Share2 } from 'lucide-react';
 
 
 interface POSFooterProps {
@@ -8,6 +8,7 @@ interface POSFooterProps {
   setShowPaymentDetails: (b: boolean) => void;
   onCheckoutClick: () => void;
   onCheckoutAndPrintClick: () => void;
+  onCheckoutAndShareClick?: () => void;
   onCreditCheckoutClick?: () => void;
   isProcessing: boolean;
   posCartEmpty: boolean;
@@ -20,7 +21,7 @@ interface POSFooterProps {
 
 const POSFooter: React.FC<POSFooterProps> = ({
   posTotal,
-  showPaymentDetails, setShowPaymentDetails, onCheckoutClick, onCheckoutAndPrintClick, onCreditCheckoutClick, isProcessing,
+  showPaymentDetails, setShowPaymentDetails, onCheckoutClick, onCheckoutAndPrintClick, onCheckoutAndShareClick, onCreditCheckoutClick, isProcessing,
   posCartEmpty, posPaymentMethod, setPosPaymentMethod, posCashReceived,
   setPosCashReceived, changeDue
 }) => {
@@ -70,12 +71,24 @@ const POSFooter: React.FC<POSFooterProps> = ({
             <button 
               onClick={onCheckoutAndPrintClick} 
               disabled={posCartEmpty || isProcessing}
-              className="bg-teal-600 hover:bg-teal-500 text-white p-2 rounded-lg shadow-lg disabled:opacity-30 flex items-center gap-1 font-bold text-[10px]"
+              className="bg-slate-800 border border-slate-700 text-slate-300 hover:text-white p-2 rounded-lg shadow-lg disabled:opacity-30 flex items-center gap-1 font-bold text-[10px]"
               title="Venta + Imprimir Comprobante"
             >
               {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Printer size={12}/>}
               <span>IMPRIMIR</span>
             </button>
+            {/* Botón Compra + Compartir Multicanal */}
+            {onCheckoutAndShareClick && (
+              <button 
+                onClick={onCheckoutAndShareClick} 
+                disabled={posCartEmpty || isProcessing}
+                className="bg-teal-600 hover:bg-teal-500 text-white p-2 rounded-lg shadow-lg disabled:opacity-30 flex items-center gap-1 font-bold text-[10px]"
+                title="Venta + Compartir por WhatsApp, Telegram, etc."
+              >
+                {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12}/>}
+                <span>COMPARTIR</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -159,13 +172,28 @@ const POSFooter: React.FC<POSFooterProps> = ({
               <button 
                 onClick={onCheckoutAndPrintClick} 
                 disabled={posCartEmpty || isProcessing}
-                className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white py-3 md:py-3.5 px-4 md:px-6 rounded-lg md:rounded-xl font-black text-xs uppercase tracking-[0.05em] shadow-lg shadow-teal-500/10 transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
+                className="flex-1 bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 py-3 md:py-3.5 px-3 md:px-5 rounded-lg md:rounded-xl font-black text-xs uppercase tracking-[0.05em] shadow-md transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Printer size={16}/>} 
                 <span className="text-[10px] md:text-xs">
-                    {isProcessing ? 'PROCESANDO...' : 'VENTA + IMPRIMIR'}
+                    {isProcessing ? 'PROCESANDO...' : 'IMPRIMIR'}
                 </span>
               </button>
+
+              {/* Botón Compra + Compartir */}
+              {onCheckoutAndShareClick && (
+                <button 
+                  onClick={onCheckoutAndShareClick} 
+                  disabled={posCartEmpty || isProcessing}
+                  className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white py-3 md:py-3.5 px-4 md:px-6 rounded-lg md:rounded-xl font-black text-xs uppercase tracking-[0.05em] shadow-lg shadow-teal-500/10 transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
+                  title="Finalizar y Compartir Comprobante Digital"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Share2 size={16}/>} 
+                  <span className="text-[10px] md:text-xs">
+                      {isProcessing ? 'PROCESANDO...' : 'VENTA + COMPARTIR'}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>

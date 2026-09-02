@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Package, ArrowLeftRight, Tag } from 'lucide-react';
 import { Product } from '../../types';
 import { getActiveDiscounts, getDiscountedPrice, getDiscountPercentage, subscribeToDiscounts, ActiveDiscount } from '../../utils/discounts';
+import { normalizeText } from '../../utils/smartSearch';
 
 interface POSProductSearchProps {
   posSearch: string;
@@ -29,12 +30,12 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
       <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-teal-600" size={18} />
       <input 
         autoFocus
-        className="w-full bg-teal-50 border-2 border-teal-100 rounded-lg md:rounded-xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 md:pr-6 text-sm md:text-lg font-black text-teal-900 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all placeholder:text-teal-200" 
+        className="w-full bg-teal-50 border-2 border-teal-100 rounded-lg md:rounded-xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 md:pr-6 text-sm md:text-lg font-black text-teal-900 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all placeholder:text-teal-400" 
         placeholder="BUSCAR PRODUCTO O SCAN..." 
         value={posSearch} 
         onChange={e => setPosSearch(e.target.value)} 
       />
-      {posSearch.length >= 3 && (
+      {posSearch.trim().length >= 2 && (
         <div className="absolute top-full left-0 right-0 z-[90] bg-white border border-slate-200 shadow-2xl rounded-lg md:rounded-xl overflow-hidden mt-1 animate-in zoom-in-95 origin-top max-h-80 overflow-y-auto">
           {filteredProducts.map(p => {
             const hasBox = (p.unitsPerBox ?? 0) > 1;
@@ -48,6 +49,10 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
             const discountedPrice = discount ? getDiscountedPrice(p.price, discount) : p.price;
             const discountPct = discount ? getDiscountPercentage(p.price, discount) : 0;
             
+            const searchNorm = normalizeText(posSearch);
+            const isMatchInActiveIng = searchNorm && normalizeText(p.activeIngredient).includes(searchNorm);
+            const isMatchInKw = searchNorm && normalizeText(p.keywords).includes(searchNorm);
+
             return (
               <div key={p.id} className="flex items-center justify-between p-2 md:p-3 hover:bg-teal-50 transition-colors border-b last:border-0 group">
                 <div className="flex items-center gap-2 md:gap-3 min-w-0">
@@ -66,10 +71,12 @@ const POSProductSearch: React.FC<POSProductSearchProps> = ({
                         <p className={`text-[8px] md:text-[9px] font-bold uppercase truncate ${p.stock <= 3 ? 'text-red-500' : 'text-slate-400'}`}>
                             {p.category} • STOCK: {p.stock}
                         </p>
-                        {p.activeIngredient?.toLowerCase().includes(posSearch.toLowerCase()) && (
-                          <span className="text-[7px] bg-teal-100 text-teal-700 px-1 rounded font-black uppercase">Principio Activo</span>
+                        {p.activeIngredient && (
+                          <span className={`text-[7px] px-1 rounded font-black uppercase ${isMatchInActiveIng ? 'bg-teal-600 text-white' : 'bg-teal-100 text-teal-700'}`}>
+                            {p.activeIngredient}
+                          </span>
                         )}
-                        {p.keywords?.toLowerCase().includes(posSearch.toLowerCase()) && (
+                        {isMatchInKw && (
                           <span className="text-[7px] bg-purple-100 text-purple-700 px-1 rounded font-black uppercase">Relacionado</span>
                         )}
                       </div>

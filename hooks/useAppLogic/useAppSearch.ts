@@ -1,6 +1,7 @@
 import { useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 import { Product, Category } from '../../types';
 import { logSearchDB } from '../../services/db';
+import { searchProductsIntelligent } from '../../utils/smartSearch';
 
 export const useAppSearch = (
   products: Product[], 
@@ -11,22 +12,15 @@ export const useAppSearch = (
   setActiveCategory: Dispatch<SetStateAction<string | null>>
 ) => {
   const displayedProducts = useMemo(() => {
-    let filtered = products;
+    let pool = products;
     if (activeCategory) {
       const catName = categories.find(c => c.id === activeCategory)?.name;
-      filtered = products.filter(p => p.category === catName);
+      pool = products.filter(p => p.category === catName);
     }
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(term) || 
-        p.description.toLowerCase().includes(term) ||
-        p.category.toLowerCase().includes(term) ||
-        (p.activeIngredient && p.activeIngredient.toLowerCase().includes(term)) ||
-        (p.keywords && p.keywords.toLowerCase().includes(term))
-      );
+    if (searchTerm && searchTerm.trim()) {
+      return searchProductsIntelligent(pool, searchTerm);
     }
-    return filtered;
+    return pool;
   }, [products, searchTerm, activeCategory, categories]);
 
   useEffect(() => {

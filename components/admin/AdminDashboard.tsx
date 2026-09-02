@@ -7,6 +7,7 @@ import {
   ChevronRight, Calculator, BarChart3, HelpCircle 
 } from 'lucide-react';
 import { Order, Product, Expense, User } from '../../types';
+import ProfitReplenishmentWidget from './dashboard/ProfitReplenishmentWidget';
 
 interface AdminDashboardProps {
   orders: Order[];
@@ -179,6 +180,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
+
+      {/* Módulo Especializado: Control de Ganancias & Reposición ($120) */}
+      <ProfitReplenishmentWidget 
+        orders={orders}
+        products={products}
+        setActiveTab={setActiveTab}
+      />
 
       {/* Grid de KPIs Avanzados */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

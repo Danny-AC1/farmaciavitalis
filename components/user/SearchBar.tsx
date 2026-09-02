@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../../types';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
+import { searchProductsIntelligent, normalizeText } from '../../utils/smartSearch';
 
 interface SearchBarProps {
   searchTerm: string;
@@ -92,24 +93,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
     startListening();
   };
 
-  // Filtrar productos sugeridos instantáneamente mientras el usuario escribe
+  // Filtrar productos sugeridos instantáneamente mientras el usuario escribe usando motor difuso
   const matchingProducts = useMemo(() => {
     if (!searchTerm.trim()) return [];
-    const term = searchTerm.toLowerCase().trim();
-    return allProducts.filter(p => 
-      p.name.toLowerCase().includes(term) || 
-      p.description.toLowerCase().includes(term) ||
-      p.category.toLowerCase().includes(term) ||
-      (p.activeIngredient && p.activeIngredient.toLowerCase().includes(term)) ||
-      (p.keywords && p.keywords.toLowerCase().includes(term))
-    ).slice(0, 4); // Mostrar máximo 4 resultados rápidos
+    return searchProductsIntelligent(allProducts, searchTerm, 4);
   }, [searchTerm, allProducts]);
 
-  // Filtrar términos de búsqueda populares basados en lo ingresado
+  // Filtrar términos de búsqueda populares basados en lo ingresado (ignorando tildes)
   const filteredPopularTerms = useMemo(() => {
     if (!searchTerm.trim()) return POPULAR_TERMS.slice(0, 5);
-    const term = searchTerm.toLowerCase().trim();
-    return POPULAR_TERMS.filter(t => t.toLowerCase().includes(term)).slice(0, 4);
+    const termNorm = normalizeText(searchTerm);
+    return POPULAR_TERMS.filter(t => normalizeText(t).includes(termNorm)).slice(0, 4);
   }, [searchTerm]);
 
   const handleSelectSuggestion = (term: string) => {

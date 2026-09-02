@@ -17,9 +17,18 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 }) => {
   return (
     <div className="animate-in slide-in-from-bottom-5 duration-500">
-      <h3 className="text-2xl font-bold mb-6 border-l-4 pl-4 text-gray-800 border-teal-500">
-        {displayedProducts.length > 0 ? 'Resultados' : 'Sin resultados'}
-      </h3>
+      <div className="flex items-center justify-between mb-6 border-l-4 pl-4 border-teal-500">
+        <div>
+          <h3 className="text-2xl font-black text-gray-800 tracking-tight">
+            {displayedProducts.length > 0 ? 'Resultados de Búsqueda' : 'Sin resultados directos'}
+          </h3>
+          {searchTerm && (
+            <p className="text-xs font-bold text-slate-400 mt-0.5">
+              Búsqueda inteligente para: <span className="text-teal-600 font-extrabold">"{searchTerm}"</span> ({displayedProducts.length} producto{displayedProducts.length === 1 ? '' : 's'})
+            </p>
+          )}
+        </div>
+      </div>
       {displayedProducts.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-12">
           {displayedProducts.map(product => (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Clock, Phone, MapPin, Printer, CheckCircle, Trash2, Eye, Truck, ShoppingCart 
+  Clock, Phone, MapPin, Printer, CheckCircle, Trash2, Eye, Truck, ShoppingCart, Share2 
 } from 'lucide-react';
 import { Order } from '../../../types';
 
@@ -10,6 +10,7 @@ interface OrderCardProps {
   onUpdateStatus: (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order: Order) => void;
   onDelete: (id: string) => void;
   onPrint: (order: Order) => void;
+  onShare?: (order: Order) => void;
 }
 
 export const OrderCard: React.FC<OrderCardProps> = ({
@@ -17,7 +18,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onSelect,
   onUpdateStatus,
   onDelete,
-  onPrint
+  onPrint,
+  onShare
 }) => {
   const isPending = order.status === 'PENDING';
   const isInTransit = order.status === 'IN_TRANSIT';
@@ -147,6 +149,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         >
           <Printer size={13} /> Ticket
         </button>
+
+        {onShare && (
+          <button
+            onClick={() => onShare(order)}
+            className="flex-1 lg:flex-none bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200/80 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            id={`order-share-btn-${order.id}`}
+          >
+            <Share2 size={13} /> Compartir
+          </button>
+        )}
 
         {isPending && (
           <button

@@ -7,6 +7,9 @@ import { streamCredits } from '../../services/db.credits';
 import { streamTreasurySessions } from '../../services/db.treasury';
 import { findCustomerCredits } from '../../utils/posCreditHelpers';
 import { printPOSTicket } from '../../utils/posTicketPrinter';
+import { ReceiptShareModal } from '../modals/ReceiptShareModal';
+import { searchProductsIntelligent, normalizeText } from '../../utils/smartSearch';
+import { Order } from '../../types';
 
 // Sub-componentes del POS
 import POSCustomerSelect from './POSCustomerSelect';
@@ -79,6 +82,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
   const [substitutionTerm, setSubstitutionTerm] = useState('');
   const [showSubstitution, setShowSubstitution] = useState(false);
   const [showTreasuryDrawer, setShowTreasuryDrawer] = useState(false);
+  const [orderToShare, setOrderToShare] = useState<Order | null>(null);
 
   // 1.1 ESTADO DE SESIÓN DE TESORERÍA ACTIVA
   const [treasurySessions, setTreasurySessions] = useState<TreasurySession[]>([]);
@@ -266,25 +270,19 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
     }
   };
 
-  // 8. FILTROS DE BÚSQUEDA
+  // 8. FILTROS DE BÚSQUEDA INTELIGENTES (Tolerante a errores, tildes, fonética y códigos de barras)
   const filteredProducts = useMemo(() => {
-    if (!posSearch) return [];
-    const searchLower = posSearch.toLowerCase();
-    return products.filter(p => 
-      p.name.toLowerCase().includes(searchLower) || 
-      (p.barcode && p.barcode === posSearch) ||
-      p.category.toLowerCase().includes(searchLower) ||
-      (p.activeIngredient && p.activeIngredient.toLowerCase().includes(searchLower)) ||
-      (p.keywords && p.keywords.toLowerCase().includes(searchLower))
-    ).slice(0, 8);
+    if (!posSearch || !posSearch.trim()) return [];
+    return searchProductsIntelligent(products, posSearch, 10);
   }, [products, posSearch]);
 
   const customerSearchResults = useMemo(() => {
-    if (customerSearch.length < 3) return [];
+    if (customerSearch.trim().length < 2) return [];
+    const termNorm = normalizeText(customerSearch);
     return users.filter(u => 
-      u.cedula?.includes(customerSearch) || 
-      u.phone?.includes(customerSearch) || 
-      u.displayName?.toLowerCase().includes(customerSearch.toLowerCase())
+      (u.cedula && normalizeText(u.cedula).includes(termNorm)) || 
+      (u.phone && normalizeText(u.phone).includes(termNorm)) || 
+      (u.displayName && normalizeText(u.displayName).includes(termNorm))
     ).slice(0, 5);
   }, [customerSearch, users]);
 
@@ -307,6 +305,20 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
       const order = await handlePosCheckout(selectedCustomer || undefined, 0);
       if (order) {
         printPOSTicket(order);
+      }
+      setSelectedCustomer(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const onCheckoutAndShareClick = async () => {
+    if (posCart.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const order = await handlePosCheckout(selectedCustomer || undefined, 0);
+      if (order) {
+        setOrderToShare(order);
       }
       setSelectedCustomer(null);
     } finally {
@@ -402,6 +414,7 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
         setShowPaymentDetails={setShowPaymentDetails}
         onCheckoutClick={onCheckoutClick}
         onCheckoutAndPrintClick={onCheckoutAndPrintClick}
+        onCheckoutAndShareClick={onCheckoutAndShareClick}
         onCreditCheckoutClick={() => setShowCreditCheckout(true)}
         isProcessing={isProcessing}
         posCartEmpty={posCart.length === 0}
@@ -526,6 +539,15 @@ const AdminPOS: React.FC<AdminPOSProps> = ({
           }
         }}
       />
+
+      {/* 11. MODAL: Compartir Comprobante Digital Multicanal */}
+      {orderToShare && (
+        <ReceiptShareModal
+          isOpen={!!orderToShare}
+          order={orderToShare}
+          onClose={() => setOrderToShare(null)}
+        />
+      )}
     </div>
   );
 };

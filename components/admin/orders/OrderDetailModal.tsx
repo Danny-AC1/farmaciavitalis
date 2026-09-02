@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   X, MapPin, Receipt, CreditCard, 
-  User, Compass, ExternalLink, MessageSquare, Printer, CheckCircle, Truck, Package 
+  User, Compass, ExternalLink, MessageSquare, Printer, CheckCircle, Truck, Package, Share2 
 } from 'lucide-react';
 import { Order, Product } from '../../../types';
 
@@ -11,6 +11,7 @@ interface OrderDetailModalProps {
   onClose: () => void;
   onUpdateStatus: (id: string, status: 'IN_TRANSIT' | 'DELIVERED') => void;
   onPrint: (order: Order) => void;
+  onShare?: (order: Order) => void;
 }
 
 export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
@@ -18,7 +19,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   products,
   onClose,
   onUpdateStatus,
-  onPrint
+  onPrint,
+  onShare
 }) => {
   if (!order) return null;
 
@@ -268,7 +270,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
         {/* Footer actions */}
         <div className="p-5 border-t border-slate-100 bg-slate-50 flex flex-wrap gap-2 justify-between items-center shrink-0">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onPrint(order)}
               className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
@@ -276,15 +278,26 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             >
               <Printer size={13} /> Imprimir Ticket
             </button>
-            <a
-              href={formatWhatsAppLink()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
-              id="order-detail-whatsapp-btn"
-            >
-              <MessageSquare size={13} /> Avisar por WhatsApp
-            </a>
+            
+            {onShare ? (
+              <button
+                onClick={() => onShare(order)}
+                className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+                id="order-detail-share-btn"
+              >
+                <Share2 size={13} /> Compartir Comprobante
+              </button>
+            ) : (
+              <a
+                href={formatWhatsAppLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+                id="order-detail-whatsapp-btn"
+              >
+                <MessageSquare size={13} /> Avisar por WhatsApp
+              </a>
+            )}
           </div>
 
           <div className="flex gap-2">

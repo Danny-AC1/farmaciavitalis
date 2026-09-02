@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Order, Prescription } from '../../../types';
 import { getOrdersByUserDB, streamUserPrescriptions } from '../../../services/db';
-import { Package, FileText, Clock, CheckCircle2, Truck, ShoppingBag } from 'lucide-react';
+import { Package, FileText, Clock, CheckCircle2, Truck, ShoppingBag, Share2 } from 'lucide-react';
+import { ReceiptShareModal } from '../../modals/ReceiptShareModal';
 
 interface OrdersAndPrescriptionsTabProps {
   user: User;
@@ -11,6 +12,7 @@ export const OrdersAndPrescriptionsTab: React.FC<OrdersAndPrescriptionsTabProps>
   const [orders, setOrders] = useState<Order[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'prescriptions'>('orders');
+  const [selectedOrderForShare, setSelectedOrderForShare] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!user.uid) return;
@@ -110,9 +112,17 @@ export const OrdersAndPrescriptionsTab: React.FC<OrdersAndPrescriptionsTabProps>
                     ))}
                   </div>
 
-                  <div className="bg-slate-50 p-2.5 rounded-xl text-[10px] font-bold text-slate-500 flex justify-between items-center">
+                  <div className="bg-slate-50 p-2.5 rounded-xl text-[10px] font-bold text-slate-500 flex flex-wrap gap-2 justify-between items-center">
                     <span>Despacho: {order.customerAddress || 'Farmacia Vitalis'}</span>
-                    <span className="uppercase text-teal-700 font-black">{order.paymentMethod === 'TRANSFER' ? 'Transferencia' : 'Efectivo'}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="uppercase text-teal-700 font-black">{order.paymentMethod === 'TRANSFER' ? 'Transferencia' : 'Efectivo'}</span>
+                      <button
+                        onClick={() => setSelectedOrderForShare(order)}
+                        className="bg-white hover:bg-slate-100 text-teal-700 border border-teal-200/80 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95 shadow-xs"
+                      >
+                        <Share2 size={11} /> Comprobante
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -154,6 +164,15 @@ export const OrdersAndPrescriptionsTab: React.FC<OrdersAndPrescriptionsTabProps>
             ))}
           </div>
         )
+      )}
+
+      {/* Multichannel Receipt Sharing Modal for User */}
+      {selectedOrderForShare && (
+        <ReceiptShareModal
+          isOpen={!!selectedOrderForShare}
+          order={selectedOrderForShare}
+          onClose={() => setSelectedOrderForShare(null)}
+        />
       )}
     </div>
   );

@@ -39,6 +39,7 @@ export interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   customerAddress: string;
   items: CartItem[];
   subtotal: number;
@@ -249,7 +250,6 @@ export interface MonthlyFinance {
 export const AVAILABLE_SERVICES = [
   { id: 's1', name: 'Inyectología', price: 3.50, durationMin: 10, description: 'Incluye escartable' },
   { id: 's2', name: 'Control Presión', price: 2.00, durationMin: 5, description: 'Toma de presión arterial.' },
-  { id: 's3', name: 'Glucosa', price: 3.00, durationMin: 5, description: 'Prueba rápida de azúcar en sangre.' },
   { id: 's4', name: 'Suero', price: 5.00, durationMin: 15, description: 'Puesta de suero.' }
 ];
 
