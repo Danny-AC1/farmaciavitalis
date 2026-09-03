@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Bell, X, CheckCheck, BellOff, Smartphone, 
-  Sparkles, Volume2, VolumeX, ShieldCheck, ArrowRight, Trash2 
+  Sparkles, Volume2, VolumeX, ShieldCheck, ArrowRight, Trash2, Settings2 
 } from 'lucide-react';
 import { Notification } from '../../notificationTypes';
 import { streamNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from '../../services/db.notifications';
 import { getNotificationPermission, requestNotificationPermission } from '../../services/nativeNotificationService';
 import { notificationAudio } from '../../services/notificationAudioService';
+import { registerDeviceForPush } from '../../services/pushSubscriptionService';
+import { DeviceNotificationSettingsModal } from './DeviceNotificationSettingsModal';
 import NotificationItem from './NotificationItem';
 import { motion, AnimatePresence } from 'framer-motion';
 

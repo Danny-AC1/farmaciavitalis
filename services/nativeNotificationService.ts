@@ -1,13 +1,52 @@
-// Service for handling Browser Native System/Push Notifications (Free Web Push)
+// Service for handling Browser Native System/Push Notifications (100% Free Web Push)
+import { notificationAudio } from './notificationAudioService';
 
-export const initNotificationServiceWorker = async () => {
+export interface DeviceNotificationStatus {
+  supported: boolean;
+  permission: NotificationPermission;
+  hasServiceWorker: boolean;
+  hasPushManager: boolean;
+  hasVibration: boolean;
+  isStandalone: boolean;
+  isIOS: boolean;
+}
+
+export const checkNotificationCapabilities = (): DeviceNotificationStatus => {
+  const supported = typeof window !== 'undefined' && 'Notification' in window;
+  const hasServiceWorker = typeof window !== 'undefined' && 'serviceWorker' in navigator;
+  const hasPushManager = hasServiceWorker && 'PushManager' in window;
+  const hasVibration = typeof navigator !== 'undefined' && 'vibrate' in navigator;
+  
+  const isStandalone = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+
+  return {
+    supported,
+    permission: getNotificationPermission(),
+    hasServiceWorker,
+    hasPushManager,
+    hasVibration,
+    isStandalone,
+    isIOS
+  };
+};
+
+export const initNotificationServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Notification ServiceWorker registered with scope:', registration.scope);
+      // First check if already registered
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        registration = await navigator.serviceWorker.register('/sw.js');
+      }
       return registration;
     } catch (error) {
-      console.error('ServiceWorker registration failed:', error);
+      console.error('ServiceWorker registration for notifications failed:', error);
     }
   }
   return null;
@@ -46,6 +85,7 @@ export interface NativeNotificationOptions {
   tag?: string;
   url?: string;
   silent?: boolean;
+  soundType?: 'order' | 'alert' | 'chat' | 'none';
   requireInteraction?: boolean;
   actions?: Array<{ action: string; title: string; icon?: string }>;
 }
@@ -57,6 +97,26 @@ export const triggerNativeNotification = async (
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
+  // 1. Audio chime feedback
+  if (options.soundType !== 'none') {
+    if (options.soundType === 'alert') {
+      notificationAudio.playAlertTone();
+    } else if (options.soundType === 'chat') {
+      notificationAudio.playChatPing();
+    } else {
+      notificationAudio.playOrderChime();
+    }
+  }
+
+  // 2. Haptic motor vibration on mobile devices
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate([300, 100, 300, 100, 300]);
+    } catch {
+      // Ignore vibration policy issues
+    }
+  }
+
   const defaultActions = [
     { action: 'open', title: '👁️ Ver Detalle' },
     { action: 'dismiss', title: '✅ Marcar Visto' }
@@ -64,13 +124,14 @@ export const triggerNativeNotification = async (
 
   const notificationOptions = {
     body: options.body,
-    icon: options.icon || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=128&auto=format&fit=crop&q=80',
-    badge: options.badge || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=72&auto=format&fit=crop&q=80',
-    tag: options.tag || 'vitalis-notification',
+    icon: options.icon || '/icon-192.png',
+    badge: options.badge || '/favicon-32x32.png',
+    tag: options.tag || `vitalis-${Date.now()}`,
     data: {
       url: options.url || window.location.href
     },
     vibrate: [300, 100, 300, 100, 300],
+    renotify: true,
     silent: options.silent || false,
     requireInteraction: options.requireInteraction ?? true,
     actions: options.actions || defaultActions
@@ -84,14 +145,82 @@ export const triggerNativeNotification = async (
         return;
       }
     }
-    // Fallback if SW not active
+    // Fallback if SW not active yet
     new Notification(title, notificationOptions);
   } catch (err) {
     console.error('Error showing native notification:', err);
     try {
       new Notification(title, notificationOptions);
     } catch (e) {
-      console.error('Fallback notification also failed:', e);
+      console.error('Fallback notification failed:', e);
     }
   }
+};
+
+/**
+ * Send an immediate test notification with haptic vibration, audio chime, and OS system card
+ */
+export const sendTestNotification = async (type: 'order' | 'alert' | 'chat' = 'order'): Promise<boolean> => {
+  const perm = getNotificationPermission();
+  if (perm !== 'granted') {
+    const granted = await requestNotificationPermission();
+    if (!granted) return false;
+  }
+
+  const payloads = {
+    order: {
+      title: '🛒 ¡Pedido de Prueba Vitalis!',
+      body: 'Tu dispositivo está 100% configurado para recibir alertas instantáneas.',
+      soundType: 'order' as const,
+      url: '/#orders'
+    },
+    alert: {
+      title: '⚠️ Alerta de Sistema Vitalis',
+      body: 'Notificación prioritaria de prueba con sonido y vibración háptica.',
+      soundType: 'alert' as const,
+      url: '/'
+    },
+    chat: {
+      title: '💬 Nuevo Mensaje de Farmacia Vitalis',
+      body: 'El farmacéutico de turno te ha respondido en el chat.',
+      soundType: 'chat' as const,
+      url: '/assistant'
+    }
+  };
+
+  const selected = payloads[type];
+  await triggerNativeNotification(selected.title, {
+    body: selected.body,
+    soundType: selected.soundType,
+    url: selected.url,
+    tag: `vitalis-test-${Date.now()}`,
+    requireInteraction: true,
+    actions: [
+      { action: 'open', title: '🚀 Abrir Farmacia' },
+      { action: 'dismiss', title: '✅ Todo Listo' }
+    ]
+  });
+
+  return true;
+};
+
+/**
+ * Schedule a background notification via Service Worker (e.g., medicine reminder)
+ */
+export const scheduleBackgroundNotification = async (params: {
+  title: string;
+  body: string;
+  delayMs: number;
+  tag?: string;
+  url?: string;
+  actions?: Array<{ action: string; title: string }>;
+}) => {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SCHEDULE_MED_NOTIFICATION',
+      ...params
+    });
+    return true;
+  }
+  return false;
 };

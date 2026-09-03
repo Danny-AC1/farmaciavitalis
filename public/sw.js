@@ -105,18 +105,21 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const defaultActions = [
+    { action: 'open', title: '👁️ Ver Detalle' },
+    { action: 'dismiss', title: '✅ Entendido' }
+  ];
+
   const options = {
     body: data.body,
-    icon: data.icon || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=192&auto=format&fit=crop&q=80',
-    badge: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=72&auto=format&fit=crop&q=80',
-    tag: data.tag || 'vitalis-med-alarm',
-    data: { url: data.url || '/#treatment' },
-    vibrate: [400, 100, 400, 100, 400],
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/favicon-32x32.png',
+    tag: data.tag || 'vitalis-notification',
+    data: { url: data.url || '/' },
+    vibrate: [400, 150, 400, 150, 400],
+    renotify: true,
     requireInteraction: true,
-    actions: [
-      { action: 'open', title: '💊 Tomar Medicina' },
-      { action: 'dismiss', title: '✅ Entendido' }
-    ]
+    actions: data.actions || defaultActions
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
@@ -125,17 +128,18 @@ self.addEventListener('push', (event) => {
 // Client PostMessage listener for foreground/background communication
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SCHEDULE_MED_NOTIFICATION') {
-    const { title, body, delayMs, tag, url } = event.data;
+    const { title, body, delayMs, tag, url, actions } = event.data;
     setTimeout(() => {
       self.registration.showNotification(title || '⏰ Recordatorio de Medicamento', {
         body: body || 'Es momento de tomar tu dosis indicada.',
-        icon: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=192&auto=format&fit=crop&q=80',
-        badge: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=72&auto=format&fit=crop&q=80',
+        icon: '/icon-192.png',
+        badge: '/favicon-32x32.png',
         tag: tag || `med-alarm-${Date.now()}`,
         data: { url: url || '/#treatment' },
-        vibrate: [400, 100, 400, 100, 400],
+        vibrate: [400, 150, 400, 150, 400],
+        renotify: true,
         requireInteraction: true,
-        actions: [
+        actions: actions || [
           { action: 'open', title: '💊 Ver Pastillero' },
           { action: 'dismiss', title: '✅ Posponer' }
         ]
