@@ -1,25 +1,66 @@
 {
-  "short_name": "Vitalis",
+  "id": "/",
   "name": "Farmacia Vitalis - Tu Salud Al Día",
+  "short_name": "Vitalis",
+  "description": "Farmacia Vitalis Machalilla: catálogo farmacéutico, compras rápidas, POS y entregas a domicilio.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "lang": "es",
+  "categories": ["health", "medical", "shopping"],
   "icons": [
     {
       "src": "/icon-192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ],
-  "start_url": "/",
-  "background_color": "#ffffff",
-  "theme_color": "#0d9488",
-  "display": "standalone",
-  "orientation": "portrait",
-  "scope": "/",
-  "description": "Sistema de Gestión Farmacéutica, Punto de Venta POS y Control de Medicamentos."
+  "shortcuts": [
+    {
+      "name": "Catálogo",
+      "short_name": "Catálogo",
+      "description": "Ver catálogo de medicamentos y productos",
+      "url": "/#catalog",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mis Pedidos",
+      "short_name": "Pedidos",
+      "description": "Consultar estado de tus pedidos",
+      "url": "/#orders",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

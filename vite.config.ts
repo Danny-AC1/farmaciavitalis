@@ -12,36 +12,79 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        manifestFilename: 'manifest.json',
+        includeAssets: [
+          'favicon.ico',
+          'favicon.svg',
+          'apple-touch-icon.png',
+          'icon.svg',
+          'icon.png',
+          'icon-192.png',
+          'icon-512.png',
+          'icon-maskable-192.png',
+          'icon-maskable-512.png',
+          'favicon-32x32.png',
+          'favicon-16x16.png',
+          'sw-push.js'
+        ],
         workbox: {
-          maximumFileSizeToCacheInBytes: 4000000, // Aumentar a 4MB
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+          maximumFileSizeToCacheInBytes: 4000000,
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          importScripts: ['/sw-push.js']
+        },
+        devOptions: {
+          enabled: true
         },
         manifest: {
-          name: 'Farmacia Vitalis',
+          id: '/',
+          name: 'Farmacia Vitalis - Tu Salud Al Día',
           short_name: 'Vitalis',
-          description: 'Tu Salud Al Día - Catálogo farmacéutico',
+          description: 'Farmacia Vitalis Machalilla: catálogo farmacéutico, compras rápidas, POS y entregas a domicilio.',
           theme_color: '#0d9488',
           background_color: '#ffffff',
           display: 'standalone',
+          display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+          orientation: 'portrait-primary',
           scope: '/',
           start_url: '/',
+          lang: 'es',
+          categories: ['health', 'medical', 'shopping'],
           icons: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3063/3063176.png', // Icono genérico médico
+              src: '/icon-192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3063/3063176.png',
+              src: '/icon-512.png',
               sizes: '512x512',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/icon-maskable-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/icon-maskable-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/icon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml'
             }
           ]
         }
       })
     ],
     define: {
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || env.API_KEY || env.VITE_API_KEY || ''),
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY || ''),
       'process.env.FIREBASE_API_KEY': JSON.stringify(env.FIREBASE_API_KEY || env.VITE_FIREBASE_API_KEY || ''),
       'process.env.FIREBASE_AUTH_DOMAIN': JSON.stringify(env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || ''),

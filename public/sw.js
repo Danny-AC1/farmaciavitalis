@@ -1,11 +1,17 @@
 // Service Worker for Farmacia Vitalis Web Push Notifications & 100% Offline Support
-const CACHE_NAME = 'vitalis-pwa-v2';
+const CACHE_NAME = 'vitalis-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/index.css',
-  '/icon.png'
+  '/icon.svg',
+  '/favicon.ico',
+  '/favicon-32x32.png',
+  '/icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
