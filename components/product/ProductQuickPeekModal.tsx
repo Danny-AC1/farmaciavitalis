@@ -64,7 +64,8 @@ export const ProductQuickPeekModal: React.FC<ProductQuickPeekModalProps> = ({
 
   const discount = getProductDiscount(product.id);
   const unitPrice = discount ? getDiscountedPrice(product.price, discount) : product.price;
-  const boxPrice = product.boxPrice ? (discount ? getDiscountedPrice(product.boxPrice, discount) : product.boxPrice) : undefined;
+  const rawBoxPrice = product.publicBoxPrice || product.boxPrice;
+  const boxPrice = rawBoxPrice ? (discount ? getDiscountedPrice(rawBoxPrice, discount) : rawBoxPrice) : undefined;
   const activePrice = selectedUnit === 'BOX' && boxPrice ? boxPrice : unitPrice;
 
   // Calculate reserved stock
@@ -217,7 +218,7 @@ export const ProductQuickPeekModal: React.FC<ProductQuickPeekModalProps> = ({
               </div>
 
               {/* Unit Switcher if box price exists */}
-              {product.boxPrice && (
+              {rawBoxPrice && (
                 <div className="flex bg-slate-200/80 p-1 rounded-xl gap-1">
                   <button
                     type="button"
