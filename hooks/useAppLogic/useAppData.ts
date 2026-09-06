@@ -154,5 +154,5 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
     };
   }, [activeTab, setShowAuthModal]);
 
-  return { products, categories, orders, bundles, blogPosts, currentUser };
+  return { products, setProducts, categories, orders, bundles, blogPosts, currentUser };
 };

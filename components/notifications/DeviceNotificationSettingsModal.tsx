@@ -12,7 +12,6 @@ import {
   Sparkles, 
   X, 
   Play, 
-  ExternalLink,
   ShieldCheck,
   Apple
 } from 'lucide-react';
@@ -20,8 +19,7 @@ import {
   checkNotificationCapabilities, 
   requestNotificationPermission, 
   sendTestNotification, 
-  DeviceNotificationStatus,
-  triggerNativeNotification 
+  DeviceNotificationStatus
 } from '../../services/nativeNotificationService';
 import { notificationAudio } from '../../services/notificationAudioService';
 import { registerDeviceForPush, detectPlatform, detectBrowser } from '../../services/pushSubscriptionService';

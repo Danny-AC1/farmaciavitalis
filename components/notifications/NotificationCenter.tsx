@@ -34,6 +34,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
   const [permissionState, setPermissionState] = useState<NotificationPermission>('default');
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [showDeviceSettings, setShowDeviceSettings] = useState<boolean>(false);
 
   useEffect(() => {
     setPermissionState(getNotificationPermission());
@@ -55,8 +56,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
     const granted = await requestNotificationPermission();
     setPermissionState(getNotificationPermission());
     if (granted) {
+      await registerDeviceForPush(userId, 'USER', soundEnabled, true);
       if (soundEnabled) notificationAudio.playOrderChime();
     }
+    setShowDeviceSettings(true);
   };
 
   const toggleSound = () => {
@@ -128,10 +131,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -175,6 +179,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
 
                 <div className="flex items-center gap-1">
                   <button 
+                    onClick={() => setShowDeviceSettings(true)}
+                    className="p-2 hover:bg-white/15 rounded-xl transition-colors text-teal-100 hover:text-white"
+                    title="Configuración de Notificaciones (PC y Celular)"
+                  >
+                    <Settings2 size={18} />
+                  </button>
+                  <button 
                     onClick={toggleSound}
                     className="p-2 hover:bg-white/15 rounded-xl transition-colors text-teal-100 hover:text-white"
                     title={soundEnabled ? "Silenciar audio" : "Activar audio"}
@@ -194,15 +205,23 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
               {/* Native Push Notification Control Card */}
               <div className="mt-3 bg-white/10 backdrop-blur-md rounded-xl p-2.5 border border-white/15 flex items-center justify-between text-xs">
                 {permissionState === 'granted' ? (
-                  <div className="flex items-center gap-2 text-[11px] font-black text-emerald-200">
-                    <ShieldCheck size={15} className="text-emerald-300" />
-                    <span>Alertas de dispositivo activas</span>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2 text-[11px] font-black text-emerald-200">
+                      <ShieldCheck size={15} className="text-emerald-300" />
+                      <span>Alertas de dispositivo activas</span>
+                    </div>
+                    <button
+                      onClick={() => setShowDeviceSettings(true)}
+                      className="text-[10px] font-bold text-teal-100 hover:text-white underline underline-offset-2"
+                    >
+                      Ajustar / Probar
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between w-full gap-2">
                     <div className="flex items-center gap-2 text-[10.5px] font-bold text-teal-50">
                       <Smartphone size={14} className="shrink-0 text-amber-300" />
-                      <span>Activar Push en tu Celular</span>
+                      <span>Activar Alertas en Celular / PC</span>
                     </div>
                     <button
                       onClick={handleEnableDeviceNotifications}
@@ -302,6 +321,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, isOpen,
         </>
       )}
     </AnimatePresence>
+
+    {/* Modal de Configuración y Pruebas de Notificaciones en Celular y PC (100% Gratis) */}
+    <DeviceNotificationSettingsModal 
+      isOpen={showDeviceSettings}
+      onClose={() => setShowDeviceSettings(false)}
+      userId={userId}
+      userRole="USER"
+    />
+  </>
   );
 };
 

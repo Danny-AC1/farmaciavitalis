@@ -225,3 +225,52 @@ export const addCategoryDB = async (category: Category) => {
 export const deleteCategoryDB = async (id: string) => {
   await deleteDoc(doc(firestore, CATEGORIES_COLLECTION, id));
 };
+
+/**
+ * Consulta un producto individual directamente por su ID o código de barras.
+ * Ideal para enlaces compartidos y deep linking instantáneo.
+ */
+export const fetchProductByIdDB = async (id: string): Promise<Product | null> => {
+  if (!id) return null;
+  const cleanId = id.trim();
+
+  // 1. Consulta directa del documento en Firestore
+  try {
+    const docRef = doc(firestore, PRODUCTS_COLLECTION, cleanId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() } as Product;
+    }
+  } catch (err) {
+    console.warn("fetchProductByIdDB direct doc error:", err);
+  }
+
+  // 2. Consulta por código de barras o campo id explícito si difiere del ID del documento
+  try {
+    const qBarcode = query(collection(firestore, PRODUCTS_COLLECTION), where('barcode', '==', cleanId));
+    const barcodeSnap = await getDocs(qBarcode);
+    if (!barcodeSnap.empty) {
+      const docSnap = barcodeSnap.docs[0];
+      return { id: docSnap.id, ...docSnap.data() } as Product;
+    }
+  } catch (err) {
+    console.warn("fetchProductByIdDB query error:", err);
+  }
+
+  // 3. Fallback en memoria / almacenamiento local
+  try {
+    const cached = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    if (cached) {
+      const list: Product[] = JSON.parse(cached);
+      const found = list.find(p => 
+        p.id === cleanId || 
+        p.id.toLowerCase() === cleanId.toLowerCase() || 
+        p.barcode === cleanId
+      );
+      if (found) return found;
+    }
+  } catch (e) {}
+
+  return null;
+};
+

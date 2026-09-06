@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ViewState, User, Product } from '../../types';
+import { getProductIdFromUrl } from '../../utils/productUrl';
 
 export const useAppNavigation = () => {
   const getInitialState = () => {
@@ -38,22 +39,17 @@ export const useAppNavigation = () => {
     if (activeCategory) params.set('category', activeCategory);
     
     // Si hay un producto seleccionado, lo agregamos a la URL
+    const urlPid = getProductIdFromUrl();
     if (selectedProduct) {
       params.set('product', selectedProduct.id);
-    } else if (!hasInitializedProductFromUrl) {
-      // Si no se ha inicializado el producto desde la URL aún (ej: en la carga inicial cuando los productos siguen cargando),
-      // preservamos el parámetro 'product' actual de la barra de direcciones para no borrarlo prematuramente.
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlPid = urlParams.get('product') || urlParams.get('id') || urlParams.get('productId');
-      if (urlPid) {
-        params.set('product', urlPid);
-      }
+    } else if (urlPid && !hasInitializedProductFromUrl) {
+      // Si aún no se ha resuelto el producto inicial de la URL, preservamos el parámetro para no borrarlo
+      params.set('product', urlPid);
     }
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
     
-    const initialUrlProduct = !hasInitializedProductFromUrl ? (new URLSearchParams(window.location.search).get('product') || undefined) : undefined;
-    const currentProductId = selectedProduct ? selectedProduct.id : initialUrlProduct;
+    const currentProductId = selectedProduct ? selectedProduct.id : (!hasInitializedProductFromUrl ? urlPid : undefined);
 
     const state = { 
       view, 
@@ -69,7 +65,7 @@ export const useAppNavigation = () => {
     } else {
       window.history.pushState(state, '', newUrl);
     }
-  }, [view, activeTab, activeCategory, selectedProduct, hasInitializedProductFromUrl]); // Excluimos searchTerm para no llenar el historial con cada letra
+  }, [view, activeTab, activeCategory, selectedProduct, hasInitializedProductFromUrl]);
 
   // Sincronizar searchTerm por separado con replaceState para que persista en el estado actual
   useEffect(() => {
@@ -97,21 +93,14 @@ export const useAppNavigation = () => {
         if (view === 'HOME' && activeTab === 'home' && !activeCategory && !selectedProduct && searchTerm === '') {
           const now = Date.now();
           if (now - lastBackPress < 2000) {
-            // Permitir la salida (en web esto suele significar ir a la página anterior fuera del sitio)
-            // No podemos forzar el cierre de la pestaña, pero dejamos que el historial siga su curso
+            // Permitir la salida
           } else {
             setLastBackPress(now);
-            // Mostramos un aviso discreto (usando alert por ahora, se puede mejorar con un toast)
-            // alert("Presione de nuevo para salir");
-            
-            // Volvemos a meter el estado para "atrapar" el siguiente botón atrás
             window.history.pushState({ view: 'HOME', activeTab: 'home' }, '', window.location.pathname);
-            
-            // Disparamos un evento personalizado para que App.tsx pueda mostrar un mensaje
             window.dispatchEvent(new CustomEvent('show-exit-toast'));
           }
         } else {
-          // Si estábamos en una sub-vista, volver al inicio
+          // Si estábamos en una sub-vista o modal, volver al inicio
           isInternalChange.current = true;
           setView('HOME');
           setActiveTab('home');
@@ -124,9 +113,9 @@ export const useAppNavigation = () => {
 
     window.addEventListener('popstate', handlePopState);
     
-    // Estado inicial
+    // Estado inicial: NUNCA sobreescribir con pathname vacío si hay parámetros en la URL actual
     if (!window.history.state) {
-      window.history.replaceState({ view: 'HOME', activeTab: 'home' }, '', window.location.pathname);
+      window.history.replaceState({ view: initialState.view, activeTab: initialState.tab }, '', window.location.href);
     }
 
     return () => window.removeEventListener('popstate', handlePopState);
@@ -139,3 +128,4 @@ export const useAppNavigation = () => {
     hasInitializedProductFromUrl, setHasInitializedProductFromUrl
   };
 };
+

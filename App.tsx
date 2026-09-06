@@ -126,6 +126,15 @@ const App: React.FC = () => {
         />
       )}
 
+      {logic.isResolvingUrlProduct && !logic.selectedProduct && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-slate-900/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl flex items-center gap-2.5 border border-white/10">
+            <div className="w-3.5 h-3.5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+            <span>Abriendo producto compartido...</span>
+          </div>
+        </div>
+      )}
+
       {logic.view === 'CHECKOUT' && (
         <Checkout 
           cart={logic.cart} subtotal={logic.subtotal} total={logic.totalBase} 

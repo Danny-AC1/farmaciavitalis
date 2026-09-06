@@ -5,6 +5,7 @@ import AdminProductForm from './AdminProductForm';
 import AdminProductList from './AdminProductList';
 import AdminProductEditModal from './AdminProductEditModal';
 import AdminSupplierPriceModal from './AdminSupplierPriceModal';
+import AdminQuickStockModal from './AdminQuickStockModal';
 
 interface AdminProductManagementProps {
   products: Product[];
@@ -43,6 +44,7 @@ interface AdminProductManagementProps {
 
 const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) => {
   const [supplierPriceProduct, setSupplierPriceProduct] = useState<Product | null>(null);
+  const [quickStockProduct, setQuickStockProduct] = useState<Product | null>(null);
 
   return (
     <div className="space-y-8 animate-in fade-in">
@@ -59,6 +61,7 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
             onDeleteProduct={props.onDeleteProduct}
             onUpdateStock={props.onUpdateStock}
             onOpenSupplierPrices={(p) => setSupplierPriceProduct(p)}
+            onOpenQuickStock={(p) => setQuickStockProduct(p)}
         />
 
         {/* Modal Emergente para Editar un Producto sin tener que subir la página */}
@@ -72,6 +75,15 @@ const AdminProductManagement: React.FC<AdminProductManagementProps> = (props) =>
           <AdminSupplierPriceModal 
             product={supplierPriceProduct}
             onClose={() => setSupplierPriceProduct(null)}
+          />
+        )}
+
+        {/* Modal Emergente para Ajuste Rápido de Stock */}
+        {quickStockProduct && (
+          <AdminQuickStockModal 
+            product={quickStockProduct}
+            onClose={() => setQuickStockProduct(null)}
+            onUpdateStock={props.onUpdateStock}
           />
         )}
     </div>

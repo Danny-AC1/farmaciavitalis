@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppNavigation } from './useAppLogic/useAppNavigation';
 import { useAppData } from './useAppLogic/useAppData';
 import { useAppCart } from './useAppLogic/useAppCart';
 import { useAppSearch } from './useAppLogic/useAppSearch';
 import { useAppOrders } from './useAppLogic/useAppOrders';
 import { useNotifications } from './useNotifications';
+import { getProductIdFromUrl } from '../utils/productUrl';
+import { fetchProductByIdDB } from '../services/db';
 
 export const useAppLogic = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -12,6 +14,8 @@ export const useAppLogic = () => {
   const [showUserSubscriptionsModal, setShowUserSubscriptionsModal] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [showStaffAccess, setShowStaffAccess] = useState(false);
+  const [isResolvingUrlProduct, setIsResolvingUrlProduct] = useState(false);
+  const resolvingPidRef = useRef<string | null>(null);
   
   const nav = useAppNavigation();
   const { searchTerm, setSearchTerm, activeCategory, setActiveCategory } = nav;
@@ -20,42 +24,80 @@ export const useAppLogic = () => {
   const cart = useAppCart();
   const notifications = useNotifications(data.currentUser?.uid);
 
-  // Sincronizar el producto de la URL con el estado de la aplicación
+  // Sincronizar el producto de la URL con el estado de la aplicación de forma robusta e inmediata
   useEffect(() => {
-    const handleUrlProductSync = () => {
-      if (data.products.length === 0) return;
-      
-      const params = new URLSearchParams(window.location.search);
-      let pid = params.get('product') || params.get('id') || params.get('productId');
-      
-      if (!pid) {
-        const match = window.location.pathname.match(/product\/([a-zA-Z0-9_-]+)/);
-        pid = match ? match[1] : null;
+    let isCancelled = false;
+
+    const handleUrlProductSync = async () => {
+      const targetPid = getProductIdFromUrl();
+      if (!targetPid) {
+        nav.setHasInitializedProductFromUrl(true);
+        return;
       }
-      
-      if (pid) {
-        const trimmedPid = pid.trim();
-        const prod = data.products.find(p => p.id === trimmedPid || p.id.toLowerCase() === trimmedPid.toLowerCase());
-        if (prod) {
-          if (nav.selectedProduct?.id !== prod.id) {
-            nav.setSelectedProduct(prod);
-            nav.setView('HOME');
-            nav.setActiveTab('home');
+
+      const trimmedPid = targetPid.trim();
+
+      // Si el producto actual ya corresponde al ID solicitado, no hacer re-render innecesario
+      if (nav.selectedProduct && (
+        nav.selectedProduct.id === trimmedPid || 
+        nav.selectedProduct.id.toLowerCase() === trimmedPid.toLowerCase()
+      )) {
+        nav.setHasInitializedProductFromUrl(true);
+        return;
+      }
+
+      // Evitar llamadas en paralelo duplicadas para el mismo ID
+      if (resolvingPidRef.current === trimmedPid) return;
+      resolvingPidRef.current = trimmedPid;
+      setIsResolvingUrlProduct(true);
+
+      try {
+        // 1. Buscar en los productos cargados actualmente en memoria/caché
+        let prod = data.products.find(p => 
+          p.id === trimmedPid || 
+          p.id.toLowerCase() === trimmedPid.toLowerCase() ||
+          p.barcode === trimmedPid
+        );
+
+        // 2. Si aún no está en memoria (ej: carga inicial lenta de Firestore o cliente nuevo que abre enlace compartido),
+        // consultar de inmediato el documento individual a Firestore
+        if (!prod) {
+          const fetched = await fetchProductByIdDB(trimmedPid);
+          if (fetched && !isCancelled) {
+            prod = fetched;
+            // Lo añadimos al catálogo local para que esté disponible para todo el flujo de compra
+            data.setProducts(prev => {
+              const exists = prev.some(p => p.id === fetched.id);
+              return exists ? prev : [fetched, ...prev];
+            });
           }
         }
+
+        if (prod && !isCancelled) {
+          nav.setSelectedProduct(prod);
+          nav.setView('HOME');
+          nav.setActiveTab('home');
+        }
+      } catch (err) {
+        console.error("Error al sincronizar producto desde la URL:", err);
+      } finally {
+        if (!isCancelled) {
+          setIsResolvingUrlProduct(false);
+          nav.setHasInitializedProductFromUrl(true);
+          resolvingPidRef.current = null;
+        }
       }
-      
-      // Marcar como inicializado una vez que los productos se han cargado y hemos procesado la URL
-      nav.setHasInitializedProductFromUrl(true);
     };
 
     handleUrlProductSync();
 
     window.addEventListener('popstate', handleUrlProductSync);
     return () => {
+      isCancelled = true;
       window.removeEventListener('popstate', handleUrlProductSync);
     };
-  }, [data.products, nav.selectedProduct]);
+  }, [data.products, nav.selectedProduct?.id]);
+
   
   const search = useAppSearch(
     data.products, 
@@ -104,6 +146,7 @@ export const useAppLogic = () => {
     showUserSubscriptionsModal, setShowUserSubscriptionsModal,
     showPrescriptionModal, setShowPrescriptionModal,
     showStaffAccess, setShowStaffAccess,
+    isResolvingUrlProduct,
     handleTabChange
   };
 };

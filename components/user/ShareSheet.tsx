@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Mail, Share2 } from 'lucide-react';
 import { Product } from '../../types';
+import { getProductShareUrl } from '../../utils/productUrl';
 
 interface ShareSheetProps {
   product: Product;
@@ -26,9 +27,7 @@ const ShareSheet: React.FC<ShareSheetProps> = ({ product, discountedPrice, isOpe
 
   if (!isOpen) return null;
 
-  const url = new URL(window.location.origin);
-  url.searchParams.set('product', product.id);
-  const shareUrl = url.toString();
+  const shareUrl = getProductShareUrl(product.id);
 
   const shareText = `¡Hola! Te comparto este producto de Farmacia Vitalis: *${product.name}* a un precio increíble de $${discountedPrice.toFixed(2)}. Míralo aquí: ${shareUrl}`;
   const encodedText = encodeURIComponent(shareText);

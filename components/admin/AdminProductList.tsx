@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Package, Trash2, Edit2, Search, Plus, Minus, Building2 } from 'lucide-react';
+import { Package, Trash2, Edit2, Search, Plus, Minus, Building2, Boxes } from 'lucide-react';
 import { Product } from '../../types';
 
 interface AdminProductListProps {
@@ -9,6 +9,7 @@ interface AdminProductListProps {
   onDeleteProduct: (id: string) => void | Promise<void>;
   onUpdateStock: (id: string, s: number) => void | Promise<void>;
   onOpenSupplierPrices?: (p: Product) => void;
+  onOpenQuickStock?: (p: Product) => void;
 }
 
 const AdminProductList: React.FC<AdminProductListProps> = ({ 
@@ -16,7 +17,8 @@ const AdminProductList: React.FC<AdminProductListProps> = ({
   handleEditClick, 
   onDeleteProduct, 
   onUpdateStock,
-  onOpenSupplierPrices
+  onOpenSupplierPrices,
+  onOpenQuickStock
 }) => {
   const [listSearch, setListSearch] = useState('');
 
@@ -80,15 +82,26 @@ const AdminProductList: React.FC<AdminProductListProps> = ({
                     <button 
                       onClick={() => onUpdateStock(p.id, Math.max(0, p.stock - 1))}
                       className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Restar 1 unidad"
                     >
                       <Minus size={14} strokeWidth={3} />
                     </button>
-                    <span className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner ${p.stock <= 3 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenQuickStock && onOpenQuickStock(p)}
+                      className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                        p.stock <= 3 
+                          ? 'bg-red-100 hover:bg-red-200 text-red-700 border-red-200' 
+                          : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-200'
+                      }`}
+                      title="Clic para abrir Ajuste Rápido de Stock"
+                    >
                       {p.stock}
-                    </span>
+                    </button>
                     <button 
                       onClick={() => onUpdateStock(p.id, p.stock + 1)}
                       className="p-1 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title="Sumar 1 unidad"
                     >
                       <Plus size={14} strokeWidth={3} />
                     </button>
@@ -106,6 +119,17 @@ const AdminProductList: React.FC<AdminProductListProps> = ({
                   {p.publicBoxPrice ? `$${p.publicBoxPrice.toFixed(2)}` : '---'}
                 </td>
                 <td className="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
+                  <button 
+                    onClick={() => {
+                      if (onOpenQuickStock) {
+                        onOpenQuickStock(p);
+                      }
+                    }} 
+                    className="p-2 text-indigo-600 hover:text-white hover:bg-indigo-600 bg-indigo-50 border border-indigo-200 rounded-xl transition-all shadow-xs inline-flex items-center justify-center" 
+                    title="Ajuste Rápido de Stock (Inventario)"
+                  >
+                    <Boxes size={16}/>
+                  </button>
                   <button 
                     onClick={() => {
                       if (onOpenSupplierPrices) {

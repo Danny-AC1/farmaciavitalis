@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Product, CartItem } from '../../types';
 import { getProductDiscount, getDiscountedPrice } from '../../utils/discounts';
+import { getProductShareUrl } from '../../utils/productUrl';
 
 interface ProductQuickPeekModalProps {
   product: Product;
@@ -86,14 +87,15 @@ export const ProductQuickPeekModal: React.FC<ProductQuickPeekModalProps> = ({
   };
 
   const handleShare = () => {
+    const shareUrl = getProductShareUrl(product.id);
     if (navigator.share) {
       navigator.share({
         title: product.name,
         text: `Mira este producto en Farmacia Vitalis: ${product.name}`,
-        url: window.location.href
+        url: shareUrl
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`${window.location.origin}/#product-${product.id}`);
+      navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

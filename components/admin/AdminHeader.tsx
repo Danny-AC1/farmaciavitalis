@@ -12,6 +12,8 @@ import {
   triggerNativeNotification 
 } from '../../services/nativeNotificationService';
 import { notificationAudio } from '../../services/notificationAudioService';
+import { registerDeviceForPush } from '../../services/pushSubscriptionService';
+import { DeviceNotificationSettingsModal } from '../notifications/DeviceNotificationSettingsModal';
 import VitalisToastEngine, { VitalisToast } from '../notifications/VitalisToastEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -57,6 +59,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     });
 
     const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+    const [showDeviceModal, setShowDeviceModal] = useState(false);
 
     const prevOrdersRef = useRef<string[]>([]);
     const prevLowStockRef = useRef<string[]>([]);
@@ -97,10 +100,12 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       const newPerm = getNotificationPermission();
       setPushPermission(newPerm);
       if (granted) {
+        await registerDeviceForPush('admin', 'ADMIN', soundEnabled, true);
         triggerNativeNotification('Alertas Vitalis Activas 🔔', {
-          body: 'Notificaciones del sistema configuradas correctamente en este navegador.'
+          body: 'Notificaciones del sistema configuradas correctamente en este dispositivo.'
         });
       }
+      setShowDeviceModal(true);
     };
 
     // Conteos activos no descartados
@@ -529,10 +534,17 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                               <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-300 min-w-0">
                                 <Radio size={14} className={pushPermission === 'granted' ? 'text-emerald-400 shrink-0' : 'text-amber-400 shrink-0'} />
                                 <span className="truncate">
-                                  {pushPermission === 'granted' ? 'Notificaciones Web Activas' : 'Alertas Escritorio Desactivadas'}
+                                  {pushPermission === 'granted' ? 'Notificaciones en Dispositivo Activas' : 'Alertas Escritorio Desactivadas'}
                                 </span>
                               </div>
-                              {pushPermission !== 'granted' && (
+                              {pushPermission === 'granted' ? (
+                                <button
+                                  onClick={() => setShowDeviceModal(true)}
+                                  className="text-[9px] font-black text-teal-400 hover:text-teal-300 uppercase tracking-wider transition-colors shrink-0 underline underline-offset-2"
+                                >
+                                  Ajustar / Probar
+                                </button>
+                              ) : (
                                 <button
                                   onClick={handleEnablePush}
                                   className="text-[9px] font-black bg-teal-500 hover:bg-teal-400 text-slate-950 px-2.5 py-1 rounded-lg uppercase tracking-wider transition-colors shrink-0"
@@ -642,6 +654,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                  {/* Botón de Perfil */}
                  <button onClick={onLogout} className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white hover:bg-slate-850 transition-colors">{currentUserRole?.charAt(0) || 'A'}</button>
               </div>
+
+              {/* Modal de Configuración y Pruebas para Administradores / Farmacéuticos */}
+              <DeviceNotificationSettingsModal 
+                isOpen={showDeviceModal}
+                onClose={() => setShowDeviceModal(false)}
+                userId="admin"
+                userRole="ADMIN"
+              />
         </header>
     );
 };

@@ -84,9 +84,11 @@ export const streamNotifications = (userId: string, callback: (notifications: No
       if (change.type === 'added') {
         const notif = { id: change.doc.id, ...change.doc.data() } as Notification;
         if (!previousNotificationIds.has(notif.id) && !notif.read) {
+          const soundType = notif.type === 'ORDER_UPDATE' ? 'order' : notif.type === 'CHAT' ? 'chat' : 'alert';
           triggerNativeNotification(notif.title || 'Nueva Notificación Vitalis 💊', {
             body: notif.message,
             tag: `vitalis-user-${userId}-${notif.type || 'general'}`,
+            soundType,
             requireInteraction: true
           });
         }
