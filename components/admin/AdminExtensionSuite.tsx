@@ -118,7 +118,7 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
         >
           <span className="flex items-center gap-2">
             <ShoppingBag size={14} />
-            Lista de Compras (Stock Crítico)
+            Sistema de Compras (Reabastecimiento)
             <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black font-mono">
               {products.filter(p => p.stock <= 1).length}
             </span>
