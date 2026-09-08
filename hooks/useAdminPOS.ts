@@ -6,6 +6,8 @@ import { updateStockDB } from '../services/db.products';
 import { saveUserDB } from '../services/db.users';
 import { getProductDiscount, getDiscountedPrice } from '../utils/discounts';
 import { saveOfflineSale } from '../services/posOfflineService';
+import { generateOfflineReceiptNumber, updateLocalProductStock } from '../services/offline/offlineStorage';
+import { enqueueOfflineAction } from '../services/offline/syncQueue';
 
 export const useAdminPOS = (products: Product[]) => {
     const [posCart, setPosCart] = useState<CartItem[]>([]);
@@ -143,10 +145,33 @@ export const useAdminPOS = (products: Product[]) => {
 
         // Si el navegador está en modo offline, guardar directamente en la cola local
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            saveOfflineSale(orderData);
+            const receiptNo = generateOfflineReceiptNumber();
+            const offlineOrderData: Order = {
+                ...orderData,
+                id: `POS-${receiptNo}`,
+                notes: `[Comprobante Offline: ${receiptNo}]`
+            };
+
+            // 1. Guardar en almacenamiento offline especializado y universal
+            saveOfflineSale(offlineOrderData);
+            enqueueOfflineAction('ORDER', 'CREATE', offlineOrderData);
+
+            // 2. Descontar stock inmediatamente en memoria y en IndexedDB para no vender producto sin stock
+            for (const item of posCart) {
+                const orig = products.find(p => p.id === item.id);
+                if (orig) {
+                    const isBox = item.selectedUnit === 'BOX';
+                    const unitsToSubtract = isBox ? (orig.unitsPerBox || 1) * item.quantity : item.quantity;
+                    const newStock = Math.max(0, orig.stock - unitsToSubtract);
+                    orig.stock = newStock;
+                    updateLocalProductStock(item.id, unitsToSubtract);
+                    enqueueOfflineAction('PRODUCT_STOCK', 'UPDATE', { productId: item.id, newStock });
+                }
+            }
+
             setPosCart([]); setPosCashReceived(''); 
-            alert("📶 Modo Offline Activo: Venta guardada en memoria local. Se sincronizará automáticamente cuando regrese la conexión.");
-            return orderData;
+            alert(`📶 Venta Guardada en Modo Offline\nComprobante: ${receiptNo}\nStock descontado en memoria local. Se sincronizará automáticamente cuando regrese internet.`);
+            return offlineOrderData;
         }
 
         try {
@@ -178,10 +203,30 @@ export const useAdminPOS = (products: Product[]) => {
             return orderData;
         } catch (error: any) { 
             console.warn("Fallo de red al registrar venta en la nube, guardando offline:", error);
-            saveOfflineSale(orderData);
+            const receiptNo = generateOfflineReceiptNumber();
+            const offlineOrderData: Order = {
+                ...orderData,
+                id: `POS-${receiptNo}`,
+                notes: `[Comprobante Offline: ${receiptNo}]`
+            };
+            saveOfflineSale(offlineOrderData);
+            enqueueOfflineAction('ORDER', 'CREATE', offlineOrderData);
+
+            for (const item of posCart) {
+                const orig = products.find(p => p.id === item.id);
+                if (orig) {
+                    const isBox = item.selectedUnit === 'BOX';
+                    const unitsToSubtract = isBox ? (orig.unitsPerBox || 1) * item.quantity : item.quantity;
+                    const newStock = Math.max(0, orig.stock - unitsToSubtract);
+                    orig.stock = newStock;
+                    updateLocalProductStock(item.id, unitsToSubtract);
+                    enqueueOfflineAction('PRODUCT_STOCK', 'UPDATE', { productId: item.id, newStock });
+                }
+            }
+
             setPosCart([]); setPosCashReceived('');
-            alert("📶 Venta guardada localmente en Modo Offline. Se sincronizará automáticamente cuando vuelva internet.");
-            return orderData;
+            alert(`📶 Venta guardada localmente en Modo Offline [${receiptNo}]. Stock actualizado. Se sincronizará automáticamente cuando vuelva internet.`);
+            return offlineOrderData;
         }
     };
 

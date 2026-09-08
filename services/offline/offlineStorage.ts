@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'vitalis_offline_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface OfflineSyncQueueItem {
   id: string;
@@ -43,6 +43,12 @@ export const openOfflineDB = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains('syncQueue')) {
         db.createObjectStore('syncQueue', { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains('customers')) {
+        db.createObjectStore('customers', { keyPath: 'uid' });
+      }
+      if (!db.objectStoreNames.contains('credits')) {
+        db.createObjectStore('credits', { keyPath: 'id' });
+      }
       if (!db.objectStoreNames.contains('cache')) {
         db.createObjectStore('cache', { keyPath: 'key' });
       }
@@ -61,8 +67,8 @@ export const openOfflineDB = (): Promise<IDBDatabase> => {
 };
 
 // Generic Put in Object Store with LocalStorage fallback
-export const saveOfflineItem = async <T extends { id?: string }>(
-  storeName: 'products' | 'orders' | 'syncQueue' | 'cache',
+export const saveOfflineItem = async <T extends { id?: string; uid?: string }>(
+  storeName: 'products' | 'orders' | 'syncQueue' | 'cache' | 'customers' | 'credits',
   item: T,
   keyOverride?: string
 ): Promise<void> => {
@@ -84,7 +90,7 @@ export const saveOfflineItem = async <T extends { id?: string }>(
       const storageKey = `vitalis_fallback_${storeName}`;
       const existingRaw = localStorage.getItem(storageKey);
       const list = existingRaw ? JSON.parse(existingRaw) : {};
-      const key = keyOverride || item.id || `item_${Date.now()}`;
+      const key = keyOverride || item.id || item.uid || `item_${Date.now()}`;
       list[key] = item;
       localStorage.setItem(storageKey, JSON.stringify(list));
     } catch (lsErr) {
@@ -94,8 +100,8 @@ export const saveOfflineItem = async <T extends { id?: string }>(
 };
 
 // Bulk save items into store
-export const saveOfflineBulk = async <T extends { id: string }>(
-  storeName: 'products' | 'orders',
+export const saveOfflineBulk = async <T extends { id?: string; uid?: string }>(
+  storeName: 'products' | 'orders' | 'customers' | 'credits',
   items: T[]
 ): Promise<void> => {
   if (!items || items.length === 0) return;
@@ -122,7 +128,7 @@ export const saveOfflineBulk = async <T extends { id: string }>(
 
 // Get All Items from Object Store
 export const getAllOfflineItems = async <T>(
-  storeName: 'products' | 'orders' | 'syncQueue'
+  storeName: 'products' | 'orders' | 'syncQueue' | 'customers' | 'credits'
 ): Promise<T[]> => {
   try {
     const db = await openOfflineDB();
@@ -146,7 +152,7 @@ export const getAllOfflineItems = async <T>(
 
 // Delete item from store
 export const deleteOfflineItem = async (
-  storeName: 'products' | 'orders' | 'syncQueue',
+  storeName: 'products' | 'orders' | 'syncQueue' | 'customers' | 'credits',
   key: string
 ): Promise<void> => {
   try {
@@ -163,3 +169,72 @@ export const deleteOfflineItem = async (
     console.error(`Error deleting from ${storeName}:`, err);
   }
 };
+
+/**
+ * Precarga automática del catálogo completo en memoria local (IndexedDB + LocalStorage)
+ */
+export const precacheFullCatalog = async (products: any[]): Promise<void> => {
+  if (!products || products.length === 0) return;
+  try {
+    await saveOfflineBulk('products', products);
+    localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+    localStorage.setItem('vitalis_catalog_cached_at', String(Date.now()));
+    localStorage.setItem('vitalis_catalog_cached_count', String(products.length));
+  } catch (e) {
+    console.warn('[OfflineStorage] Error al precargar catálogo completo:', e);
+  }
+};
+
+/**
+ * Obtener catálogo completo desde caché local
+ */
+export const getOfflineCachedProducts = async (): Promise<any[]> => {
+  try {
+    const idbProducts = await getAllOfflineItems('products');
+    if (idbProducts && idbProducts.length > 0) {
+      return idbProducts;
+    }
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem('vitalis_cache_products') || localStorage.getItem('vitales_products_v2');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Actualizar stock localmente de inmediato en IndexedDB y memoria
+ */
+export const updateLocalProductStock = async (productId: string, unitsToSubtract: number): Promise<void> => {
+  try {
+    const products = await getOfflineCachedProducts();
+    const updated = products.map(p => {
+      if (p.id === productId) {
+        return { ...p, stock: Math.max(0, (p.stock || 0) - unitsToSubtract) };
+      }
+      return p;
+    });
+    await precacheFullCatalog(updated);
+  } catch (e) {
+    console.warn('[OfflineStorage] Error al actualizar stock local:', e);
+  }
+};
+
+/**
+ * Generador de numeración secuencial de recibos offline
+ * Genera números profesionales como: REC-OFF-0001, REC-OFF-0002...
+ */
+export const generateOfflineReceiptNumber = (): string => {
+  try {
+    const currentSeqRaw = localStorage.getItem('vitalis_offline_receipt_seq');
+    let nextSeq = currentSeqRaw ? parseInt(currentSeqRaw, 10) + 1 : 1;
+    if (isNaN(nextSeq) || nextSeq <= 0) nextSeq = 1;
+    localStorage.setItem('vitalis_offline_receipt_seq', String(nextSeq));
+    return `REC-OFF-${String(nextSeq).padStart(4, '0')}`;
+  } catch {
+    return `REC-OFF-${Date.now().toString().slice(-4)}`;
+  }
+};
+

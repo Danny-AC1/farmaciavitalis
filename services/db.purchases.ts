@@ -120,6 +120,84 @@ export const deletePurchaseOrder = (orderId: string): PurchaseOrder[] => {
   return filtered;
 };
 
+export const recalculateOrderTotals = (order: PurchaseOrder, items: PurchaseOrderItem[]): PurchaseOrder => {
+  let totalCost = 0;
+  let totalProjectedRevenue = 0;
+  let totalUnitsCount = 0;
+
+  items.forEach((it) => {
+    totalCost += it.subtotal;
+    totalProjectedRevenue += it.projectedRevenue;
+    const physicalUnits = it.unitType === 'BOX' ? it.quantity * (it.unitsPerBox || 1) : it.quantity;
+    totalUnitsCount += physicalUnits;
+  });
+
+  const projectedProfit = Math.max(0, totalProjectedRevenue - totalCost);
+  const projectedMargin = totalProjectedRevenue > 0 ? (projectedProfit / totalProjectedRevenue) * 100 : 0;
+
+  return {
+    ...order,
+    items,
+    totalCost,
+    totalProjectedRevenue,
+    projectedProfit,
+    projectedMargin,
+    totalUnitsCount,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+/**
+ * Elimina un producto que NO llegó de la orden de compra.
+ * Esto asegura que cuando se reciba el pedido y se recargue el stock automáticamente,
+ * el producto faltante NO ingrese al inventario.
+ */
+export const removeItemFromPurchaseOrder = (
+  orderId: string,
+  productId: string
+): PurchaseOrder[] => {
+  const orders = getPurchaseOrders();
+  const updated = orders.map((order) => {
+    if (order.id !== orderId) return order;
+    const newItems = order.items.filter((it) => it.productId !== productId);
+    return recalculateOrderTotals(order, newItems);
+  });
+  savePurchaseOrders(updated);
+  return updated;
+};
+
+/**
+ * Permite ajustar la cantidad recibida de un producto si el proveedor entregó menos de lo pedido.
+ */
+export const updateItemQuantityInPurchaseOrder = (
+  orderId: string,
+  productId: string,
+  newQuantity: number
+): PurchaseOrder[] => {
+  const orders = getPurchaseOrders();
+  const updated = orders.map((order) => {
+    if (order.id !== orderId) return order;
+    if (newQuantity <= 0) {
+      const newItems = order.items.filter((it) => it.productId !== productId);
+      return recalculateOrderTotals(order, newItems);
+    }
+    const newItems = order.items.map((it) => {
+      if (it.productId !== productId) return it;
+      const subtotal = newQuantity * it.unitCost;
+      const projectedRevenue = newQuantity * it.salePrice;
+      return {
+        ...it,
+        quantity: newQuantity,
+        subtotal,
+        projectedRevenue,
+      };
+    });
+    return recalculateOrderTotals(order, newItems);
+  });
+  savePurchaseOrders(updated);
+  return updated;
+};
+
 export const receivePurchaseOrderAndRestock = async (
   order: PurchaseOrder,
   currentProducts: Product[]

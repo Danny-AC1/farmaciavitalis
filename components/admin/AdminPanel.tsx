@@ -280,6 +280,9 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           ))}
         </div>
       )}
+
+      {/* Barra de Estado y Sincronización Offline */}
+      <OfflineStatusBar />
     </div>
   );
 };

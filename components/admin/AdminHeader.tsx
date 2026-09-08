@@ -1,679 +1,172 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { 
-  Menu, Bell, Layout, ChevronRight, Volume2, VolumeX, X, 
-  Package, AlertTriangle, Calendar, BellRing, Sparkles,
-  MessageSquare, CheckCheck, Radio, Boxes
-} from 'lucide-react';
+import { Menu, Bell, Layout, Volume2, VolumeX } from 'lucide-react';
 import { Order, Product, ServiceBooking, User } from '../../types';
 import { SupportChat } from '../../services/db.support';
-import { 
-  getNotificationPermission, 
-  requestNotificationPermission, 
-  triggerNativeNotification 
-} from '../../services/nativeNotificationService';
 import { notificationAudio } from '../../services/notificationAudioService';
-import { registerDeviceForPush } from '../../services/pushSubscriptionService';
 import { DeviceNotificationSettingsModal } from '../notifications/DeviceNotificationSettingsModal';
 import VitalisToastEngine, { VitalisToast } from '../notifications/VitalisToastEngine';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
+import { PwaInstallButton } from '../PwaInstallButton';
+import { useAdminHeaderNotifications } from './header/useAdminHeaderNotifications';
+import { AdminNotificationDropdown } from './header/AdminNotificationDropdown';
 
 interface AdminHeaderProps {
-    onMenuClick: () => void;
-    showNotifications: boolean;
-    setShowNotifications: (show: boolean) => void;
-    pendingOrders: Order[];
-    lowStockItems: Product[];
-    pendingBookings: ServiceBooking[];
-    unreadChats?: SupportChat[];
-    onSelectChat?: (chatId: string) => void;
-    setActiveTab: (tab: string) => void;
-    onLogout: () => void;
-    currentUserRole?: User['role'];
+  onMenuClick: () => void;
+  showNotifications: boolean;
+  setShowNotifications: (show: boolean) => void;
+  pendingOrders: Order[];
+  lowStockItems: Product[];
+  pendingBookings: ServiceBooking[];
+  unreadChats?: SupportChat[];
+  onSelectChat?: (chatId: string) => void;
+  setActiveTab: (tab: string) => void;
+  onLogout: () => void;
+  currentUserRole?: User['role'];
 }
 
-const DISMISSED_STORAGE_KEY = 'vitalis_admin_dismissed_ids';
-const LAST_SEEN_STORAGE_KEY = 'vitalis_admin_last_seen_timestamp';
-
 const AdminHeader: React.FC<AdminHeaderProps> = ({
-    onMenuClick, showNotifications, setShowNotifications, pendingOrders,
-    lowStockItems, pendingBookings, unreadChats = [], onSelectChat,
-    setActiveTab, onLogout, currentUserRole
+  onMenuClick, showNotifications, setShowNotifications, pendingOrders,
+  lowStockItems, pendingBookings, unreadChats = [], onSelectChat,
+  setActiveTab, onLogout, currentUserRole
 }) => {
-    const notificationRef = useRef<HTMLDivElement>(null);
-    const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-      const saved = localStorage.getItem('vitalis_admin_sound');
-      return saved !== 'false';
-    });
-    
-    const [activeFilter, setActiveFilter] = useState<'ALL' | 'ORDERS' | 'STOCK' | 'BOOKINGS' | 'CHAT'>('ALL');
-    const [toasts, setToasts] = useState<VitalisToast[]>([]);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('vitalis_admin_sound');
+    return saved !== 'false';
+  });
 
-    // Persistencia en LocalStorage de las notificaciones ya vistas o descartadas
-    const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
-      try {
-        const raw = typeof window !== 'undefined' ? localStorage.getItem(DISMISSED_STORAGE_KEY) : null;
-        return raw ? JSON.parse(raw) : [];
-      } catch {
-        return [];
-      }
-    });
+  const {
+    toasts,
+    removeToast,
+    pushPermission,
+    showDeviceModal,
+    setShowDeviceModal,
+    handleEnablePush,
+    activeOrders,
+    activeLowStock,
+    activeBookings,
+    activeChats,
+    totalNotifications,
+    dismissNotification,
+    dismissAllNotifications
+  } = useAdminHeaderNotifications({
+    pendingOrders,
+    lowStockItems,
+    pendingBookings,
+    unreadChats,
+    soundEnabled
+  });
 
-    const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
-    const [showDeviceModal, setShowDeviceModal] = useState(false);
+  useEffect(() => {
+    localStorage.setItem('vitalis_admin_sound', String(soundEnabled));
+  }, [soundEnabled]);
 
-    const prevOrdersRef = useRef<string[]>([]);
-    const prevLowStockRef = useRef<string[]>([]);
-    const prevBookingsRef = useRef<string[]>([]);
-    const prevChatsSignaturesRef = useRef<Record<string, string>>({});
-    
-    // Control de carga inicial y agrupación inteligente (Debounce / Batching)
-    const isInitialPhaseRef = useRef(true);
-    const initialBatchSummaryShownRef = useRef(false);
-
-    useEffect(() => {
-      // Período de gracia inicial para absorber la hidratación de datos sin saturar
-      const timer = setTimeout(() => {
-        isInitialPhaseRef.current = false;
-      }, 1500);
-      return () => clearTimeout(timer);
-    }, []);
-
-    // Helper para persistir IDs descartados
-    const updateDismissedIds = (newIds: string[]) => {
-      setDismissedIds(newIds);
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(newIds.slice(-500)));
-        }
-      } catch (e) {
-        console.error('Error guardando notificaciones descartadas:', e);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
       }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [setShowNotifications]);
 
-    // Verificar permiso de notificaciones push de escritorio
-    useEffect(() => {
-      setPushPermission(getNotificationPermission());
-    }, []);
+  const handleToastAction = (toast: VitalisToast) => {
+    if (toast.type === 'SUMMARY') {
+      setShowNotifications(true);
+      if (toast.tab && setActiveTab) setActiveTab(toast.tab);
+    } else if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
+      onSelectChat(toast.chatId);
+    } else if (toast.tab && setActiveTab) {
+      setActiveTab(toast.tab);
+    }
+    removeToast(toast.id);
+  };
 
-    const handleEnablePush = async () => {
-      const granted = await requestNotificationPermission();
-      const newPerm = getNotificationPermission();
-      setPushPermission(newPerm);
-      if (granted) {
-        await registerDeviceForPush('admin', 'ADMIN', soundEnabled, true);
-        triggerNativeNotification('Alertas Vitalis Activas 🔔', {
-          body: 'Notificaciones del sistema configuradas correctamente en este dispositivo.'
-        });
-      }
-      setShowDeviceModal(true);
-    };
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem('vitalis_admin_sound', String(next));
+    notificationAudio.setSoundEnabled(next);
+    if (next) notificationAudio.playOrderChime();
+  };
 
-    // Conteos activos no descartados
-    const activeOrders = pendingOrders.filter(o => !dismissedIds.includes(`order-${o.id}`));
-    const activeLowStock = lowStockItems.filter(p => !dismissedIds.includes(`stock-${p.id}`));
-    const activeBookings = pendingBookings.filter(b => !dismissedIds.includes(`booking-${b.id}`));
-    const activeChats = unreadChats.filter(c => !dismissedIds.includes(`chat-${c.id}`));
+  return (
+    <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-10 shrink-0 z-30 shadow-sm relative font-sans">
+      <VitalisToastEngine 
+        toasts={toasts}
+        onDismiss={removeToast}
+        onDismissAll={() => {}}
+        onAction={handleToastAction}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
+      />
 
-    const totalNotifications = activeOrders.length + activeLowStock.length + activeBookings.length + activeChats.length;
-
-    // Sincronizar preferencia de sonido en localStorage
-    useEffect(() => {
-      localStorage.setItem('vitalis_admin_sound', String(soundEnabled));
-    }, [soundEnabled]);
-
-    // Escuchar cambios para emitir alertas acústicas, visuales y Push con Agrupación Inteligente (Batching)
-    useEffect(() => {
-      const currentOrderIds = pendingOrders.map(o => o.id);
-      const currentLowStockIds = lowStockItems.map(p => p.id);
-      const currentBookingIds = pendingBookings.map(b => b.id);
-
-      const currentChatSignatures: Record<string, string> = {};
-      unreadChats.forEach(c => {
-        const timeKey = c.lastMessageTime?.seconds || c.lastMessageTime || '';
-        currentChatSignatures[c.id] = `${c.lastMessageText || ''}_${timeKey}`;
-      });
-
-      // 1. FASE DE CARGA INICIAL: Silencio de ráfaga y resumen único consolidado
-      if (isInitialPhaseRef.current) {
-        prevOrdersRef.current = currentOrderIds;
-        prevLowStockRef.current = currentLowStockIds;
-        prevBookingsRef.current = currentBookingIds;
-        prevChatsSignaturesRef.current = currentChatSignatures;
-
-        // Calcular los elementos activos no descartados en sesiones pasadas
-        const activeOrd = pendingOrders.filter(o => !dismissedIds.includes(`order-${o.id}`));
-        const activeStk = lowStockItems.filter(p => !dismissedIds.includes(`stock-${p.id}`));
-        const activeBkg = pendingBookings.filter(b => !dismissedIds.includes(`booking-${b.id}`));
-        const activeCht = unreadChats.filter(c => !dismissedIds.includes(`chat-${c.id}`));
-
-        const totalInitialActive = activeOrd.length + activeStk.length + activeBkg.length + activeCht.length;
-
-        // Si hay alertas activas al iniciar y no se ha mostrado el resumen de esta sesión
-        if (totalInitialActive > 0 && !initialBatchSummaryShownRef.current) {
-          initialBatchSummaryShownRef.current = true;
-
-          const parts: string[] = [];
-          if (activeOrd.length > 0) {
-            parts.push(`${activeOrd.length} pedido${activeOrd.length > 1 ? 's' : ''} pendiente${activeOrd.length > 1 ? 's' : ''}`);
-          }
-          if (activeStk.length > 0) {
-            parts.push(`${activeStk.length} alerta${activeStk.length > 1 ? 's' : ''} de inventario`);
-          }
-          if (activeBkg.length > 0) {
-            parts.push(`${activeBkg.length} cita${activeBkg.length > 1 ? 's' : ''} médica${activeBkg.length > 1 ? 's' : ''}`);
-          }
-          if (activeCht.length > 0) {
-            parts.push(`${activeCht.length} chat${activeCht.length > 1 ? 's' : ''} de soporte`);
-          }
-
-          const summaryText = parts.length > 1
-            ? `Tienes ${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`
-            : `Tienes ${parts[0]}`;
-
-          // Mostrar UN SOLO banner consolidado (sin ruido de audio ensordecedor ni bloqueo de pantalla)
-          setToasts([{
-            id: `toast-summary-${Date.now()}`,
-            type: 'SUMMARY',
-            title: 'Resumen de Actividad',
-            desc: summaryText,
-            actionLabel: 'Ver Alertas',
-            tab: activeOrd.length > 0 ? 'orders' : 'stock_quick'
-          }]);
-        }
-        return;
-      }
-
-      // 2. FASE EN TIEMPO REAL: Detectar novedades genuinas
-      const newOrders = pendingOrders.filter(o => !prevOrdersRef.current.includes(o.id) && !dismissedIds.includes(`order-${o.id}`));
-      const newLowStocks = lowStockItems.filter(p => !prevLowStockRef.current.includes(p.id) && !dismissedIds.includes(`stock-${p.id}`));
-      const newBookings = pendingBookings.filter(b => !prevBookingsRef.current.includes(b.id) && !dismissedIds.includes(`booking-${b.id}`));
-      const updatedChats = unreadChats.filter(c => {
-        const prevSig = prevChatsSignaturesRef.current[c.id];
-        const currentSig = currentChatSignatures[c.id];
-        return (!prevSig || prevSig !== currentSig) && !dismissedIds.includes(`chat-${c.id}`);
-      });
-
-      const totalNewEvents = newOrders.length + newLowStocks.length + newBookings.length + updatedChats.length;
-
-      if (totalNewEvents > 0) {
-        // Agrupación inteligente para ráfagas entrantes simultáneas (> 1 elemento)
-        if (totalNewEvents > 1) {
-          const parts: string[] = [];
-          if (newOrders.length > 0) parts.push(`${newOrders.length} pedido${newOrders.length > 1 ? 's' : ''}`);
-          if (newLowStocks.length > 0) parts.push(`${newLowStocks.length} alerta${newLowStocks.length > 1 ? 's' : ''} de stock`);
-          if (newBookings.length > 0) parts.push(`${newBookings.length} cita${newBookings.length > 1 ? 's' : ''}`);
-          if (updatedChats.length > 0) parts.push(`${updatedChats.length} mensaje${updatedChats.length > 1 ? 's' : ''}`);
-
-          const batchDesc = `Se registraron ${parts.join(' y ')}`;
-
-          setToasts(prev => [
-            ...prev.filter(t => t.type !== 'SUMMARY'),
-            {
-              id: `toast-batch-${Date.now()}`,
-              type: 'SUMMARY',
-              title: 'Nuevas Alertas Recibidas',
-              desc: batchDesc,
-              actionLabel: 'Ver Alertas',
-              tab: newOrders.length > 0 ? 'orders' : 'stock_quick'
-            }
-          ]);
-
-          if (soundEnabled) notificationAudio.playOrderChime();
-          if (pushPermission === 'granted') {
-            triggerNativeNotification('Alertas Vitalis Recibidas 🔔', {
-              body: batchDesc,
-              tag: `vitalis-admin-batch-${Date.now()}`
-            });
-          }
-        } else {
-          // Evento individual puntual en tiempo real
-          if (newOrders.length === 1) {
-            const o = newOrders[0];
-            setToasts(prev => [...prev, {
-              id: `toast-order-${o.id}`,
-              type: 'ORDER',
-              title: 'Nuevo Pedido Web',
-              desc: `${o.customerName} • Total: $${o.total.toFixed(2)}`,
-              actionLabel: 'Ver Orden',
-              tab: 'orders'
-            }]);
-            if (soundEnabled) notificationAudio.playOrderChime();
-            if (pushPermission === 'granted') {
-              triggerNativeNotification('🛒 Nuevo Pedido Web', {
-                body: `${o.customerName} - Total: $${o.total.toFixed(2)}`,
-                tag: `vitalis-admin-order-${o.id}`
-              });
-            }
-          } else if (newLowStocks.length === 1) {
-            const p = newLowStocks[0];
-            const isBox = Boolean(p.unitsPerBox && p.unitsPerBox > 1);
-            setToasts(prev => [...prev, {
-              id: `toast-stock-${p.id}`,
-              type: 'STOCK',
-              title: isBox ? 'Caja por Terminar 📦' : 'Stock Crítico 🚨',
-              desc: isBox 
-                ? `${p.name}: Quedan solo ${p.stock} uds de la caja x ${p.unitsPerBox}`
-                : `${p.name} se está agotando (${p.stock} un. restantes)`,
-              actionLabel: 'Reabastecer',
-              tab: 'stock_quick'
-            }]);
-            if (soundEnabled) notificationAudio.playAlertTone();
-            if (pushPermission === 'granted') {
-              triggerNativeNotification(isBox ? '📦 Alerta Caja por Terminar' : '⚠️ Stock Crítico', {
-                body: isBox 
-                  ? `${p.name}: Solo quedan ${p.stock} uds restantes de la caja x ${p.unitsPerBox}`
-                  : `${p.name} (${p.stock} un. restantes)`,
-                tag: `vitalis-admin-stock-${p.id}`
-              });
-            }
-          } else if (newBookings.length === 1) {
-            const b = newBookings[0];
-            setToasts(prev => [...prev, {
-              id: `toast-booking-${b.id}`,
-              type: 'BOOKING',
-              title: 'Nueva Cita Médica 📅',
-              desc: `${b.patientName} • ${b.serviceName}`,
-              actionLabel: 'Ver Agenda',
-              tab: 'bookings'
-            }]);
-            if (soundEnabled) notificationAudio.playAlertTone();
-            if (pushPermission === 'granted') {
-              triggerNativeNotification('📅 Nueva Cita Médica', {
-                body: `${b.patientName} - ${b.serviceName}`,
-                tag: `vitalis-admin-booking-${b.id}`
-              });
-            }
-          } else if (updatedChats.length === 1) {
-            const c = updatedChats[0];
-            setToasts(prev => [...prev, {
-              id: `toast-chat-${c.id}`,
-              type: 'CHAT',
-              title: `💬 Soporte: ${c.userDisplayName || 'Cliente'}`,
-              desc: c.lastMessageText || 'Nuevo mensaje recibido',
-              actionLabel: 'Responder',
-              tab: 'support',
-              chatId: c.id
-            }]);
-            if (soundEnabled) notificationAudio.playChatPing();
-            if (pushPermission === 'granted') {
-              triggerNativeNotification(`💬 Soporte: ${c.userDisplayName || 'Cliente'}`, {
-                body: c.lastMessageText || 'Nuevo mensaje recibido',
-                tag: `vitalis-admin-chat-${c.id}`,
-                requireInteraction: true
-              });
-            }
-          }
-        }
-      }
-
-      // Actualizar referencias de comparación
-      prevOrdersRef.current = currentOrderIds;
-      prevLowStockRef.current = currentLowStockIds;
-      prevBookingsRef.current = currentBookingIds;
-      prevChatsSignaturesRef.current = currentChatSignatures;
-    }, [pendingOrders, lowStockItems, pendingBookings, unreadChats, soundEnabled, pushPermission, dismissedIds]);
-
-    // Manejar el cierre de clics externos
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-                setShowNotifications(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [setShowNotifications]);
-
-    // Eliminar Toast automáticamente
-    const removeToast = (id: string) => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    };
-
-    // Descartar notificación individual y guardar en LocalStorage
-    const dismissNotification = (id: string) => {
-      const next = Array.from(new Set([...dismissedIds, id]));
-      updateDismissedIds(next);
-    };
-
-    // Descartar todas las activas y persistir en LocalStorage
-    const dismissAllNotifications = () => {
-      const allIds = [
-        ...activeOrders.map(o => `order-${o.id}`),
-        ...activeLowStock.map(p => `stock-${p.id}`),
-        ...activeBookings.map(b => `booking-${b.id}`),
-        ...activeChats.map(c => `chat-${c.id}`)
-      ];
-      const next = Array.from(new Set([...dismissedIds, ...allIds]));
-      updateDismissedIds(next);
-      try {
-        localStorage.setItem(LAST_SEEN_STORAGE_KEY, String(Date.now()));
-      } catch (e) {
-        console.error(e);
-      }
-      setToasts([]);
-    };
-
-    // Filtrar notificaciones para el panel
-    const filteredNotifications = () => {
-      const list: any[] = [];
+      <div className="flex items-center gap-4">
+        <button onClick={onMenuClick} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"><Menu size={24}/></button>
+        <div className="flex items-center gap-3">
+          <div className="bg-teal-600 p-2 rounded-xl hidden sm:block"><Layout className="text-white" size={20}/></div>
+          <div>
+            <h1 className="text-base md:text-lg font-black text-slate-800 leading-tight">Vitalis <span className="text-teal-600">Admin</span></h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Panel de Control Premium v2.8</p>
+          </div>
+        </div>
+      </div>
       
-      if (activeFilter === 'ALL' || activeFilter === 'ORDERS') {
-        activeOrders.forEach(order => {
-          list.push({
-            id: `order-${order.id}`,
-            type: 'ORDER',
-            icon: Package,
-            title: 'Pedido Web',
-            desc: `${order.customerName} - $${order.total.toFixed(2)}`,
-            color: 'bg-orange-50 text-orange-600 border-orange-100',
-            actionLabel: 'Ver Pedido',
-            onClick: () => { setActiveTab('orders'); setShowNotifications(false); }
-          });
-        });
-      }
+      <div className="flex items-center gap-3 md:gap-5 relative" ref={notificationRef}>
+        <PwaInstallButton variant="navbar" />
 
-      if (activeFilter === 'ALL' || activeFilter === 'STOCK') {
-        activeLowStock.forEach(item => {
-          const isBox = Boolean(item.unitsPerBox && item.unitsPerBox > 1);
-          list.push({
-            id: `stock-${item.id}`,
-            type: 'STOCK',
-            icon: isBox ? Boxes : AlertTriangle,
-            title: isBox ? 'Alerta Caja por Terminar' : 'Stock Crítico en Unidades',
-            desc: isBox 
-              ? `${item.name} • Solo quedan ${item.stock} uds de la caja (Cj x ${item.unitsPerBox})`
-              : `${item.name} • Quedan ${item.stock} unidades en inventario`,
-            color: isBox 
-              ? 'bg-teal-50 text-teal-700 border-teal-200' 
-              : 'bg-red-50 text-red-600 border-red-100',
-            actionLabel: 'Reabastecer',
-            onClick: () => { setActiveTab('stock_quick'); setShowNotifications(false); }
-          });
-        });
-      }
+        <button 
+          onClick={toggleSound}
+          className={`p-2 rounded-xl transition-all cursor-pointer ${soundEnabled ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 bg-slate-50 hover:bg-slate-100'}`}
+          title={soundEnabled ? "Silenciar alertas" : "Activar sonido de alertas"}
+        >
+          {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+        </button>
 
-      if (activeFilter === 'ALL' || activeFilter === 'BOOKINGS') {
-        activeBookings.forEach(booking => {
-          list.push({
-            id: `booking-${booking.id}`,
-            type: 'BOOKING',
-            icon: Calendar,
-            title: 'Cita Médica',
-            desc: `${booking.patientName} - ${booking.serviceName}`,
-            color: 'bg-blue-50 text-blue-600 border-blue-100',
-            actionLabel: 'Ver Agenda',
-            onClick: () => { setActiveTab('bookings'); setShowNotifications(false); }
-          });
-        });
-      }
+        <button 
+          onClick={() => setShowNotifications(!showNotifications)} 
+          className={`relative p-2 rounded-xl transition-all group cursor-pointer ${showNotifications ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
+        >
+          <Bell size={22} className={totalNotifications > 0 ? "animate-swing origin-top" : ""} />
+          {totalNotifications > 0 && (
+            <span className="absolute top-1.5 right-1.5 h-3 w-3 bg-red-500 rounded-full border-2 border-white animate-pulse flex items-center justify-center">
+              <span className="h-1 w-1 bg-white rounded-full"></span>
+            </span>
+          )}
+        </button>
 
-      if (activeFilter === 'ALL' || activeFilter === 'CHAT') {
-        activeChats.forEach(chat => {
-          list.push({
-            id: `chat-${chat.id}`,
-            type: 'CHAT',
-            icon: MessageSquare,
-            title: 'Soporte Cliente',
-            desc: `${chat.userDisplayName || 'Cliente'}: "${chat.lastMessageText || 'Consulta pendiente'}"`,
-            color: 'bg-teal-50 text-teal-600 border-teal-100',
-            actionLabel: 'Atender Chat',
-            onClick: () => {
-              if (onSelectChat) onSelectChat(chat.id);
-              else setActiveTab('support');
-              setShowNotifications(false);
-            }
-          });
-        });
-      }
+        <AnimatePresence>
+          {showNotifications && (
+            <AdminNotificationDropdown
+              totalNotifications={totalNotifications}
+              activeOrders={activeOrders}
+              activeLowStock={activeLowStock}
+              activeBookings={activeBookings}
+              activeChats={activeChats}
+              pushPermission={pushPermission}
+              onEnablePush={handleEnablePush}
+              onOpenDeviceModal={() => setShowDeviceModal(true)}
+              onDismissNotification={dismissNotification}
+              onDismissAll={dismissAllNotifications}
+              onSelectTab={setActiveTab}
+              onSelectChat={onSelectChat}
+              onClose={() => setShowNotifications(false)}
+            />
+          )}
+        </AnimatePresence>
 
-      return list;
-    };
+        <button onClick={onLogout} className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white hover:bg-slate-850 transition-colors cursor-pointer">{currentUserRole?.charAt(0) || 'A'}</button>
+      </div>
 
-    const currentList = filteredNotifications();
-
-    const handleToastAction = (toast: VitalisToast) => {
-      if (toast.type === 'SUMMARY') {
-        setShowNotifications(true);
-        if (toast.tab && setActiveTab) {
-          setActiveTab(toast.tab);
-        }
-      } else if (toast.type === 'CHAT' && toast.chatId && onSelectChat) {
-        onSelectChat(toast.chatId);
-      } else if (toast.tab && setActiveTab) {
-        setActiveTab(toast.tab);
-      }
-      removeToast(toast.id);
-    };
-
-    const toggleSound = () => {
-      const next = !soundEnabled;
-      setSoundEnabled(next);
-      localStorage.setItem('vitalis_admin_sound', String(next));
-      notificationAudio.setSoundEnabled(next);
-    };
-
-    return (
-        <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-10 shrink-0 z-30 shadow-sm relative font-sans">
-             
-             {/* Engine de Notificaciones Flotantes de Primer Nivel */}
-             <VitalisToastEngine 
-               toasts={toasts}
-               onDismiss={removeToast}
-               onDismissAll={() => setToasts([])}
-               onAction={handleToastAction}
-               soundEnabled={soundEnabled}
-               onToggleSound={toggleSound}
-             />
-
-             <div className="flex items-center gap-4">
-                <button onClick={onMenuClick} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"><Menu size={24}/></button>
-                <div className="flex items-center gap-3">
-                    <div className="bg-teal-600 p-2 rounded-xl hidden sm:block"><Layout className="text-white" size={20}/></div>
-                    <div>
-                        <h1 className="text-base md:text-lg font-black text-slate-800 leading-tight">Vitalis <span className="text-teal-600">Admin</span></h1>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Panel de Control Premium v2.8</p>
-                    </div>
-                </div>
-             </div>
-             
-             <div className="flex items-center gap-3 md:gap-5 relative" ref={notificationRef}>
-                 
-                 {/* Botón de Sonido de Notificación */}
-                 <button 
-                    onClick={() => {
-                      const next = !soundEnabled;
-                      setSoundEnabled(next);
-                      localStorage.setItem('vitalis_admin_sound', String(next));
-                      notificationAudio.setSoundEnabled(next);
-                      if (next) notificationAudio.playOrderChime();
-                    }}
-                    className={`p-2 rounded-xl transition-all ${soundEnabled ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 bg-slate-50 hover:bg-slate-100'}`}
-                    title={soundEnabled ? "Silenciar alertas" : "Activar sonido de alertas"}
-                 >
-                   {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-                 </button>
-
-                 {/* Campana de Notificación de primera clase */}
-                 <button 
-                    onClick={() => setShowNotifications(!showNotifications)} 
-                    className={`relative p-2 rounded-xl transition-all group ${showNotifications ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                 >
-                    <Bell size={22} className={totalNotifications > 0 ? "animate-swing origin-top" : ""} />
-                    {totalNotifications > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-3 w-3 bg-red-500 rounded-full border-2 border-white animate-pulse flex items-center justify-center">
-                          <span className="h-1 w-1 bg-white rounded-full"></span>
-                        </span>
-                    )}
-                 </button>
-
-                 <AnimatePresence>
-                  {showNotifications && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in-50 duration-250"
-                    >
-                        {/* Cabecera del Centro de Alertas */}
-                        <div className="bg-slate-900 p-4 text-white space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <Sparkles className="text-teal-400" size={14} />
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-300">Panel de Alertas</h4>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {totalNotifications > 0 && (
-                                  <button
-                                    onClick={dismissAllNotifications}
-                                    className="text-[9px] font-bold text-slate-400 hover:text-teal-300 transition-colors flex items-center gap-1"
-                                    title="Marcar todas como vistas"
-                                  >
-                                    <CheckCheck size={12} />
-                                    <span>Limpiar</span>
-                                  </button>
-                                )}
-                                <span className="bg-teal-500 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
-                                  {totalNotifications} Activas
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Push Notification Banner Config */}
-                            <div className="bg-slate-800/90 rounded-xl p-2.5 flex items-center justify-between gap-2 border border-slate-700/60">
-                              <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-300 min-w-0">
-                                <Radio size={14} className={pushPermission === 'granted' ? 'text-emerald-400 shrink-0' : 'text-amber-400 shrink-0'} />
-                                <span className="truncate">
-                                  {pushPermission === 'granted' ? 'Notificaciones en Dispositivo Activas' : 'Alertas Escritorio Desactivadas'}
-                                </span>
-                              </div>
-                              {pushPermission === 'granted' ? (
-                                <button
-                                  onClick={() => setShowDeviceModal(true)}
-                                  className="text-[9px] font-black text-teal-400 hover:text-teal-300 uppercase tracking-wider transition-colors shrink-0 underline underline-offset-2"
-                                >
-                                  Ajustar / Probar
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={handleEnablePush}
-                                  className="text-[9px] font-black bg-teal-500 hover:bg-teal-400 text-slate-950 px-2.5 py-1 rounded-lg uppercase tracking-wider transition-colors shrink-0"
-                                >
-                                  Activar
-                                </button>
-                              )}
-                            </div>
-                            
-                            {/* Filtros de Pestaña */}
-                            <div className="flex gap-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
-                              <button 
-                                onClick={() => setActiveFilter('ALL')}
-                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ALL' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                              >
-                                Todos ({totalNotifications})
-                              </button>
-                              <button 
-                                onClick={() => setActiveFilter('ORDERS')}
-                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'ORDERS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                              >
-                                Pedidos ({activeOrders.length})
-                              </button>
-                              <button 
-                                onClick={() => setActiveFilter('STOCK')}
-                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'STOCK' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                              >
-                                Stock ({activeLowStock.length})
-                              </button>
-                              <button 
-                                onClick={() => setActiveFilter('BOOKINGS')}
-                                className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'BOOKINGS' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                              >
-                                Citas ({activeBookings.length})
-                              </button>
-                              {activeChats.length > 0 && (
-                                <button 
-                                  onClick={() => setActiveFilter('CHAT')}
-                                  className={`flex-1 min-w-[50px] text-[9px] font-black uppercase py-1 px-1.5 rounded-lg transition-all text-center ${activeFilter === 'CHAT' ? 'bg-teal-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                  Chat ({activeChats.length})
-                                </button>
-                              )}
-                            </div>
-                        </div>
-
-                        {/* Listado de Notificaciones */}
-                        <div className="max-h-[380px] overflow-y-auto custom-scrollbar divide-y divide-slate-100 bg-slate-50/50">
-                            {currentList.length === 0 ? (
-                                <div className="p-10 text-center flex flex-col items-center">
-                                    <div className="bg-slate-100 p-3.5 rounded-full mb-2.5 text-slate-400">
-                                      <BellRing size={26}/>
-                                    </div>
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Sin novedades pendientes</p>
-                                    <p className="text-[9px] text-slate-400 mt-1 max-w-[200px]">¡Todo al día! No hay alertas sin responder en esta sección.</p>
-                                </div>
-                            ) : (
-                                <div className="p-2 space-y-1.5">
-                                    {currentList.map(item => {
-                                        const Icon = item.icon;
-                                        return (
-                                            <div 
-                                                key={item.id}
-                                                className={`flex items-start gap-3 p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all border border-slate-100 shadow-2xs relative group`}
-                                            >
-                                                <div className={`p-2 rounded-xl shrink-0 border ${item.color}`}>
-                                                  <Icon size={16} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between gap-1 mb-1">
-                                                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{item.title}</span>
-                                                      <div className="flex items-center gap-1.5">
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-                                                        <button 
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            dismissNotification(item.id);
-                                                          }}
-                                                          className="text-slate-300 hover:text-slate-500 p-0.5 rounded transition"
-                                                          title="Descartar"
-                                                        >
-                                                          <X size={12} />
-                                                        </button>
-                                                      </div>
-                                                    </div>
-                                                    <p className="text-[11px] text-slate-700 font-bold leading-snug mb-2">{item.desc}</p>
-                                                    
-                                                    {/* Botón de Acción Directo */}
-                                                    <button
-                                                      onClick={item.onClick}
-                                                      className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest flex items-center gap-1 transition-all"
-                                                    >
-                                                      {item.actionLabel}
-                                                      <ChevronRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </motion.div>
-                  )}
-                 </AnimatePresence>
-
-                 {/* Botón de Perfil */}
-                 <button onClick={onLogout} className="h-10 w-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg border-2 border-white hover:bg-slate-850 transition-colors">{currentUserRole?.charAt(0) || 'A'}</button>
-              </div>
-
-              {/* Modal de Configuración y Pruebas para Administradores / Farmacéuticos */}
-              <DeviceNotificationSettingsModal 
-                isOpen={showDeviceModal}
-                onClose={() => setShowDeviceModal(false)}
-                userId="admin"
-                userRole="ADMIN"
-              />
-        </header>
-    );
+      <DeviceNotificationSettingsModal 
+        isOpen={showDeviceModal}
+        onClose={() => setShowDeviceModal(false)}
+        userId="admin"
+        userRole="ADMIN"
+      />
+    </header>
+  );
 };
 
 export default AdminHeader;

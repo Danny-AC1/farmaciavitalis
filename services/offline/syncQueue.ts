@@ -8,6 +8,7 @@ import { OfflineSyncQueueItem, saveOfflineItem, getAllOfflineItems, deleteOfflin
 import { addOrderDB } from '../db.orders';
 import { updateStockDB, addProductDB, updateProductDB, deleteProductDB } from '../db.products';
 import { addCreditDB, updateCreditDB, deleteCreditDB } from '../db.credits';
+import { saveUserDB } from '../db.users';
 
 const SYNC_QUEUE_STORE = 'syncQueue';
 const LOCALSTORAGE_QUEUE_KEY = 'vitalis_universal_offline_queue';
@@ -102,6 +103,12 @@ const processQueueItem = async (item: OfflineSyncQueueItem): Promise<boolean> =>
           await updateCreditDB(item.payload);
         } else if (item.action === 'DELETE') {
           await deleteCreditDB(item.payload.id);
+        }
+        break;
+
+      case 'USER_UPDATE':
+        if (item.payload) {
+          await saveUserDB(item.payload);
         }
         break;
 

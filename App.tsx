@@ -342,6 +342,9 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Indicador de conectividad y sincronización offline */}
+      <OfflineStatusBar />
     </div>
   );
 };

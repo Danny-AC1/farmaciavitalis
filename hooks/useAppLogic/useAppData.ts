@@ -4,6 +4,7 @@ import {
   streamProducts, streamCategories, streamOrders, streamUser, streamActiveBundles, streamBlogPosts 
 } from '../../services/db';
 import { auth } from '../../services/firebase';
+import { precacheFullCatalog, getOfflineCachedProducts } from '../../services/offline/offlineStorage';
 
 export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => void) => {
   // Cargar estado inicial desde localStorage (Backup/Caché instantáneo)
@@ -61,16 +62,28 @@ export const useAppData = (activeTab: string, setShowAuthModal: (v: boolean) => 
     }
   });
 
-  // Guardar en localStorage cuando el estado se actualiza en tiempo real
+  // Guardar en localStorage e IndexedDB cuando el estado se actualiza en tiempo real
   useEffect(() => {
     try {
       if (products && products.length > 0) {
         localStorage.setItem('vitalis_cache_products', JSON.stringify(products));
+        precacheFullCatalog(products);
       }
     } catch (e) {
       console.warn('LocalStorage error:', e);
     }
   }, [products]);
+
+  // Si no había productos en localStorage al arrancar, consultar IndexedDB de emergencia
+  useEffect(() => {
+    if (products.length === 0) {
+      getOfflineCachedProducts().then(cached => {
+        if (cached && cached.length > 0) {
+          setProducts(cached);
+        }
+      });
+    }
+  }, []);
 
   useEffect(() => {
     try {
