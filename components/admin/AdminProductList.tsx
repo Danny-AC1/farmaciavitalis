@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Trash2, Edit2, Search, Plus, Minus, Building2, Boxes } from 'lucide-react';
 import { Product } from '../../types';
+import { getStockAlertConfig, evaluateProductStockAlert, StockAlertConfig } from '../../services/stockAlertService';
 
 interface AdminProductListProps {
   products: Product[];
@@ -21,6 +22,19 @@ const AdminProductList: React.FC<AdminProductListProps> = ({
   onOpenQuickStock
 }) => {
   const [listSearch, setListSearch] = useState('');
+  const [alertConfig, setAlertConfig] = useState<StockAlertConfig>(() => getStockAlertConfig());
+
+  useEffect(() => {
+    const handleConfigChange = () => {
+      setAlertConfig(getStockAlertConfig());
+    };
+    window.addEventListener('vitalis_stock_alert_changed', handleConfigChange);
+    window.addEventListener('storage', handleConfigChange);
+    return () => {
+      window.removeEventListener('vitalis_stock_alert_changed', handleConfigChange);
+      window.removeEventListener('storage', handleConfigChange);
+    };
+  }, []);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(listSearch.toLowerCase()) || 
@@ -86,18 +100,23 @@ const AdminProductList: React.FC<AdminProductListProps> = ({
                     >
                       <Minus size={14} strokeWidth={3} />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenQuickStock && onOpenQuickStock(p)}
-                      className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-                        p.stock <= 3 
-                          ? 'bg-red-100 hover:bg-red-200 text-red-700 border-red-200' 
-                          : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-200'
-                      }`}
-                      title="Clic para abrir Ajuste Rápido de Stock"
-                    >
-                      {p.stock}
-                    </button>
+                    {(() => {
+                      const alertInfo = evaluateProductStockAlert(p, alertConfig);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onOpenQuickStock && onOpenQuickStock(p)}
+                          className={`text-xs font-black px-3 py-1 rounded-lg min-w-[36px] text-center shadow-inner border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                            alertInfo.isAlert 
+                              ? 'bg-rose-100 hover:bg-rose-200 text-rose-700 border-rose-200 ring-2 ring-rose-400/20' 
+                              : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-200'
+                          }`}
+                          title={`Stock actual: ${p.stock} uds.${alertInfo.isAlert ? ' ⚠️ Alerta de reposición activa' : ''}`}
+                        >
+                          {p.stock}
+                        </button>
+                      );
+                    })()}
                     <button 
                       onClick={() => onUpdateStock(p.id, p.stock + 1)}
                       className="p-1 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"

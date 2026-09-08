@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../../types';
 import { 
   Search, MessageCircle, Minus, Plus, Check, AlertCircle, 
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AdminProductPriceList from './AdminProductPriceList';
 import { useUSBScanner } from '../../hooks/useUSBScanner';
+import { getStockAlertConfig, evaluateProductStockAlert, filterProductsInAlert, StockAlertConfig } from '../../services/stockAlertService';
 
 interface AdminStockQuickProps {
   products: Product[];
@@ -17,6 +18,21 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
   const [search, setSearch] = useState('');
   const [updates, setUpdates] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // Configuración de alertas de stock sincronizada
+  const [alertConfig, setAlertConfig] = useState<StockAlertConfig>(() => getStockAlertConfig());
+
+  useEffect(() => {
+    const handleConfigChange = () => {
+      setAlertConfig(getStockAlertConfig());
+    };
+    window.addEventListener('vitalis_stock_alert_changed', handleConfigChange);
+    window.addEventListener('storage', handleConfigChange);
+    return () => {
+      window.removeEventListener('vitalis_stock_alert_changed', handleConfigChange);
+      window.removeEventListener('storage', handleConfigChange);
+    };
+  }, []);
 
   // Filtros y ordenación
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
@@ -46,11 +62,11 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
         // Filtro por categoría
         const matchesCategory = selectedCategory === 'Todas' || p.category === selectedCategory;
         
-        // Filtro por estado de stock
+        // Filtro por estado de stock vinculado a la configuración de alertas
         let matchesStatus = true;
-        if (stockStatusFilter === 'critical') matchesStatus = p.stock <= 3;
+        if (stockStatusFilter === 'critical') matchesStatus = evaluateProductStockAlert(p, alertConfig).isAlert;
         else if (stockStatusFilter === 'outOfStock') matchesStatus = p.stock === 0;
-        else if (stockStatusFilter === 'healthy') matchesStatus = p.stock > 3;
+        else if (stockStatusFilter === 'healthy') matchesStatus = !evaluateProductStockAlert(p, alertConfig).isAlert && p.stock > 0;
         
         return matchesSearch && matchesCategory && matchesStatus;
       })
@@ -61,7 +77,7 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
         if (sortBy === 'category') return a.category.localeCompare(b.category);
         return 0;
       });
-  }, [products, search, selectedCategory, stockStatusFilter, sortBy]);
+  }, [products, search, selectedCategory, stockStatusFilter, sortBy, alertConfig]);
 
   // Escáner USB silencioso e inteligente en segundo plano
   useUSBScanner((code) => {
@@ -152,12 +168,17 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
   };
 
   const handleSendStockAlert = () => {
-    const lowStockList = products.filter(p => p.stock <= 3);
+    const lowStockList = filterProductsInAlert(products, alertConfig).all;
     if (lowStockList.length === 0) {
-        return alert("¡Excelente! No hay productos en nivel crítico.");
+        return alert("¡Excelente! No hay medicamentos en alerta según la configuración actual.");
     }
 
-    const itemsList = lowStockList.map(p => `• ${p.name}: Quedan ${p.stock} u.`).join('\n');
+    const itemsList = lowStockList.map(p => {
+      const hasBox = Boolean(p.unitsPerBox && p.unitsPerBox > 1);
+      return hasBox 
+        ? `• ${p.name}: Quedan ${p.stock} uds (Caja x ${p.unitsPerBox})`
+        : `• ${p.name}: Quedan ${p.stock} unidades`;
+    }).join('\n');
     const message = `*ALERTA DE REABASTECIMIENTO - FARMACIA VITALIS* ⚠️\n\nPor favor gestionar el ingreso de los siguientes medicamentos:\n\n${itemsList}`;
     
     const waLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
@@ -165,23 +186,29 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
   };
 
   const handleGenerateShoppingList = () => {
-    const lowStockList = products.filter(p => p.stock <= 3);
+    const lowStockList = filterProductsInAlert(products, alertConfig).all;
     if (lowStockList.length === 0) {
-        return alert("No hay productos con bajo stock (≤ 3) para generar lista.");
+        return alert(`No hay productos en alerta (≤ ${alertConfig.boxThreshold} uds en caja / ≤ ${alertConfig.unitThreshold} uds indiv.) para generar lista.`);
     }
 
     const printFrame = document.createElement('iframe');
     printFrame.style.display = 'none';
     document.body.appendChild(printFrame);
 
-    const itemsHtml = lowStockList.map(p => `
+    const itemsHtml = lowStockList.map(p => {
+      const hasBox = Boolean(p.unitsPerBox && p.unitsPerBox > 1);
+      const detailLabel = hasBox ? `Cj x ${p.unitsPerBox}` : 'Indiv.';
+      return `
       <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; color: #1e293b;">${p.name}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; color: #1e293b;">
+          ${p.name} <span style="font-size: 10px; color: #64748b;">(${detailLabel})</span>
+        </td>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 12px;">${p.category}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #ef4444;">${p.stock}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #ef4444;">${p.stock} uds</td>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #94a3b8;">[ &nbsp; &nbsp; &nbsp; &nbsp; ] u.</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     const content = `
       <html>
@@ -659,21 +686,23 @@ const AdminStockQuick: React.FC<AdminStockQuickProps> = ({ products, onUpdateSto
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 flex items-center gap-4">
           <div className="h-10 w-10 bg-rose-500 rounded-xl flex items-center justify-center text-white font-bold shrink-0">
-            {products.filter(p => p.stock <= 3).length}
+            {filterProductsInAlert(products, alertConfig).totalCount}
           </div>
           <div>
-            <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Stock Crítico (≤ 3)</p>
-            <p className="text-xs text-rose-900 font-semibold">Requieren reposición inmediata</p>
+            <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+              Stock en Alerta (≤ {alertConfig.boxThreshold} uds caja / ≤ {alertConfig.unitThreshold} uds indiv.)
+            </p>
+            <p className="text-xs text-rose-900 font-semibold">Requieren reposición según umbral configurado</p>
           </div>
         </div>
         
         <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 flex items-center gap-4">
           <div className="h-10 w-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold shrink-0">
-            {products.filter(p => p.stock > 3).length}
+            {products.filter(p => !evaluateProductStockAlert(p, alertConfig).isAlert && p.stock > 0).length}
           </div>
           <div>
-            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Nivel Óptimo (&gt; 3)</p>
-            <p className="text-xs text-emerald-900 font-semibold">Productos con stock saludable</p>
+            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Nivel Óptimo</p>
+            <p className="text-xs text-emerald-900 font-semibold">Productos por encima de alerta</p>
           </div>
         </div>
 

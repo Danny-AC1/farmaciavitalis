@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, X, Package, Boxes, Plus, Check, Filter, Truck } from 'lucide-react';
+import { Search, X, Package, Boxes, Plus, Check, Filter, Truck, AlertCircle, Bell } from 'lucide-react';
 import { Product, Supplier } from '../../../types';
 import { PurchaseOrderItem } from '../../../types/purchases';
+import { getStockAlertConfig, evaluateProductStockAlert } from '../../../services/stockAlertService';
 
 interface ProductPickerModalProps {
   isOpen: boolean;
@@ -23,6 +24,10 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('ALL');
+  const [alertFilterOnly, setAlertFilterOnly] = useState<boolean>(false);
+
+  // Configuración de alertas de stock activa
+  const alertConfig = useMemo(() => getStockAlertConfig(), []);
 
   // Mapa de proveedores
   const supplierMap = useMemo(() => {
@@ -65,9 +70,14 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
         selectedSupplierId === 'ALL' ||
         (selectedSupplierId === 'NONE' ? !p.supplierId : p.supplierId === selectedSupplierId);
 
+      if (alertFilterOnly) {
+        const evalRes = evaluateProductStockAlert(p, alertConfig);
+        if (!evalRes.isAlert) return false;
+      }
+
       return matchSearch && matchCategory && matchSupplier;
     });
-  }, [products, searchTerm, selectedCategory, selectedSupplierId]);
+  }, [products, searchTerm, selectedCategory, selectedSupplierId, alertFilterOnly, alertConfig]);
 
   if (!isOpen) return null;
 
@@ -150,6 +160,20 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
               </select>
             </div>
 
+            {/* Filtro Rápido: Solo en Alerta de Stock */}
+            <button
+              onClick={() => setAlertFilterOnly(!alertFilterOnly)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${
+                alertFilterOnly
+                  ? 'bg-rose-500 text-white shadow-xs'
+                  : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80'
+              }`}
+              title="Filtrar solo los medicamentos que están en alerta según tu configuración"
+            >
+              <Bell size={12} />
+              <span>Solo en Alerta</span>
+            </button>
+
             <div className="ml-auto text-[11px] font-bold text-slate-400">
               Mostrando {filteredProducts.length} medicamentos
             </div>
@@ -171,6 +195,7 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
               const hasBox = unitsPerBox > 1;
               const unitCost = p.costPrice || (p.price > 0 ? p.price * 0.7 : 0);
               const boxCost = p.supplierBoxPrice || p.boxPrice || (unitCost * unitsPerBox);
+              const alertInfo = evaluateProductStockAlert(p, alertConfig);
 
               return (
                 <div
@@ -189,6 +214,18 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
                           {supplierMap.get(p.supplierId) || 'Distribuidora'}
                         </span>
                       )}
+                      {alertInfo.isAlert && (
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                            alertInfo.badgeColor === 'rose'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          }`}
+                        >
+                          <AlertCircle size={10} />
+                          {alertInfo.badgeText}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
@@ -196,14 +233,14 @@ export const ProductPickerModal: React.FC<ProductPickerModalProps> = ({
                         Stock actual:{' '}
                         <strong
                           className={
-                            p.stock <= 0
+                            alertInfo.isOutOfStock
                               ? 'text-rose-600 font-black'
-                              : p.stock <= 1
+                              : alertInfo.isAlert
                               ? 'text-amber-600 font-black'
                               : 'text-slate-700 font-bold'
                           }
                         >
-                          {p.stock} uds
+                          {p.stock} uds {hasBox ? `(${alertInfo.stockBoxes.toFixed(1)} cj)` : ''}
                         </strong>
                       </span>
                       <span>•</span>

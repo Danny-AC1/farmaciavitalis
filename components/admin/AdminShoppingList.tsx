@@ -20,12 +20,19 @@ import {
   getPurchaseOrders, 
   createPurchaseOrderFromItems 
 } from '../../services/db.purchases';
+import { 
+  StockAlertConfig, 
+  getStockAlertConfig, 
+  filterProductsInAlert, 
+  evaluateProductStockAlert 
+} from '../../services/stockAlertService';
 import { PurchaseMetricsBar } from './purchases/PurchaseMetricsBar';
 import { PurchaseCartTable } from './purchases/PurchaseCartTable';
 import { ProductPickerModal } from './purchases/ProductPickerModal';
 import { PurchaseOrderHistoryModal } from './purchases/PurchaseOrderHistoryModal';
 import { PurchaseShareModal } from './purchases/PurchaseShareModal';
 import { PurchaseImageDownloadModal } from './purchases/PurchaseImageDownloadModal';
+import { StockAlertConfigCard } from './purchases/StockAlertConfigCard';
 
 interface AdminShoppingListProps {
   products: Product[];
@@ -36,6 +43,9 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
   // Carrito o lista activa de compras
   const [purchaseItems, setPurchaseItems] = useState<PurchaseOrderItem[]>(() => getActivePurchaseCart());
   
+  // Configuración de alertas de stock (unidades y cajas)
+  const [stockAlertConfig, setStockAlertConfig] = useState<StockAlertConfig>(() => getStockAlertConfig());
+
   // Filtro de distribuidora seleccionada en las pestañas
   const [selectedSupplierFilter, setSelectedSupplierFilter] = useState<string>('ALL');
 
@@ -77,10 +87,10 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
     setTimeout(() => setFeedbackMessage(null), 4000);
   };
 
-  // Productos con stock crítico (<= 1)
-  const lowStockProducts = useMemo(() => {
-    return products.filter(p => p.stock <= 1);
-  }, [products]);
+  // Diagnóstico inteligente de productos en alerta (diferenciando caja vs unidad)
+  const alertStats = useMemo(() => {
+    return filterProductsInAlert(products, stockAlertConfig);
+  }, [products, stockAlertConfig]);
 
   // Distribuidoras únicas presentes en la orden actual con sus subtotales
   const uniqueSuppliersInCart = useMemo(() => {
@@ -96,14 +106,17 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
     return Array.from(map.values());
   }, [purchaseItems]);
 
-  // 1. CARGAR SUGERIDO AUTOMÁTICO POR STOCK CRÍTICO
+  // 1. CARGAR SUGERIDO AUTOMÁTICO POR ALERTA DE STOCK INTELIGENTE
   const handleFillCriticalStock = () => {
-    if (lowStockProducts.length === 0) {
-      alert('¡Excelente! No hay productos con existencias críticas (stock 0 o 1) en este momento.');
+    if (alertStats.all.length === 0) {
+      alert(
+        `¡Excelente! No hay medicamentos que requieran reposición con los umbrales actuales (≤ ${stockAlertConfig.unitThreshold} uds indiv. / ≤ ${stockAlertConfig.boxThreshold} uds en caja).`
+      );
       return;
     }
 
-    const newItems: PurchaseOrderItem[] = lowStockProducts.map(p => {
+    const newItems: PurchaseOrderItem[] = alertStats.all.map(p => {
+      const alertInfo = evaluateProductStockAlert(p, stockAlertConfig);
       const unitsPerBox = p.unitsPerBox || 1;
       const hasBox = unitsPerBox > 1;
       const unitType: PurchaseUnitType = hasBox ? 'BOX' : 'UNIT';
@@ -116,7 +129,8 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
       const boxSale = p.publicBoxPrice || p.boxPrice || (unitSale * unitsPerBox);
       const appliedSale = unitType === 'BOX' ? boxSale : unitSale;
 
-      const quantity = 1; // 1 caja o 1 lote sugerido inicial
+      // Cantidad calculada inteligentemente por el motor para superar el umbral
+      const quantity = Math.max(1, alertInfo.suggestedPurchaseQty);
 
       const supplier = p.supplierId ? suppliersMap.get(p.supplierId) : undefined;
 
@@ -138,7 +152,9 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
     });
 
     setPurchaseItems(newItems);
-    showFeedback(`Se cargaron ${newItems.length} medicamentos críticos a la orden de compra.`);
+    showFeedback(
+      `Se cargaron ${newItems.length} medicamentos en alerta (≤ ${stockAlertConfig.unitThreshold} uds indiv. / ≤ ${stockAlertConfig.boxThreshold} uds en caja) a la orden de compra.`
+    );
   };
 
   // 2. AGREGAR PRODUCTO MANUALMENTE
@@ -292,10 +308,15 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
               <span className="text-[10px] font-black uppercase tracking-widest bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2.5 py-0.5 rounded-full">
                 Abastecimiento & Proveedores
               </span>
-              {lowStockProducts.length > 0 && (
+              {alertStats.totalCount > 0 ? (
                 <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <AlertCircle size={10} />
-                  {lowStockProducts.length} medicamentos en falta crítica
+                  {alertStats.totalCount} en alerta (≤{stockAlertConfig.unitThreshold} uds indiv. / ≤{stockAlertConfig.boxThreshold} uds en caja)
+                </span>
+              ) : (
+                <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle size={10} />
+                  Stock saludable
                 </span>
               )}
             </div>
@@ -324,10 +345,10 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
           <button
             onClick={handleFillCriticalStock}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all"
-            title="Cargar automáticamente todos los medicamentos que tienen stock de 0 o 1 unidad"
+            title={`Cargar automáticamente los ${alertStats.totalCount} medicamentos que requieren reposición`}
           >
             <RotateCcw size={14} />
-            <span>Sugerir por Stock Crítico</span>
+            <span>Sugerir por Alerta ({alertStats.totalCount})</span>
           </button>
 
           <button
@@ -371,6 +392,14 @@ const AdminShoppingList: React.FC<AdminShoppingListProps> = ({ products, supplie
           </button>
         </div>
       )}
+
+      {/* Panel Inteligente de Alertas de Stock (Configurable en cualquier momento) */}
+      <StockAlertConfigCard
+        products={products}
+        config={stockAlertConfig}
+        onConfigChange={setStockAlertConfig}
+        onApplyToCart={handleFillCriticalStock}
+      />
 
       {/* Métricas de Inversión y Ganancia Proyectada */}
       {purchaseItems.length > 0 && (

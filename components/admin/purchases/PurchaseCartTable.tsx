@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trash2, Plus, Minus, Boxes, Package, Truck, AlertCircle } from 'lucide-react';
 import { PurchaseOrderItem, PurchaseUnitType } from '../../../types/purchases';
+import { getStockAlertConfig } from '../../../services/stockAlertService';
 
 interface PurchaseCartTableProps {
   items: PurchaseOrderItem[];
@@ -25,6 +26,7 @@ export const PurchaseCartTable: React.FC<PurchaseCartTableProps> = ({
   onOpenProductPicker,
   onFillCriticalStock,
 }) => {
+  const alertConfig = getStockAlertConfig();
   // Filtrar items según el proveedor seleccionado en las pestañas
   const displayedItems = items.filter((it) => {
     if (selectedSupplierFilter === 'ALL') return true;
@@ -55,7 +57,7 @@ export const PurchaseCartTable: React.FC<PurchaseCartTableProps> = ({
             className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/10"
           >
             <AlertCircle size={15} />
-            <span>Cargar Medicamentos en Falta (Stock Crítico)</span>
+            <span>Cargar Medicamentos en Alerta (≤ {alertConfig.unitThreshold} uds indiv. / ≤ {alertConfig.boxThreshold} uds en caja)</span>
           </button>
 
           <button
@@ -155,20 +157,35 @@ export const PurchaseCartTable: React.FC<PurchaseCartTableProps> = ({
                         <span>•</span>
                         <span className="text-teal-700 font-bold">{it.supplierName || 'Sin distribuidora'}</span>
                         <span>•</span>
-                        <span>
-                          Stock actual:{' '}
-                          <strong
-                            className={
-                              it.currentStock <= 0
-                                ? 'text-rose-600 font-black'
-                                : it.currentStock <= 1
-                                ? 'text-amber-600 font-black'
-                                : 'text-slate-600 font-bold'
-                            }
-                          >
-                            {it.currentStock} uds
-                          </strong>
-                        </span>
+                        {(() => {
+                          const stockBoxes = hasBox ? it.currentStock / it.unitsPerBox : it.currentStock;
+                          const isAlert = hasBox 
+                            ? it.currentStock <= alertConfig.boxThreshold
+                            : it.currentStock <= alertConfig.unitThreshold;
+                          const isOut = it.currentStock <= 0;
+
+                          return (
+                            <span>
+                              Stock actual:{' '}
+                              <strong
+                                className={
+                                  isOut
+                                    ? 'text-rose-600 font-black'
+                                    : isAlert
+                                    ? 'text-amber-600 font-black'
+                                    : 'text-slate-600 font-bold'
+                                }
+                              >
+                                {it.currentStock} uds {hasBox ? `(${stockBoxes.toFixed(1)} cj)` : ''}
+                              </strong>
+                              {isAlert && (
+                                <span className="ml-1 text-[9px] font-black uppercase text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded-md">
+                                  {isOut ? 'Agotado' : 'Alerta'}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </td>

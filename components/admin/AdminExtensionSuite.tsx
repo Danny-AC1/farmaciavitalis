@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Cpu, ArrowRight, Sparkles, Database, Users, Zap, Landmark, LineChart, ShoppingBag, Percent, Coins, Building2, Scale } from 'lucide-react';
 import { Product, Supplier, Order, Expense, Category } from '../../types';
 import AdminShoppingList from './AdminShoppingList';
@@ -7,6 +7,7 @@ import AdminCredits from '../credits/AdminCredits';
 import AdminTreasury from './AdminTreasury';
 import AdminSupplierPrices from './AdminSupplierPrices';
 import { AdminAccountingHub } from './accounting/AdminAccountingHub';
+import { getStockAlertConfig, filterProductsInAlert } from '../../services/stockAlertService';
 
 interface AdminExtensionSuiteProps {
   setActiveTab: (tab: string) => void;
@@ -19,6 +20,16 @@ interface AdminExtensionSuiteProps {
 
 const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab, products, categories = [], suppliers, orders = [], expenses = [] }) => {
   const [subTab, setSubTab] = useState<'hub' | 'accounting' | 'supplier_prices' | 'shopping_list' | 'discounts' | 'credits' | 'treasury'>('accounting'); // Mostrar por defecto la contabilidad gerencial de primer nivel
+  const [alertCount, setAlertCount] = useState<number>(() => filterProductsInAlert(products, getStockAlertConfig()).totalCount);
+
+  useEffect(() => {
+    const updateCount = () => {
+      setAlertCount(filterProductsInAlert(products, getStockAlertConfig()).totalCount);
+    };
+    updateCount();
+    window.addEventListener('vitalis_stock_alert_changed', updateCount);
+    return () => window.removeEventListener('vitalis_stock_alert_changed', updateCount);
+  }, [products]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -119,9 +130,11 @@ const AdminExtensionSuite: React.FC<AdminExtensionSuiteProps> = ({ setActiveTab,
           <span className="flex items-center gap-2">
             <ShoppingBag size={14} />
             Sistema de Compras (Reabastecimiento)
-            <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black font-mono">
-              {products.filter(p => p.stock <= 1).length}
-            </span>
+            {alertCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black font-mono">
+                {alertCount}
+              </span>
+            )}
           </span>
         </button>
 

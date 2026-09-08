@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Package, CheckCircle, Clock, Truck, CheckCheck, FileText, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { X, Package, CheckCircle, Clock, Truck, CheckCheck, FileText, ChevronDown, ChevronUp, RefreshCw, Trash2 } from 'lucide-react';
 import { PurchaseOrder } from '../../../types/purchases';
 import { Product } from '../../../types';
-import { receivePurchaseOrderAndRestock, updateOrderStatus } from '../../../services/db.purchases';
+import { receivePurchaseOrderAndRestock, updateOrderStatus, deletePurchaseOrder } from '../../../services/db.purchases';
 
 interface PurchaseOrderHistoryModalProps {
   isOpen: boolean;
@@ -50,6 +50,18 @@ export const PurchaseOrderHistoryModal: React.FC<PurchaseOrderHistoryModalProps>
   const handleMarkAsSent = (orderId: string) => {
     updateOrderStatus(orderId, 'SENT');
     onOrdersUpdated();
+  };
+
+  const handleDeleteOrder = (order: PurchaseOrder) => {
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de que deseas eliminar la orden ${order.code}?\n\nEsta acción quitará permanentemente la orden del historial.`
+    );
+    if (!confirmDelete) return;
+
+    deletePurchaseOrder(order.id);
+    onOrdersUpdated();
+    setActionMessage(`Orden ${order.code} eliminada del historial.`);
+    setTimeout(() => setActionMessage(null), 4000);
   };
 
   const getStatusBadge = (status: PurchaseOrder['status']) => {
@@ -205,6 +217,14 @@ export const PurchaseOrderHistoryModal: React.FC<PurchaseOrderHistoryModalProps>
                           Compartir
                         </button>
                       )}
+
+                      <button
+                        onClick={() => handleDeleteOrder(order)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                        title="Eliminar esta orden de compra"
+                      >
+                        <Trash2 size={16} />
+                      </button>
 
                       <button
                         onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}

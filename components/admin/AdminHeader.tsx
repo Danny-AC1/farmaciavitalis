@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { 
   Menu, Bell, Layout, ChevronRight, Volume2, VolumeX, X, 
   Package, AlertTriangle, Calendar, BellRing, Sparkles,
-  MessageSquare, CheckCheck, Radio
+  MessageSquare, CheckCheck, Radio, Boxes
 } from 'lucide-react';
 import { Order, Product, ServiceBooking, User } from '../../types';
 import { SupportChat } from '../../services/db.support';
@@ -246,18 +246,23 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
             }
           } else if (newLowStocks.length === 1) {
             const p = newLowStocks[0];
+            const isBox = Boolean(p.unitsPerBox && p.unitsPerBox > 1);
             setToasts(prev => [...prev, {
               id: `toast-stock-${p.id}`,
               type: 'STOCK',
-              title: 'Stock Crítico 🚨',
-              desc: `${p.name} se está agotando (${p.stock} un.)`,
+              title: isBox ? 'Caja por Terminar 📦' : 'Stock Crítico 🚨',
+              desc: isBox 
+                ? `${p.name}: Quedan solo ${p.stock} uds de la caja x ${p.unitsPerBox}`
+                : `${p.name} se está agotando (${p.stock} un. restantes)`,
               actionLabel: 'Reabastecer',
               tab: 'stock_quick'
             }]);
             if (soundEnabled) notificationAudio.playAlertTone();
             if (pushPermission === 'granted') {
-              triggerNativeNotification('⚠️ Stock Crítico', {
-                body: `${p.name} (${p.stock} un. restantes)`,
+              triggerNativeNotification(isBox ? '📦 Alerta Caja por Terminar' : '⚠️ Stock Crítico', {
+                body: isBox 
+                  ? `${p.name}: Solo quedan ${p.stock} uds restantes de la caja x ${p.unitsPerBox}`
+                  : `${p.name} (${p.stock} un. restantes)`,
                 tag: `vitalis-admin-stock-${p.id}`
               });
             }
@@ -369,13 +374,18 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
       if (activeFilter === 'ALL' || activeFilter === 'STOCK') {
         activeLowStock.forEach(item => {
+          const isBox = Boolean(item.unitsPerBox && item.unitsPerBox > 1);
           list.push({
             id: `stock-${item.id}`,
             type: 'STOCK',
-            icon: AlertTriangle,
-            title: 'Stock Crítico',
-            desc: `${item.name} (${item.stock} unidades restantes)`,
-            color: 'bg-red-50 text-red-600 border-red-100',
+            icon: isBox ? Boxes : AlertTriangle,
+            title: isBox ? 'Alerta Caja por Terminar' : 'Stock Crítico en Unidades',
+            desc: isBox 
+              ? `${item.name} • Solo quedan ${item.stock} uds de la caja (Cj x ${item.unitsPerBox})`
+              : `${item.name} • Quedan ${item.stock} unidades en inventario`,
+            color: isBox 
+              ? 'bg-teal-50 text-teal-700 border-teal-200' 
+              : 'bg-red-50 text-red-600 border-red-100',
             actionLabel: 'Reabastecer',
             onClick: () => { setActiveTab('stock_quick'); setShowNotifications(false); }
           });

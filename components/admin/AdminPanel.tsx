@@ -1,10 +1,11 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Product, Order, Category, CashClosure, User } from '../../types';
 import { useAdminPanelState } from '../../hooks/useAdminPanelState';
 import { useUSBScanner } from '../../hooks/useUSBScanner';
 import { streamAdminChats, SupportChat, markChatAsReadByAdmin } from '../../services/db.support';
 import { MessageSquare, Check, BellOff } from 'lucide-react';
+import { getStockAlertConfig, filterProductsInAlert, StockAlertConfig } from '../../services/stockAlertService';
 
 // Componentes Base
 import AdminSidebar from './AdminSidebar';
@@ -101,9 +102,26 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     }
   };
 
-  // Filtros para el Header
+  // Configuración de alertas de stock en tiempo real
+  const [stockAlertConfig, setStockAlertConfig] = useState<StockAlertConfig>(() => getStockAlertConfig());
+
+  useEffect(() => {
+    const handleStockAlertChanged = () => {
+      setStockAlertConfig(getStockAlertConfig());
+    };
+    window.addEventListener('vitalis_stock_alert_changed', handleStockAlertChanged);
+    window.addEventListener('storage', handleStockAlertChanged);
+    return () => {
+      window.removeEventListener('vitalis_stock_alert_changed', handleStockAlertChanged);
+      window.removeEventListener('storage', handleStockAlertChanged);
+    };
+  }, []);
+
+  // Filtros para el Header sincronizados con la configuración de alertas
   const pendingOrders = props.orders.filter(o => o.status === 'PENDING');
-  const lowStockItems = props.products.filter(p => p.stock <= 3);
+  const lowStockItems = useMemo(() => {
+    return filterProductsInAlert(props.products, stockAlertConfig).all;
+  }, [props.products, stockAlertConfig]);
   const pendingBookings = state.bookings.filter(b => b.status === 'PENDING');
   
   const isFullHeightTab = state.activeTab === 'pos' || state.activeTab === 'support_chats';

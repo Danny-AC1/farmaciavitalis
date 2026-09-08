@@ -113,6 +113,13 @@ export const updateOrderStatus = (
   return updated;
 };
 
+export const deletePurchaseOrder = (orderId: string): PurchaseOrder[] => {
+  const orders = getPurchaseOrders();
+  const filtered = orders.filter((o) => o.id !== orderId);
+  savePurchaseOrders(filtered);
+  return filtered;
+};
+
 export const receivePurchaseOrderAndRestock = async (
   order: PurchaseOrder,
   currentProducts: Product[]
