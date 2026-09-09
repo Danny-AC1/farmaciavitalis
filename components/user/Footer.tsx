@@ -1,7 +1,11 @@
 import React from 'react';
-import { ShieldCheck, Truck, Clock, Award, Facebook, Instagram, MessageCircle, MapPin, Phone } from 'lucide-react';
+import { ShieldCheck, Truck, Clock, Award, Facebook, Instagram, MessageCircle, MapPin, Phone, Lock } from 'lucide-react';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  onStaffAccessClick?: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onStaffAccessClick }) => {
   return (
     <footer className="bg-white border-t border-gray-100 pt-12 pb-8 mt-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,6 +85,15 @@ const Footer: React.FC = () => {
           <div className="flex items-center gap-6">
             <span className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Términos y Condiciones</span>
             <span className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Privacidad</span>
+            {onStaffAccessClick && (
+              <button 
+                onClick={onStaffAccessClick}
+                className="text-[10px] font-bold text-gray-400 hover:text-teal-600 transition-colors uppercase tracking-tighter flex items-center gap-1 cursor-pointer"
+                title="Acceso para Administrador, Cajero o Delivery"
+              >
+                <Lock size={11} /> Acceso Personal
+              </button>
+            )}
           </div>
         </div>
       </div>

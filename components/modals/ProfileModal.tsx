@@ -8,7 +8,7 @@ import { TreatmentCalendarTab } from '../user/profile/TreatmentCalendarTab';
 import { ContinuousRefillTab } from '../user/profile/ContinuousRefillTab';
 import { OrdersAndPrescriptionsTab } from '../user/profile/OrdersAndPrescriptionsTab';
 import { calculateRemainingDays } from '../../services/treatmentReminderService';
-import { X, LogOut, UserCheck, Users, Pill, RefreshCw, Package } from 'lucide-react';
+import { X, LogOut, UserCheck, Users, Pill, RefreshCw, Package, LayoutDashboard, Store, Truck } from 'lucide-react';
 
 interface ProfileModalProps {
   user: User;
@@ -17,6 +17,8 @@ interface ProfileModalProps {
   onAddToCart: (product: Product, unitType: 'UNIT' | 'BOX') => void;
   onOpenSubscriptions?: () => void;
   initialTab?: 'overview' | 'family' | 'calendar' | 'refill' | 'orders';
+  onOpenStaffTerminal?: (view: 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD', role: User['role']) => void;
+  onOpenStaffAccess?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -25,6 +27,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   onAddToCart,
   initialTab = 'overview',
+  onOpenStaffTerminal,
+  onOpenStaffAccess,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'family' | 'calendar' | 'refill' | 'orders'>(initialTab);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -83,6 +87,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {user.role && user.role !== 'USER' && onOpenStaffTerminal && (
+                <button
+                  onClick={() => {
+                    if (user.role === 'DRIVER') {
+                      onOpenStaffTerminal('DRIVER_DASHBOARD', 'DRIVER');
+                    } else {
+                      onOpenStaffTerminal('ADMIN_DASHBOARD', user.role);
+                    }
+                    onClose();
+                  }}
+                  className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                  title="Ingresar a tu Panel de Trabajo"
+                >
+                  {user.role === 'ADMIN' && <LayoutDashboard size={14} />}
+                  {user.role === 'CASHIER' && <Store size={14} />}
+                  {user.role === 'DRIVER' && <Truck size={14} />}
+                  <span className="hidden sm:inline">{user.role === 'ADMIN' ? 'Vitalis Admin' : user.role === 'CASHIER' ? 'Terminal Caja' : 'Panel Reparto'}</span>
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-2xl transition-all font-bold text-xs flex items-center gap-1.5"
@@ -177,6 +200,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 if (tab === 'refill') setActiveTab('refill');
                 if (tab === 'orders') setActiveTab('orders');
               }}
+              onOpenStaffTerminal={(view, role) => {
+                if (onOpenStaffTerminal) {
+                  onOpenStaffTerminal(view, role);
+                  onClose();
+                }
+              }}
+              onOpenStaffAccess={onOpenStaffAccess}
             />
           )}
 

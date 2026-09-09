@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../../../types';
 import { updateUserFieldsDB } from '../../../services/db';
-import { Mail, Phone, MapPin, Award, ShieldCheck, Edit3, Save, Check, UserCheck, Sparkles, HeartPulse, Pill, RefreshCw } from 'lucide-react';
+import { Mail, Phone, MapPin, Award, ShieldCheck, Edit3, Save, Check, UserCheck, HeartPulse, Pill, RefreshCw, Lock, Store, Truck, LayoutDashboard, KeyRound, ChevronRight } from 'lucide-react';
 
 interface ProfileOverviewTabProps {
   user: User;
@@ -9,6 +9,8 @@ interface ProfileOverviewTabProps {
   medsCount: number;
   refillCount: number;
   onNavigateTab: (tab: 'family' | 'calendar' | 'refill' | 'orders') => void;
+  onOpenStaffTerminal?: (view: 'ADMIN_DASHBOARD' | 'DRIVER_DASHBOARD', role: User['role']) => void;
+  onOpenStaffAccess?: () => void;
 }
 
 export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
@@ -17,6 +19,8 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
   medsCount,
   refillCount,
   onNavigateTab,
+  onOpenStaffTerminal,
+  onOpenStaffAccess,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName || '');
@@ -72,9 +76,15 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
                 <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-gradient-to-r ${levelColor} shadow-sm`}>
                   Nivel {level}
                 </span>
-                <span className="text-teal-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
-                  <ShieldCheck size={12} /> Cliente Verificado
-                </span>
+                {user.role && user.role !== 'USER' ? (
+                  <span className="bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Lock size={10} /> Rol: {user.role === 'ADMIN' ? 'Administrador' : user.role === 'CASHIER' ? 'Cajero' : 'Delivery'}
+                  </span>
+                ) : (
+                  <span className="text-teal-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                    <ShieldCheck size={12} /> Cliente Verificado
+                  </span>
+                )}
               </div>
               <h2 className="text-2xl font-black tracking-tight text-white">{user.displayName || 'Usuario Vitalis'}</h2>
               <p className="text-xs text-slate-300 font-medium">{user.email}</p>
@@ -95,11 +105,52 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
               </div>
             ) : (
               <p className="text-[9px] text-emerald-300 font-bold uppercase tracking-widest flex items-center gap-1">
-                <Sparkles size={10} /> ¡Nivel Máximo de Beneficios!
+                <ShieldCheck size={10} /> ¡Nivel Máximo de Beneficios!
               </p>
             )}
           </div>
         </div>
+
+        {/* Acceso a Terminal si el usuario tiene rol de personal asignado */}
+        {user.role && user.role !== 'USER' && onOpenStaffTerminal && (
+          <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 bg-amber-400/20 text-amber-300 rounded-xl flex items-center justify-center shrink-0">
+                <Lock size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-black text-white uppercase tracking-wider">
+                    {user.role === 'ADMIN' ? 'Perfil Administrador' : user.role === 'CASHIER' ? 'Perfil Cajero' : 'Perfil Repartidor'}
+                  </p>
+                  <span className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 rounded-full">
+                    {user.role === 'ADMIN' ? 'Gerencia' : user.role === 'CASHIER' ? 'Caja' : 'Reparto'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-300 font-medium mt-0.5">
+                  {user.role === 'ADMIN' ? 'Acceso gerencial a todos los módulos y operaciones de Farmacia Vitalis.' : user.role === 'CASHIER' ? 'Acceso a Terminal POS, Pedidos y Soporte Chat.' : 'Acceso a hoja de ruta activa y pedidos asignados.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  if (user.role === 'DRIVER') {
+                    onOpenStaffTerminal('DRIVER_DASHBOARD', 'DRIVER');
+                  } else {
+                    onOpenStaffTerminal('ADMIN_DASHBOARD', user.role);
+                  }
+                }}
+                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {user.role === 'ADMIN' && <LayoutDashboard size={16} />}
+                {user.role === 'CASHIER' && <Store size={16} />}
+                {user.role === 'DRIVER' && <Truck size={16} />}
+                <span>{user.role === 'ADMIN' ? 'Entrar a Panel Admin' : user.role === 'CASHIER' ? 'Abrir Terminal Caja' : 'Abrir Panel Reparto'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Resumen Métricas Rápidas */}
@@ -258,6 +309,147 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
             </div>
           </form>
         )}
+      </div>
+
+      {/* Paneles Operativos de Farmacia Vitalis para Administrador, Cajero y Repartidor */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 text-white shadow-xl border border-slate-700/60 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 relative z-10 border-b border-white/10 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-amber-400/20 text-amber-300">
+                <Lock size={18} />
+              </span>
+              <h3 className="text-base font-black uppercase tracking-tight text-white">
+                Paneles de Trabajo y Gestión Vitalis
+              </h3>
+            </div>
+            <p className="text-xs text-slate-300 mt-1">
+              Acceso a las plataformas operativas para el personal de administración, caja y despacho a domicilio.
+            </p>
+          </div>
+
+          {onOpenStaffAccess && (
+            <button
+              onClick={onOpenStaffAccess}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
+            >
+              <KeyRound size={14} className="text-amber-400" />
+              <span>Ingresar con PIN</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+          {/* Card Administrador */}
+          <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between transition-all group">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold">
+                  <LayoutDashboard size={20} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  Gerencia
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-white uppercase tracking-tight mb-1">
+                Vitalis Admin
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed mb-4">
+                Control gerencial global, catálogo, inventario, reportes de ventas, usuarios y configuración.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                if (user.role === 'ADMIN') {
+                  onOpenStaffTerminal?.('ADMIN_DASHBOARD', 'ADMIN');
+                } else if (onOpenStaffAccess) {
+                  onOpenStaffAccess();
+                } else {
+                  onOpenStaffTerminal?.('ADMIN_DASHBOARD', 'ADMIN');
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <span>{user.role === 'ADMIN' ? 'Ingresar a Admin' : 'Acceso Administrador'}</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Card Cajero */}
+          <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between transition-all group">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Store size={20} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Punto de Venta
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-white uppercase tracking-tight mb-1">
+                Terminal de Caja
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed mb-4">
+                Venta presencial en mostrador (POS), emisión de tickets, cobros, pedidos web y chat de soporte.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                if (user.role === 'ADMIN' || user.role === 'CASHIER') {
+                  onOpenStaffTerminal?.('ADMIN_DASHBOARD', 'CASHIER');
+                } else if (onOpenStaffAccess) {
+                  onOpenStaffAccess();
+                } else {
+                  onOpenStaffTerminal?.('ADMIN_DASHBOARD', 'CASHIER');
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <span>{user.role === 'CASHIER' || user.role === 'ADMIN' ? 'Ingresar a Caja' : 'Acceso Cajero'}</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Card Repartidor */}
+          <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between transition-all group">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                  <Truck size={20} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Despacho
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-white uppercase tracking-tight mb-1">
+                Panel Repartidor
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed mb-4">
+                Hoja de ruta interactiva, navegación GPS con Google Maps y confirmación de entregas con firma.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                if (user.role === 'ADMIN' || user.role === 'DRIVER') {
+                  onOpenStaffTerminal?.('DRIVER_DASHBOARD', 'DRIVER');
+                } else if (onOpenStaffAccess) {
+                  onOpenStaffAccess();
+                } else {
+                  onOpenStaffTerminal?.('DRIVER_DASHBOARD', 'DRIVER');
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <span>{user.role === 'DRIVER' || user.role === 'ADMIN' ? 'Ingresar a Reparto' : 'Acceso Repartidor'}</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

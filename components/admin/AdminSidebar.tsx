@@ -15,25 +15,24 @@ interface AdminSidebarProps {
 
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, onLogout, currentUserRole, isMobileOpen, setIsMobileOpen }) => {
   
-  // Lógica de filtrado de menú basada en rol
+  // Lógica de filtrado de menú basada en rol:
+  // Administrador: Puede ver todo.
+  // Cajero: Punto de Venta (POS), Pedidos y Soporte Chat.
   const isActuallyAdmin = currentUserRole === 'ADMIN';
 
-  const menuGroups = [
-    {
-      title: 'GESTIÓN DE VENTAS',
-      items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'pos', label: 'Punto de Venta', icon: Store },
-        { id: 'orders', label: 'Pedidos', icon: ClipboardList },
-        { id: 'support_chats', label: 'Soporte Chat', icon: MessageSquare },
-        ...(isActuallyAdmin ? [
+  const menuGroups = isActuallyAdmin
+    ? [
+        {
+          title: 'GESTIÓN DE VENTAS',
+          items: [
+            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'pos', label: 'Punto de Venta', icon: Store },
+            { id: 'orders', label: 'Pedidos', icon: ClipboardList },
+            { id: 'support_chats', label: 'Soporte Chat', icon: MessageSquare },
             { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit },
-            { id: 'geostats', label: 'Mapa de Ventas', icon: Map }
-        ] : []),
-      ]
-    },
-    // Solo mostramos estos grupos si es Administrador
-    ...(isActuallyAdmin ? [
+            { id: 'geostats', label: 'Mapa de Ventas', icon: Map },
+          ]
+        },
         {
           title: 'INVENTARIO Y CATÁLOGO',
           items: [
@@ -67,16 +66,25 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, setActiveTab, on
             { id: 'extension_suite', label: 'Suite Gerencial', icon: Sliders },
           ]
         }
-    ] : [])
-  ];
+      ]
+    : [
+        {
+          title: 'TERMINAL DE CAJA',
+          items: [
+            { id: 'pos', label: 'Punto de Venta (POS)', icon: Store },
+            { id: 'orders', label: 'Pedidos de Clientes', icon: ClipboardList },
+            { id: 'support_chats', label: 'Soporte Chat', icon: MessageSquare },
+          ]
+        }
+      ];
 
   const SidebarContent = () => (
     <>
       <div className="p-6 border-b border-slate-700 font-bold text-xl tracking-tight text-white flex justify-between items-center bg-slate-900">
         <div className="flex flex-col">
-            <span>Vitalis Admin</span>
+            <span>Vitalis {isActuallyAdmin ? 'Admin' : 'Caja'}</span>
             <span className="text-[10px] text-teal-400 uppercase tracking-widest leading-none mt-1">
-                {isActuallyAdmin ? 'Modo Gerencia' : 'Terminal Caja'}
+                {isActuallyAdmin ? 'Modo Gerencia (Acceso Total)' : 'Cajero (POS, Pedidos y Chat)'}
             </span>
         </div>
         <button className="md:hidden" onClick={() => setIsMobileOpen(false)}><X size={20}/></button>

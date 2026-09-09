@@ -35,7 +35,12 @@ interface AdminMainContentProps {
 }
 
 const AdminMainContent: React.FC<AdminMainContentProps> = ({ activeTab, props, state, productInputRef, onShowCashClosure, onEditClosure }) => {
-    switch (activeTab) {
+    // Restricción por rol: El cajero tiene acceso a POS, Pedidos y Soporte Chat
+    const effectiveTab = (props.currentUserRole === 'CASHIER' && activeTab !== 'pos' && activeTab !== 'orders' && activeTab !== 'support_chats')
+        ? 'pos'
+        : activeTab;
+
+    switch (effectiveTab) {
         case 'dashboard':
             return (
                 <AdminDashboard 

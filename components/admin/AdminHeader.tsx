@@ -35,6 +35,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     return saved !== 'false';
   });
 
+  const isCashier = currentUserRole === 'CASHIER';
+
   const {
     toasts,
     removeToast,
@@ -51,9 +53,9 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     dismissAllNotifications
   } = useAdminHeaderNotifications({
     pendingOrders,
-    lowStockItems,
-    pendingBookings,
-    unreadChats,
+    lowStockItems: isCashier ? [] : lowStockItems,
+    pendingBookings: isCashier ? [] : pendingBookings,
+    unreadChats: unreadChats,
     soundEnabled
   });
 
@@ -107,8 +109,10 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         <div className="flex items-center gap-3">
           <div className="bg-teal-600 p-2 rounded-xl hidden sm:block"><Layout className="text-white" size={20}/></div>
           <div>
-            <h1 className="text-base md:text-lg font-black text-slate-800 leading-tight">Vitalis <span className="text-teal-600">Admin</span></h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Panel de Control Premium v2.8</p>
+            <h1 className="text-base md:text-lg font-black text-slate-800 leading-tight">Vitalis <span className="text-teal-600">{isCashier ? 'Caja' : 'Admin'}</span></h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
+              {isCashier ? 'Punto de Venta, Pedidos y Chat' : 'Panel de Control Gerencial'}
+            </p>
           </div>
         </div>
       </div>

@@ -40,6 +40,15 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     props.onAddCategory, props.onUpdateOrderStatus
   );
 
+  // Control de Acceso por Roles: El Cajero accede a POS, Pedidos y Soporte Chat
+  useEffect(() => {
+    if (props.currentUserRole === 'CASHIER') {
+      if (state.activeTab !== 'pos' && state.activeTab !== 'orders' && state.activeTab !== 'support_chats') {
+        state.setActiveTab('pos');
+      }
+    }
+  }, [props.currentUserRole, state.activeTab, state.setActiveTab]);
+
   // Soporte de chat: Notificaciones flotantes
   const [chats, setChats] = useState<SupportChat[]>([]);
   const [mutedChatIds, setMutedChatIds] = useState<string[]>([]);

@@ -54,21 +54,51 @@ const App: React.FC = () => {
     return () => window.removeEventListener('show-exit-toast', handleExitToast);
   }, []);
 
+  // Lógica de control de acceso por roles (RBAC)
+  // Administrador: Acceso total al panel administrativo
+  // Cajero: Acceso exclusivo a POS y Pedidos dentro del panel administrativo
+  // Delivery: Acceso exclusivo a Hoja de Reparto y Pedidos
+  // Usuarios: Navegación, catálogo, soporte chat, carrito y pedidos de clientes
+  const effectiveRole = logic.tempStaffRole || logic.currentUser?.role || 'USER';
+
   if (logic.view === 'DRIVER_DASHBOARD') {
-    return <DriverDashboard orders={logic.orders} onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} />;
+    if (effectiveRole === 'DRIVER' || effectiveRole === 'ADMIN') {
+      return (
+        <DriverDashboard 
+          orders={logic.orders} 
+          onLogout={() => { 
+            logic.setView('HOME'); 
+            logic.setTempStaffRole(null); 
+          }} 
+        />
+      );
+    } else {
+      // Si un usuario normal intenta entrar a reparto sin permisos, volver al inicio
+      logic.setView('HOME');
+      logic.setShowStaffAccess(true);
+    }
   }
 
   if (logic.view === 'ADMIN_DASHBOARD') {
-    return (
-      <AdminPanel 
-        products={logic.products} categories={logic.categories} orders={logic.orders}
-        onAddProduct={addProductDB} onEditProduct={updateProductDB} onDeleteProduct={deleteProductDB} onUpdateStock={updateStockDB}
-        onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB}
-        onLogout={() => { logic.setView('HOME'); logic.setTempStaffRole(null); }} 
-        currentUserRole={logic.tempStaffRole || logic.currentUser?.role}
-        currentUser={logic.currentUser}
-      />
-    );
+    if (effectiveRole === 'ADMIN' || effectiveRole === 'CASHIER') {
+      return (
+        <AdminPanel 
+          products={logic.products} categories={logic.categories} orders={logic.orders}
+          onAddProduct={addProductDB} onEditProduct={updateProductDB} onDeleteProduct={deleteProductDB} onUpdateStock={updateStockDB}
+          onAddCategory={addCategoryDB} onDeleteCategory={deleteCategoryDB} onAddOrder={addOrderDB} onUpdateOrderStatus={updateOrderStatusDB}
+          onLogout={() => { 
+            logic.setView('HOME'); 
+            logic.setTempStaffRole(null); 
+          }} 
+          currentUserRole={effectiveRole}
+          currentUser={logic.currentUser}
+        />
+      );
+    } else {
+      // Si un usuario normal intenta entrar al panel administrativo sin permisos, volver al inicio
+      logic.setView('HOME');
+      logic.setShowStaffAccess(true);
+    }
   }
 
   return (
@@ -108,7 +138,7 @@ const App: React.FC = () => {
           onAddToCart={logic.addToCart} onAddBundle={(b) => logic.addBundleToCart(b, logic.products)} onSelectProduct={logic.setSelectedProduct} 
           cart={logic.cart}
         />
-        <Footer />
+        <Footer onStaffAccessClick={() => logic.setShowStaffAccess(true)} />
       </main>
 
       <BottomNav activeTab={logic.activeTab} onTabChange={logic.handleTabChange} />
@@ -161,6 +191,14 @@ const App: React.FC = () => {
           onClose={() => logic.setShowProfileModal(false)} 
           onAddToCart={(p) => logic.addToCart(p, 'UNIT')}
           onOpenSubscriptions={() => logic.setShowUserSubscriptionsModal(true)}
+          onOpenStaffTerminal={(view, role) => {
+            logic.setTempStaffRole(role);
+            logic.setView(view);
+          }}
+          onOpenStaffAccess={() => {
+            logic.setShowProfileModal(false);
+            logic.setShowStaffAccess(true);
+          }}
         />
       )}
       
