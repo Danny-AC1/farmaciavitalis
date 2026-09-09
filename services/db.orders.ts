@@ -94,10 +94,19 @@ export const deleteOrderDB = async (id: string) => {
   await deleteDoc(doc(firestore, ORDERS_COLLECTION, id));
 };
 
-export const updateOrderStatusDB = async (id: string, status: 'IN_TRANSIT' | 'DELIVERED', order?: Order) => {
+export const updateOrderStatusDB = async (
+  id: string, 
+  status: 'IN_TRANSIT' | 'DELIVERED', 
+  order?: Order,
+  extraData?: Partial<Order>
+) => {
   const orderRef = doc(firestore, ORDERS_COLLECTION, id);
-  // Solo actualizamos el estado. Los puntos ya se gestionaron en addOrderDB para ser inmediatos.
-  await updateDoc(orderRef, { status });
+  // Solo actualizamos el estado y datos adicionales de entrega si aplican
+  const payload: Record<string, any> = { status };
+  if (extraData) {
+    Object.assign(payload, extraData);
+  }
+  await updateDoc(orderRef, payload);
 
   if (order?.userId) {
     const statusText = status === 'IN_TRANSIT' ? 'está en camino 🛵' : 'ha sido entregado con éxito 🚀';

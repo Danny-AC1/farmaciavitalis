@@ -1,61 +1,78 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Order } from '../../types';
 import { updateOrderStatusDB, updateOrderLocationDB } from '../../services/db';
-import { Truck, CheckCircle, LogOut, Navigation, Radio, ClipboardList } from 'lucide-react';
+import { 
+  Truck, CheckCircle, LogOut, Radio, ClipboardList, 
+  Compass, DollarSign, ArrowUpDown, Route 
+} from 'lucide-react';
 import OfflineStatusBar from '../OfflineStatusBar';
 import { DriverActiveOrderCard } from './DriverActiveOrderCard';
 import { DriverHistoryTab } from './DriverHistoryTab';
+import { DriverDeliveryConfirmModal } from './DriverDeliveryConfirmModal';
+import { DriverDriveModeModal } from './DriverDriveModeModal';
+import { DriverShiftLiquidationModal } from './DriverShiftLiquidationModal';
+import { 
+  VITALIS_STORE_LOCATION, 
+  optimizeRouteSequence 
+} from '../../services/driverService';
 
 interface DriverDashboardProps {
   orders: Order[];
   onLogout: () => void;
 }
 
-const VITALIS_LOCATION = { lat: -1.483699, lng: -80.77338 };
-
 const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [isGPSActive, setIsGPSActive] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [sortByProximity, setSortByProximity] = useState(true);
+
+  // Estados para Modales de Primer Nivel
+  const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
+  const [isDriveModeOpen, setIsDriveModeOpen] = useState(false);
+  const [isLiquidationOpen, setIsLiquidationOpen] = useState(false);
+
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const activeOrders = orders.filter((o) => o.status !== 'DELIVERED');
   const inTransitOrders = activeOrders.filter((o) => o.status === 'IN_TRANSIT');
 
+  // Rastreo GPS Continuo con telemetría en tiempo real
   useEffect(() => {
-    if (inTransitOrders.length > 0 && navigator.geolocation) {
+    if (navigator.geolocation) {
       setIsGPSActive(true);
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
+          const { latitude, longitude, accuracy } = position.coords;
+          setGpsAccuracy(Math.round(accuracy));
+          setCurrentGps({ lat: latitude, lng: longitude });
 
           if (
             !lastPosRef.current ||
-            Math.abs(lastPosRef.current.lat - latitude) > 0.0001 ||
-            Math.abs(lastPosRef.current.lng - longitude) > 0.0001
+            Math.abs(lastPosRef.current.lat - latitude) > 0.00008 ||
+            Math.abs(lastPosRef.current.lng - longitude) > 0.00008
           ) {
             lastPosRef.current = { lat: latitude, lng: longitude };
+            // Actualizar ubicación en la nube para cada orden en tránsito
             inTransitOrders.forEach((order) => {
               updateOrderLocationDB(order.id, latitude, longitude);
             });
           }
         },
         (error) => {
-          console.error('Error GPS:', error);
+          console.warn('Alerta GPS:', error);
           setIsGPSActive(false);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 2000 }
       );
-    } else {
-      setIsGPSActive(false);
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
     }
 
     return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
     };
   }, [inTransitOrders.length]);
 
@@ -63,10 +80,38 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
     (o) => o.status === 'DELIVERED' && new Date(o.date).toDateString() === new Date().toDateString()
   );
 
-  const handleStatusChange = async (order: Order, status: 'IN_TRANSIT' | 'DELIVERED') => {
-    if (window.confirm(`¿Cambiar estado a ${status === 'IN_TRANSIT' ? 'En Camino' : 'Entregado'}?`)) {
-      await updateOrderStatusDB(order.id, status, order);
+  // Optimización secuencial de ruta por proximidad
+  const orderedActiveList = useMemo(() => {
+    if (!sortByProximity || activeOrders.length <= 1) {
+      return activeOrders;
     }
+    const origin = currentGps || VITALIS_STORE_LOCATION;
+    const optimized = optimizeRouteSequence(origin, activeOrders);
+    return optimized.map(item => item.order);
+  }, [activeOrders, sortByProximity, currentGps]);
+
+  const handleStartTransit = async (order: Order) => {
+    await updateOrderStatusDB(order.id, 'IN_TRANSIT', order);
+    // Enviar posición inicial de inmediato
+    if (currentGps) {
+      updateOrderLocationDB(order.id, currentGps.lat, currentGps.lng);
+    }
+  };
+
+  const handleConfirmDeliveryPOD = async (
+    order: Order,
+    proofData: {
+      deliveryProofPhoto?: string;
+      paymentProofPhoto?: string;
+      deliveryOtp?: string;
+      driverNotes?: string;
+      changeGiven?: number;
+      paymentConfirmed: boolean;
+      deliveredAt: string;
+    }
+  ) => {
+    await updateOrderStatusDB(order.id, 'DELIVERED', order, proofData);
+    setConfirmingOrder(null);
   };
 
   const openMap = (order: Order) => {
@@ -82,16 +127,25 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
   };
 
   const generateOptimizedRoute = () => {
-    if (inTransitOrders.length === 0) {
-      alert("Primero marca los pedidos como 'Empezar Entrega' para generar la ruta optimizada.");
+    const ordersToRoute = inTransitOrders.length > 0 ? inTransitOrders : activeOrders;
+
+    if (ordersToRoute.length === 0) {
+      alert("No hay pedidos activos para trazar la ruta.");
       return;
     }
 
-    const origin = lastPosRef.current
-      ? `${lastPosRef.current.lat},${lastPosRef.current.lng}`
-      : `${VITALIS_LOCATION.lat},${VITALIS_LOCATION.lng}`;
+    const origin = currentGps
+      ? `${currentGps.lat},${currentGps.lng}`
+      : `${VITALIS_STORE_LOCATION.lat},${VITALIS_STORE_LOCATION.lng}`;
 
-    const stops = inTransitOrders.map((o) => {
+    // Ordenar paradas con nearest neighbor
+    const optimized = optimizeRouteSequence(
+      currentGps || VITALIS_STORE_LOCATION,
+      ordersToRoute
+    );
+
+    const stops = optimized.map((item) => {
+      const o = item.order;
       if (o.lat && o.lng) return `${o.lat},${o.lng}`;
       return encodeURIComponent(o.customerAddress + ', Machalilla, Ecuador');
     });
@@ -100,124 +154,250 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({ orders, onLogout }) =
     const waypoints = stops.join('|');
 
     const baseUrl = 'https://www.google.com/maps/dir/?api=1';
-    const url = `${baseUrl}&origin=${origin}&destination=${finalDestination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+    const url = `${baseUrl}&origin=${origin}&destination=${finalDestination}${
+      waypoints ? `&waypoints=${waypoints}` : ''
+    }&travelmode=driving`;
 
     window.open(url, '_blank');
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-12 font-sans">
+    <div className="min-h-screen bg-slate-100 pb-16 font-sans">
       <OfflineStatusBar />
 
-      {/* Barra de Encabezado */}
-      <div className="bg-teal-900 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 bg-teal-700 rounded-xl flex items-center justify-center shadow-inner">
-            <Truck className="h-5 w-5 text-teal-200" />
+      {/* Barra de Encabezado Superior */}
+      <div className="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-40 border-b border-white/10">
+        <div className="max-w-lg mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 bg-teal-500 text-slate-950 rounded-2xl flex items-center justify-center font-black shadow-md shadow-teal-500/20">
+              <Truck size={20} />
+            </div>
+            <div>
+              <h1 className="font-black text-base uppercase tracking-tight leading-none text-white">
+                Vitalis Delivery Pro
+              </h1>
+              <p className="text-[10px] text-teal-400 font-bold uppercase tracking-widest mt-0.5">
+                Panel Repartidor • Operaciones
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-black text-base uppercase tracking-tight leading-none">Panel de Reparto</h1>
-            <p className="text-[10px] text-teal-300 font-bold uppercase tracking-widest mt-0.5">Vitalis Delivery</p>
+
+          <div className="flex items-center gap-2">
+            {/* Acceso Rápido a Modo Conducción en Moto */}
+            <button
+              onClick={() => setIsDriveModeOpen(true)}
+              className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow cursor-pointer active:scale-95"
+              title="Abrir Modo Conducción / Moto"
+            >
+              <Compass size={14} />
+              <span className="hidden sm:inline">Modo Moto</span>
+            </button>
+
+            {/* Acceso a Cuadre de Turno */}
+            <button
+              onClick={() => setIsLiquidationOpen(true)}
+              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors cursor-pointer"
+              title="Cuadre y Liquidación de Caja"
+            >
+              <DollarSign size={16} />
+            </button>
+
+            {/* Botón Salir */}
+            <button
+              onClick={onLogout}
+              className="p-2 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-xl transition-colors cursor-pointer"
+              title="Cerrar Sesión de Reparto"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {isGPSActive && (
-            <div className="flex items-center gap-1.5 bg-green-500/20 px-2.5 py-1 rounded-xl text-[9px] font-black uppercase text-green-300 border border-green-500/30 animate-pulse">
-              <Radio size={12} /> GPS Activo
-            </div>
-          )}
-          <button
-            onClick={onLogout}
-            className="bg-teal-800 p-2.5 rounded-xl hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-bold"
-            title="Cerrar Sesión de Reparto"
-          >
-            <LogOut size={16} />
-            <span className="hidden sm:inline text-[10px] uppercase font-black">Salir</span>
-          </button>
+
+        {/* Telemetría GPS en Vivo */}
+        <div className="max-w-lg mx-auto mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[10px]">
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+              isGPSActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400'
+            }`}>
+              <Radio size={10} className={isGPSActive ? 'animate-pulse' : ''} />
+              {isGPSActive ? 'GPS en Vivo' : 'Buscando GPS'}
+            </span>
+            {gpsAccuracy !== null && (
+              <span className="text-slate-400">
+                Precisión: ±{gpsAccuracy}m
+              </span>
+            )}
+          </div>
+
+          <span className="text-slate-400 font-mono">
+            {inTransitOrders.length > 0 
+              ? `${inTransitOrders.length} orden(es) en telemetría` 
+              : 'Sin pedidos en ruta'
+            }
+          </span>
         </div>
       </div>
 
-      <div className="p-4 space-y-6 max-w-lg mx-auto">
-        {/* Pestañas: Reparto Activo vs Pedidos */}
-        <div className="bg-slate-200/80 p-1.5 rounded-2xl flex gap-1 shadow-inner">
+      <div className="p-4 space-y-5 max-w-lg mx-auto">
+        
+        {/* Pestañas: Reparto Activo vs Historial */}
+        <div className="bg-slate-200 p-1.5 rounded-2xl flex gap-1 shadow-inner">
           <button
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeTab === 'active'
-                ? 'bg-teal-600 text-white shadow-md'
+                ? 'bg-slate-900 text-white shadow-md'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Truck size={16} />
-            <span>Reparto ({activeOrders.length})</span>
+            <span>Reparto Activo ({activeOrders.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-teal-600 text-white shadow-md'
+                ? 'bg-slate-900 text-white shadow-md'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <ClipboardList size={16} />
-            <span>Pedidos ({deliveredToday.length})</span>
+            <span>Entregas ({deliveredToday.length})</span>
           </button>
         </div>
 
         {/* Contenido Condicional */}
         {activeTab === 'active' ? (
-          <div className="space-y-6 animate-in fade-in duration-150">
-            {/* Métricas rápidas */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-5 rounded-[1.8rem] shadow-sm border-l-4 border-orange-500">
-                <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Pendientes</span>
-                <p className="text-3xl font-black text-slate-800">{activeOrders.length}</p>
+          <div className="space-y-5 animate-in fade-in duration-150">
+            
+            {/* Métricas rápidas de trabajo */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-200/80">
+                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block">
+                  Por Entregar
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-3xl font-black text-slate-900">{activeOrders.length}</p>
+                  <span className="text-[10px] font-bold text-blue-600">
+                    ({inTransitOrders.length} en ruta)
+                  </span>
+                </div>
               </div>
-              <div className="bg-white p-5 rounded-[1.8rem] shadow-sm border-l-4 border-green-500">
-                <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Éxitos Hoy</span>
-                <p className="text-3xl font-black text-slate-800">{deliveredToday.length}</p>
+
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-200/80">
+                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block">
+                  Entregadas Hoy
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-3xl font-black text-emerald-600">{deliveredToday.length}</p>
+                  <span className="text-[10px] font-bold text-slate-400">éxitos</span>
+                </div>
               </div>
             </div>
 
-            {/* Hoja de Ruta Activa */}
-            <div className="flex items-center justify-between border-b border-gray-300 pb-3">
-              <h2 className="font-black text-slate-700 text-xs uppercase tracking-[0.2em]">Hoja de Ruta Activa</h2>
-              {inTransitOrders.length > 0 && (
+            {/* Barra de Herramientas de Hoja de Ruta Inteligente */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSortByProximity(!sortByProximity)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    sortByProximity 
+                      ? 'bg-teal-50 text-teal-800 border border-teal-200' 
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                  title="Ordenar por proximidad geográfica"
+                >
+                  <ArrowUpDown size={13} />
+                  <span>{sortByProximity ? 'Ruta Secuencial ON' : 'Orden Normal'}</span>
+                </button>
+              </div>
+
+              {activeOrders.length > 0 && (
                 <button
                   onClick={generateOptimizedRoute}
-                  className="bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                  title="Generar ruta multi-parada en Google Maps"
                 >
-                  <Navigation size={14} className="animate-pulse" /> Ruta Optimizada ({inTransitOrders.length})
+                  <Route size={14} />
+                  <span>Ruta Multi-Parada</span>
                 </button>
               )}
             </div>
 
-            {activeOrders.length === 0 ? (
-              <div className="text-center py-20 text-gray-400">
-                <div className="bg-white h-24 w-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                  <CheckCircle className="h-12 w-12 text-slate-200" />
+            {/* Lista de Pedidos en Cola */}
+            {orderedActiveList.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/80 p-8">
+                <div className="bg-slate-100 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-10 w-10 text-teal-600" />
                 </div>
-                <p className="font-black uppercase tracking-widest text-sm text-slate-700">Sin entregas pendientes</p>
-                <p className="text-[10px] uppercase font-bold mt-1 text-slate-400">
-                  Los nuevos pedidos aparecerán aquí automáticamente.
+                <p className="font-black uppercase tracking-widest text-sm text-slate-800">
+                  Sin entregas pendientes
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Cuando la farmacia o la tienda web asignen nuevos despachos, se actualizarán aquí al instante.
                 </p>
               </div>
             ) : (
-              activeOrders.map((order) => (
+              orderedActiveList.map((order, idx) => (
                 <DriverActiveOrderCard
                   key={order.id}
                   order={order}
+                  driverGps={currentGps}
+                  sequenceIndex={sortByProximity ? idx : undefined}
                   onCallCustomer={callCustomer}
                   onOpenMap={openMap}
-                  onStatusChange={handleStatusChange}
+                  onStatusChange={(ord, status) => {
+                    if (status === 'IN_TRANSIT') {
+                      handleStartTransit(ord);
+                    } else {
+                      setConfirmingOrder(ord);
+                    }
+                  }}
+                  onOpenDriveMode={() => setIsDriveModeOpen(true)}
+                  onOpenConfirmModal={(ord) => setConfirmingOrder(ord)}
                 />
               ))
             )}
           </div>
         ) : (
-          <DriverHistoryTab deliveredOrders={deliveredToday} />
+          <DriverHistoryTab 
+            deliveredOrders={deliveredToday} 
+            onOpenLiquidation={() => setIsLiquidationOpen(true)} 
+          />
         )}
       </div>
+
+      {/* 1. Modal de Confirmación de Entrega con POD (Prueba Digital de Entrega) */}
+      {confirmingOrder && (
+        <DriverDeliveryConfirmModal
+          order={confirmingOrder}
+          driverGps={currentGps}
+          onClose={() => setConfirmingOrder(null)}
+          onConfirm={handleConfirmDeliveryPOD}
+        />
+      )}
+
+      {/* 2. Modal de Modo Conducción en Moto / Manos Libres */}
+      {isDriveModeOpen && (
+        <DriverDriveModeModal
+          orders={orderedActiveList}
+          driverGps={currentGps}
+          onClose={() => setIsDriveModeOpen(false)}
+          onOpenConfirmDelivery={(ord) => {
+            setIsDriveModeOpen(false);
+            setConfirmingOrder(ord);
+          }}
+        />
+      )}
+
+      {/* 3. Modal de Cuadre de Turno y Liquidación de Caja */}
+      {isLiquidationOpen && (
+        <DriverShiftLiquidationModal
+          deliveredOrders={deliveredToday}
+          onClose={() => setIsLiquidationOpen(false)}
+        />
+      )}
     </div>
   );
 };

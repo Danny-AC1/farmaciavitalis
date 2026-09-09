@@ -4,8 +4,9 @@ import { getOrdersByUserDB, streamCoupons, addCouponDB, updateUserFieldsDB } fro
 import { 
   X, RefreshCw, ShoppingBag, Gift, Star, Trophy, Navigation, Radio, MapPin, 
   Clock, Loader2, Copy, Check, Search, FileText,
-  Truck, ShieldCheck, ChevronDown, ChevronUp, MessageSquare
+  Truck, ShieldCheck, ChevronDown, ChevronUp, MessageSquare, Camera
 } from 'lucide-react';
+import { getOrderDeliveryOtp } from '../../services/driverService';
 
 interface UserOrdersModalProps {
   user: User;
@@ -23,6 +24,7 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
 
   // Mantenemos una referencia de la ID de rastreo para actualizarla sin reiniciar el efecto
   const trackingId = selectedTrackingOrder?.id;
@@ -272,6 +274,21 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                             </div>
                         </div>
 
+                        {/* Código OTP de Entrega para el Cliente */}
+                        <div className="mt-4 p-4 bg-gradient-to-r from-teal-950/80 to-slate-900 rounded-2xl border border-teal-500/40 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-teal-300 flex items-center gap-1.5">
+                              <ShieldCheck size={14} className="text-teal-400" /> Código de Entrega Seguro (OTP)
+                            </p>
+                            <p className="text-xs text-slate-300 mt-0.5">
+                              Muestra este código de 4 dígitos a tu motorizado para validar la entrega
+                            </p>
+                          </div>
+                          <span className="font-mono text-xl font-black text-white bg-teal-500/20 px-3.5 py-1.5 rounded-xl border border-teal-400/40 tracking-widest ml-3">
+                            {getOrderDeliveryOtp(selectedTrackingOrder.id)}
+                          </span>
+                        </div>
+
                         {/* Botón de contacto directo con repartidor */}
                         <div className="mt-4 flex gap-2">
                           <a
@@ -465,6 +482,18 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
                         </div>
                       )}
 
+                      {/* Comprobante de Entrega con Foto */}
+                      {order.deliveryProofPhoto && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingPhoto(order.deliveryProofPhoto!)}
+                          className="w-full mb-3 py-2.5 bg-slate-900/90 hover:bg-slate-900 border border-teal-500/40 text-teal-300 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Camera size={14} className="text-teal-400" />
+                          <span>Ver Foto Comprobante de Entrega (GPS)</span>
+                        </button>
+                      )}
+
                       <div className="flex gap-2">
                         <button 
                           onClick={() => onReorder(order)}
@@ -575,6 +604,38 @@ const UserOrdersModal: React.FC<UserOrdersModalProps> = ({ user, onClose, onReor
             )}
         </div>
       </div>
+
+      {/* Visor de Foto de Comprobante de Entrega con Sello de Agua */}
+      {viewingPhoto && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div 
+            className="bg-slate-900 rounded-3xl overflow-hidden max-w-lg w-full border border-white/10 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 bg-slate-950 flex items-center justify-between border-b border-white/10">
+              <span className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-2">
+                <Camera size={14} className="text-teal-400" /> Comprobante de Entrega Digital
+              </span>
+              <button
+                onClick={() => setViewingPhoto(null)}
+                className="p-1.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-2">
+              <img 
+                src={viewingPhoto} 
+                alt="Comprobante con marca de agua y GPS" 
+                className="w-full max-h-[75vh] object-contain rounded-2xl bg-black"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
